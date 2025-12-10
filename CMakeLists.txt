@@ -26,19 +26,19 @@ endif ()
 
 include_directories(
         ${PROJECT_SOURCE_DIR}
-        ${PROJECT_SOURCE_DIR}/npcap/Include          # pcap路径
         ${PROJECT_SOURCE_DIR}/src/net/net
         ${PROJECT_SOURCE_DIR}/src/plat
         ${PROJECT_SOURCE_DIR}/src/app
 )
 
+# 添加源文件
 file(GLOB_RECURSE SOURCE_LIST "src/*.c" "src/*.h")
+
 add_executable(${PROJECT_NAME} ${SOURCE_LIST})
 
 target_include_directories(tiny_net PRIVATE ${PCAP_INCLUDE_DIR})
-#target_link_libraries(tiny_net PRIVATE ${PCAP_LIBRARY})
 
-add_definitions(-DNET_DRIVER_PCAP)    # use pcap
+add_definitions(-DNET_DRIVER_PCAP)
 
 message(STATUS "current platform: ${CMAKE_HOST_SYSTEM_NAME}")
 if (CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
