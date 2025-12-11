@@ -51,7 +51,11 @@ int main(void)
             buffer[i] = i;
         }
         const uint len = recvPacket(pcap, buffer, sizeof(buffer));
-        if (len <= 0)
+        if (len == 0)
+        {
+            continue;
+        }
+        if (len < 0)
         {
             plat_printf("recvPacket failed\n");
             continue;

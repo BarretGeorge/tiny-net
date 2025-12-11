@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.1)
-project(tiny_net)
+project(tiny-net)
 
 set(CMAKE_C_STANDARD 99)
 
@@ -36,7 +36,7 @@ file(GLOB_RECURSE SOURCE_LIST "src/*.c" "src/*.h")
 
 add_executable(${PROJECT_NAME} ${SOURCE_LIST})
 
-target_include_directories(tiny_net PRIVATE ${PCAP_INCLUDE_DIR})
+target_include_directories(tiny-net PRIVATE ${PCAP_INCLUDE_DIR})
 
 add_definitions(-DNET_DRIVER_PCAP)
 
