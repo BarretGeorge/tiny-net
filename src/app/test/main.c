@@ -58,6 +58,11 @@ int main(void)
 
     net_start();
 
+    while (1)
+    {
+        sys_sleep(100);
+    }
+
     sem = sys_sem_create(0);
     // 创建线程
     sys_thread_create(threadConsume, "ttx");
