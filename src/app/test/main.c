@@ -1,5 +1,6 @@
 ﻿#include <stdio.h>
 #include "sys_plat.h"
+#include "net.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -29,8 +30,39 @@ u_int recvPacket(pcap_t* pcap, uint8_t* buffer, const int len)
     return length;
 }
 
+sys_sem_t sem;
+
+void threadConsume(void* arg)
+{
+    while (1)
+    {
+        sys_sem_wait(sem, 0);
+        sys_sleep(1000);
+        plat_printf("消费者消费一次 arg=%s\n", (char*)arg);
+    }
+}
+
+void threadProduce(void* arg)
+{
+    while (1)
+    {
+        sys_sleep(1500);
+        plat_printf("生产者生产一份完成 arg=%s\n", (char*)arg);
+        sys_sem_notify(sem);
+    }
+}
+
 int main(void)
 {
+    net_init();
+
+    net_start();
+
+    sem = sys_sem_create(0);
+    // 创建线程
+    sys_thread_create(threadConsume, "ttx");
+    sys_thread_create(threadProduce, "ttx");
+
     // 网卡的硬件地址
     static const uint8_t netdev0_hwaddr[] = {0x00, 0x50, 0x56, 0xc0, 0x00, 0x11};
 

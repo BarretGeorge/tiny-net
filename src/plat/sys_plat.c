@@ -417,7 +417,7 @@ void sys_sem_free(sys_sem_t sem)
  */
 int sys_sem_wait(sys_sem_t sem, uint32_t tmo_ms)
 {
-    pthread_mutex_lock(&(sem->locker));
+    pthread_mutex_lock(&sem->locker);
 
     if (sem->count <= 0)
     {
@@ -431,7 +431,7 @@ int sys_sem_wait(sys_sem_t sem, uint32_t tmo_ms)
             ret = pthread_cond_timedwait(&sem->cond, &sem->locker, &ts);
             if (ret == ETIMEDOUT)
             {
-                pthread_mutex_unlock(&(sem->locker));
+                pthread_mutex_unlock(&sem->locker);
                 return -1;
             }
         }
@@ -440,14 +440,14 @@ int sys_sem_wait(sys_sem_t sem, uint32_t tmo_ms)
             ret = pthread_cond_wait(&sem->cond, &sem->locker);
             if (ret < 0)
             {
-                pthread_mutex_unlock(&(sem->locker));
+                pthread_mutex_unlock(&sem->locker);
                 return -1;
             }
         }
     }
 
     sem->count--;
-    pthread_mutex_unlock(&(sem->locker));
+    pthread_mutex_unlock(&sem->locker);
     return 0;
 }
 
