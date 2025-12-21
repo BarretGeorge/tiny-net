@@ -82,14 +82,6 @@ void mblock_test()
 
 int main(void)
 {
-    mblock_test();
-    dbug_error("%s", "test dbug info message");
-    dbug_warn("%s", "test dbug warn message");
-    dbug_info("%s", "test dbug info message");
-    dbug_debug("%s", "test dbug debug message");
-    dbug_trace("%s", "test dbug trace message");
-
-    dbug_assert(1 == 2, "1 is not equal to 2");
     net_init();
 
     net_start();

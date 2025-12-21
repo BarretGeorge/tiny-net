@@ -45,3 +45,13 @@ fail:
     nlocker_destroy(&q->locker);
     return err;
 }
+
+
+void fixq_destroy(fixq_t* q)
+{
+    q->size = q->in = q->out = q->cnt = 0;
+    q->buf = NULL;
+    sys_sem_free(q->recv_sem);
+    sys_sem_free(q->send_sem);
+    nlocker_destroy(&q->locker);
+}
