@@ -1,0 +1,85 @@
+#include "mblock.h"
+
+net_err_t mblock_init(mblock_t* mblock, void* mem, const size_t block_size, const size_t cnt, const nlocker_type_t type)
+{
+    uint8_t* ptr = mem;
+    nlist_init(&mblock->free_list);
+    for (size_t i = 0; i < cnt; i++)
+    {
+        nlist_inset_tail(&mblock->free_list, ptr + i * block_size);
+    }
+    if (nlocker_init(&mblock->lock, type) != NET_ERR_OK)
+    {
+        return NET_ERR_SYS;
+    }
+    if (type != NLOCKER_TYPE_NONE)
+    {
+        mblock->alloc_sem = sys_sem_create((int)cnt);
+        if (mblock->alloc_sem == SYS_SEM_INVALID)
+        {
+            nlocker_destroy(&mblock->lock);
+            return NET_ERR_SYS;
+        }
+    }
+    mblock->start = mem;
+    return NET_ERR_OK;
+}
+
+void* mblock_alloc(mblock_t* mblock, const int32_t timeout_ms)
+{
+    if (timeout_ms > 0 && mblock->lock.type == NLOCKER_TYPE_THREAD)
+    {
+        if (sys_sem_wait(mblock->alloc_sem, timeout_ms) < 0)
+        {
+            return NULL; // 超时或出错
+        }
+    }
+    nlocker_lock(&mblock->lock);
+    const nlist_node_t* node = nlist_remove_and_get_head(&mblock->free_list);
+    nlocker_unlock(&mblock->lock);
+    if (node == NULL)
+    {
+        return NULL;
+    }
+    return node->data;
+}
+
+int mblock_free_cnt(const mblock_t* mblock)
+{
+    if (mblock == NULL)
+    {
+        return -1;
+    }
+    nlocker_lock(&mblock->lock);
+    const int cnt = nlist_size(&mblock->free_list);
+    nlocker_unlock(&mblock->lock);
+    return cnt;
+}
+
+void mblock_free(mblock_t* mblock, void* block)
+{
+    if (block == NULL)
+    {
+        return;
+    }
+    nlocker_lock(&mblock->lock);
+    nlist_inset_tail(&mblock->free_list, block);
+    nlocker_unlock(&mblock->lock);
+    if (mblock->lock.type == NLOCKER_TYPE_THREAD)
+    {
+        sys_sem_notify(mblock->alloc_sem);
+    }
+}
+
+void mblock_destroy(const mblock_t* mblock)
+{
+    if (mblock == NULL)
+    {
+        return;
+    }
+    if (mblock->lock.type != NLOCKER_TYPE_NONE)
+    {
+        sys_sem_free(mblock->alloc_sem);
+    }
+    nlocker_destroy(&mblock->lock);
+}
