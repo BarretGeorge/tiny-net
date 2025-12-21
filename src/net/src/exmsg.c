@@ -8,6 +8,7 @@ net_err_t exmsg_init()
 
 static void work_thread(void* arg)
 {
+    plat_printf("exmsg work_thread started\n");
     while (1)
     {
         // 处理扩展消息

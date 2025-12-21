@@ -1,6 +1,6 @@
 #include "net_plat.h"
 
-void net_plat_init(void)
+net_err_t net_plat_init(void)
 {
-
+    return NET_ERR_OK;
 }

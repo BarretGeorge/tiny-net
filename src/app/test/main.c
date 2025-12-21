@@ -1,6 +1,7 @@
 ﻿#include <stdio.h>
 #include "sys_plat.h"
 #include "net.h"
+#include "netif_pcap.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -52,11 +53,19 @@ void threadProduce(void* arg)
     }
 }
 
+net_err_t netdev_init(void)
+{
+    netif_pcap_open();
+    return NET_ERR_OK;
+}
+
 int main(void)
 {
     net_init();
 
     net_start();
+
+    netdev_init();
 
     while (1)
     {
