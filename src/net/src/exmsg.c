@@ -45,11 +45,19 @@ fail:
 
 static void work_thread(void* arg)
 {
-    plat_printf("exmsg work_thread started\n");
+    dbug_info("exmsg work_thread started");
     while (1)
     {
-        // 处理扩展消息
-        sys_sleep(100);
+        exmsg_t* msg = fixq_recv(&msg_queue, -1);
+        if (msg == NULL)
+        {
+            continue;
+        }
+        // 打印消息id 模拟处理消息
+        dbug_info("exmsg work_thread: received msg type=%d, id=%d", msg->type, msg->id);
+
+        // 释放消息内存块
+        mblock_free(&msg_mblock, msg);
     }
 }
 
@@ -60,5 +68,26 @@ net_err_t exmsg_start()
     {
         return NET_ERR_SYS;
     }
+    return NET_ERR_OK;
+}
+
+net_err_t exmsg_netif_in()
+{
+    exmsg_t* msg = mblock_alloc(&msg_mblock, -1);
+    if (msg == NULL)
+    {
+        dbug_warn("no free exmsg block");
+        return NET_ERR_MEM;
+    }
+    static int counter = 0;
+    msg->type = NET_EXMSG_TYPE_NETIF_IN;
+    msg->id = ++counter;
+    if (fixq_send(&msg_queue, msg, -1) != NET_ERR_OK)
+    {
+        dbug_error("fixq full");
+        mblock_free(&msg_mblock, msg);
+        return NET_ERR_MEM;
+    }
+    dbug_info("发送 exmsg netif_in 消息, id=%d", msg->id);
     return NET_ERR_OK;
 }

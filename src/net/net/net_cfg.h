@@ -1,6 +1,6 @@
 #ifndef TINY_NET_NET_CFG_H
 #define TINY_NET_NET_CFG_H
 
-#define EXMSG_QUEUE_SIZE 128
+#define EXMSG_QUEUE_SIZE 10
 
 #endif //TINY_NET_NET_CFG_H

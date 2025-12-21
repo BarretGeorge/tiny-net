@@ -18,6 +18,12 @@ typedef struct fixq_t
 
 net_err_t fixq_init(fixq_t* q, void** buf, int size, nlocker_type_t share_type);
 
+net_err_t fixq_send(fixq_t* q, void* msg, int32_t timeout_ms);
+
+void *fixq_recv(fixq_t* q, int32_t timeout_ms);
+
 void fixq_destroy(fixq_t* q);
+
+int fixq_count(const fixq_t* q);
 
 #endif //TINY_NET_FIXQ_H

@@ -12,11 +12,14 @@ typedef enum exmsg_type_t
 typedef struct exmsg_t
 {
     exmsg_type_t type;
-    void* data;
+    // void* data;
+    int id;
 } exmsg_t;
 
 net_err_t exmsg_init();
 
 net_err_t exmsg_start();
+
+net_err_t exmsg_netif_in();
 
 #endif //TINY_NET_EXMSG_H
