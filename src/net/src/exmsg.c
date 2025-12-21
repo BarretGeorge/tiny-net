@@ -12,7 +12,7 @@ static void work_thread(void* arg)
     while (1)
     {
         // 处理扩展消息
-        sys_sleep(1000);
+        sys_sleep(100);
     }
 }
 
