@@ -2,19 +2,39 @@
 
 #include <stdlib.h>
 
-nlist_node_t* nlist_insert_node(nlist_t* list, nlist_node_t* prev, nlist_node_t* next, void* data)
+void nlist_insert_before(nlist_t* list, nlist_node_t* next, nlist_node_t* node)
+{
+    if (list == NULL || next == NULL) return;
+
+    if (next == list->head)
+    {
+        nlist_inset_head(list, node);
+        return;
+    }
+    nlist_insert(list, next->prev, next, node);
+}
+
+void nlist_insert_after(nlist_t* list, nlist_node_t* prev, nlist_node_t* node)
+{
+    if (list == NULL || prev == NULL) return;
+
+    if (prev == list->tail)
+    {
+        nlist_inset_tail(list, node);
+        return;
+    }
+    nlist_insert(list, prev, prev->next, node);
+}
+
+nlist_node_t* nlist_insert(nlist_t* list, nlist_node_t* prev, nlist_node_t* next, nlist_node_t* node)
 {
     if (list == NULL)
     {
         return NULL;
     }
-    // 创建节点
-    nlist_node_t* node = malloc(sizeof(nlist_node_t));
-    if (node == NULL)
-    {
-        return NULL;
-    }
-    nlist_node_init(node, data, prev, next);
+
+    node->prev = prev;
+    node->next = next;
 
     if (prev != NULL)
     {
@@ -38,7 +58,8 @@ nlist_node_t* nlist_insert_node(nlist_t* list, nlist_node_t* prev, nlist_node_t*
     return node;
 }
 
-nlist_node_t* nlist_insert_index(nlist_t* list, const int index, void* data)
+
+nlist_node_t* nlist_insert_index(nlist_t* list, const int index, nlist_node_t* node)
 {
     if (list == NULL || index < 0 || index > list->size)
     {
@@ -48,13 +69,13 @@ nlist_node_t* nlist_insert_index(nlist_t* list, const int index, void* data)
     // 头部插入
     if (index == 0)
     {
-        return nlist_insert_node(list, NULL, list->head, data);
+        return nlist_insert(list, NULL, list->head, node);
     }
 
     // 尾部插入
     if (index == list->size)
     {
-        return nlist_insert_node(list, list->tail, NULL, data);
+        return nlist_insert(list, list->tail, NULL, node);
     }
 
     int pos = 0;
@@ -80,17 +101,17 @@ nlist_node_t* nlist_insert_index(nlist_t* list, const int index, void* data)
             pos++;
         }
     }
-    return nlist_insert_node(list, temp->prev, temp, data);
+    return nlist_insert(list, temp->prev, temp, node);
 }
 
-nlist_node_t* nlist_inset_head(nlist_t* list, void* data)
+nlist_node_t* nlist_inset_head(nlist_t* list, nlist_node_t* node)
 {
-    return nlist_insert_index(list, 0, data);
+    return nlist_insert_index(list, 0, node);
 }
 
-nlist_node_t* nlist_inset_tail(nlist_t* list, void* data)
+nlist_node_t* nlist_inset_tail(nlist_t* list, nlist_node_t* node)
 {
-    return nlist_insert_index(list, list->size, data);
+    return nlist_insert_index(list, list->size, node);
 }
 
 void nlist_for_each(const nlist_t* list, const nlist_for_each_cb_t cb)
@@ -113,7 +134,7 @@ bool nlist_remove_head(nlist_t* list)
     {
         return false;
     }
-    return nlist_remove_node(list, list->head, true);
+    return nlist_remove_node(list, list->head);
 }
 
 bool nlist_remove_tail(nlist_t* list)
@@ -122,10 +143,10 @@ bool nlist_remove_tail(nlist_t* list)
     {
         return false;
     }
-    return nlist_remove_node(list, list->tail, true);
+    return nlist_remove_node(list, list->tail);
 }
 
-bool nlist_remove_node(nlist_t* list, nlist_node_t* node, bool free_node)
+bool nlist_remove_node(nlist_t* list, nlist_node_t* node)
 {
     if (list == NULL || node == NULL)
     {
@@ -151,11 +172,6 @@ bool nlist_remove_node(nlist_t* list, nlist_node_t* node, bool free_node)
     }
 
     node->prev = node->next = NULL;
-    if (free_node)
-    {
-        node->data = NULL;
-        free(node);
-    }
 
     list->size--;
     return true;
@@ -169,11 +185,11 @@ bool nlist_remove_index(nlist_t* list, const int index)
     }
     if (index == 0)
     {
-        return nlist_remove_node(list, list->head, true);
+        return nlist_remove_node(list, list->head);
     }
     if (index == list->size - 1)
     {
-        return nlist_remove_node(list, list->tail, true);
+        return nlist_remove_node(list, list->tail);
     }
 
     int pos = 0;
@@ -198,7 +214,7 @@ bool nlist_remove_index(nlist_t* list, const int index)
             pos++;
         }
     }
-    return nlist_remove_node(list, temp, true);
+    return nlist_remove_node(list, temp);
 }
 
 void nlist_clear(nlist_t* list)
@@ -212,7 +228,6 @@ void nlist_clear(nlist_t* list)
     {
         nlist_node_t* next = temp->next;
         temp->prev = temp->next = temp->data = NULL;
-        free(temp);
         temp = next;
     }
     list->head = NULL;
@@ -225,7 +240,7 @@ nlist_node_t* nlist_remove_and_get_head(nlist_t* list)
     nlist_node_t* node = list->head;
     if (node != NULL)
     {
-        nlist_remove_node(list, node, false);
+        nlist_remove_node(list, node);
     }
     return node;
 }
@@ -235,7 +250,7 @@ nlist_node_t* nlist_remove_and_get_tail(nlist_t* list)
     nlist_node_t* node = list->tail;
     if (node != NULL)
     {
-        nlist_remove_node(list, node, false);
+        nlist_remove_node(list, node);
     }
     return node;
 }

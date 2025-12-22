@@ -32,9 +32,11 @@ include_directories(
 )
 
 # 添加源文件
-file(GLOB_RECURSE SOURCE_LIST "src/*.c" "src/*.h")
+file(GLOB_RECURSE SOURCE_LIST "src/net/*.c" "src/net/*.h" "src/plat/*.c" "src/plat/*.h")
 
-add_executable(${PROJECT_NAME} ${SOURCE_LIST})
+add_executable(${PROJECT_NAME} src/app/cmd/main.c ${SOURCE_LIST})
+
+add_executable(${PROJECT_NAME}_test src/app/test/main.c ${SOURCE_LIST})
 
 target_include_directories(tiny-net PRIVATE ${PCAP_INCLUDE_DIR})
 
@@ -44,9 +46,11 @@ message(STATUS "current platform: ${CMAKE_HOST_SYSTEM_NAME}")
 if (CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
     add_definitions(-DSYS_PLAT_WINDOWS)
     target_link_libraries(${PROJECT_NAME} wpcap packet Ws2_32)
+    target_link_libraries(${PROJECT_NAME}_test wpcap packet Ws2_32)
 else ()
     # Linux和Mac上的特定配置
     add_definitions(-DSYS_PLAT_LINUX)
     target_link_libraries(${PROJECT_NAME} pthread pcap)
+    target_link_libraries(${PROJECT_NAME}_test pthread pcap)
 endif ()
 

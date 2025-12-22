@@ -4,14 +4,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef void (*nlist_for_each_cb_t)(void* data);
-
 typedef struct nlist_node_t
 {
     void* data;
     struct nlist_node_t* prev;
     struct nlist_node_t* next;
 } nlist_node_t;
+
+typedef void (*nlist_for_each_cb_t)(void* data);
 
 static inline void nlist_node_init(nlist_node_t* node, void* data, nlist_node_t* prev, nlist_node_t* next)
 {
@@ -44,13 +44,17 @@ static inline int nlist_size(const nlist_t* list)
     return list->size;
 }
 
-nlist_node_t* nlist_insert_node(nlist_t* list, nlist_node_t* prev, nlist_node_t* next, void* data);
+void nlist_insert_before(nlist_t* list, nlist_node_t* next, nlist_node_t* node);
 
-nlist_node_t* nlist_insert_index(nlist_t* list, int index, void* data);
+void nlist_insert_after(nlist_t* list, nlist_node_t* prev, nlist_node_t* node);
 
-nlist_node_t* nlist_inset_head(nlist_t* list, void* data);
+nlist_node_t* nlist_inset_tail(nlist_t* list, nlist_node_t* node);
 
-nlist_node_t* nlist_inset_tail(nlist_t* list, void* data);
+nlist_node_t* nlist_inset_head(nlist_t* list, nlist_node_t* node);
+
+nlist_node_t* nlist_insert(nlist_t* list, nlist_node_t* prev, nlist_node_t* next, nlist_node_t* node);
+
+nlist_node_t* nlist_insert_index(nlist_t* list, int index, nlist_node_t* node);
 
 void nlist_for_each(const nlist_t* list, nlist_for_each_cb_t cb);
 
@@ -58,7 +62,7 @@ bool nlist_remove_head(nlist_t* list);
 
 bool nlist_remove_tail(nlist_t* list);
 
-bool nlist_remove_node(nlist_t* list, nlist_node_t* node, bool free_node);
+bool nlist_remove_node(nlist_t* list, nlist_node_t* node);
 
 bool nlist_remove_index(nlist_t* list, int index);
 

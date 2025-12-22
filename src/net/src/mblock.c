@@ -6,7 +6,9 @@ net_err_t mblock_init(mblock_t* mblock, void* mem, const size_t block_size, cons
     nlist_init(&mblock->free_list);
     for (size_t i = 0; i < cnt; i++)
     {
-        nlist_inset_tail(&mblock->free_list, ptr + i * block_size);
+        nlist_node_t* block = (nlist_node_t*)(ptr + i * block_size);
+        nlist_node_init(block, ptr + i * block_size, NULL, NULL);
+        nlist_inset_tail(&mblock->free_list, block);
     }
     if (nlocker_init(&mblock->lock, type) != NET_ERR_OK)
     {

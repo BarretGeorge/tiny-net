@@ -1,10 +1,9 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include "sys_plat.h"
 #include "net.h"
 #include "netif_pcap.h"
 #include "dbug.h"
 #include "mblock.h"
-#include "pktbuf.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -81,63 +80,18 @@ void mblock_test()
     }
 }
 
-void pktbuf_test()
-{
-    pktbuf_init();
-    pktbuf_t* pktbuf = pktbuf_alloc(2000);
-    plat_printf("alloc pktbuf=%p,total_size=%d\n", pktbuf, pktbuf->total_size);
-    pktbuf_free(pktbuf);
-    plat_printf("free pktbuf=%p\n", pktbuf);
-}
-
-void print_node_callback(void* arg)
-{
-    plat_printf("node data=%s\n", (char*)arg);
-}
-
-void nlist_test()
-{
-    nlist_t list;
-    nlist_init(&list);
-
-    plat_printf("nlist is empty=%d,size=%d\n", nlist_is_empty(&list), nlist_size(&list));
-
-    nlist_node_t** nodes = malloc(sizeof(nlist_node_t*) * 10);
-
-    for (int i = 0; i < 10; i++)
-    {
-        nodes[i] = (nlist_node_t*)malloc(sizeof(nlist_node_t));
-        nlist_node_init(nodes[i], "c", NULL, NULL);
-        nlist_inset_tail(&list, nodes[i]);
-        plat_printf("insert node %d, list size=%d\n", i, nlist_size(&list));
-    }
-
-    nlist_for_each(&list, print_node_callback);
-
-    for (int i = 0; i < 5; i++)
-    {
-        nlist_remove_head(&list);
-        plat_printf("remove head node,list size=%d\n", nlist_size(&list));
-    }
-    nlist_for_each(&list, print_node_callback);
-
-    // free
-    for (int i = 0; i < 10; i++)
-    {
-        free(nodes[i]);
-    }
-    free(nodes);
-}
-
 int main(void)
 {
-    nlist_test();
+    net_init();
 
-    mblock_test();
+    net_start();
 
-    pktbuf_test();
+    netdev_init();
 
-    return 0;
+    while (1)
+    {
+        sys_sleep(100);
+    }
 
     sem = sys_sem_create(0);
     // 创建线程

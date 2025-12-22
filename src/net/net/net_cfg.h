@@ -3,4 +3,10 @@
 
 #define EXMSG_QUEUE_SIZE 10
 
+#define PKTBUF_PAYLOAD_SIZE 128
+
+#define PKTBUF_BLK_COUNT 100
+
+#define PKTBUF_BUF_COUNT 100
+
 #endif //TINY_NET_NET_CFG_H
