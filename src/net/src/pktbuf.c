@@ -13,6 +13,76 @@ static pktbuf_t pktbuf_buffer[PKTBUF_BUF_COUNT];
 
 static mblock_t pktbuf_list;
 
+static long curr_blk_tail_free(const pktblk_t* curr)
+{
+    return curr->payload + PKTBUF_PAYLOAD_SIZE - (curr->data + curr->size);
+}
+
+// static void pktblock_free_list(pktblk_t* first)
+// {
+//     while (first)
+//     {
+//         pktblk_t* next = pktblock_get_next(first);
+//         mblock_free(&block_list, first);
+//         first = next;
+//     }
+// }
+
+static pktblk_t* pktbuf_first_blk(const pktbuf_t* pktbuf)
+{
+    if (pktbuf->blk_list.head)
+    {
+        return pktbuf->blk_list.head->data;
+    }
+    return NULL;
+}
+
+#if DBG_DISPLAY_ENABLE(DBG_BUG)
+static void display_check_buf(const pktbuf_t* pktbuf)
+{
+    if (!pktbuf)
+    {
+        dbug_error("pktbuf is NULL");
+        return;
+    }
+    dbug_info("pktbuf total_size=%d", pktbuf->total_size);
+    uint32_t total_size = 0;
+    const pktblk_t* curr = NULL;
+    int idx = 0;
+
+    for (curr = pktbuf_first_blk(pktbuf); curr != NULL; curr = pktblock_get_next(curr))
+    {
+        plat_printf("idx:%d ,", idx++);
+
+        if ((curr->data < curr->payload) || (curr->data > (curr->payload + PKTBUF_PAYLOAD_SIZE)))
+        {
+            dbug_error("pktblk data ptr error,addr=%p", curr->data);
+            break;
+        }
+
+        const long pre_size = curr->data - curr->payload;
+        plat_printf("pre: %ld b,", pre_size);
+        const uint32_t used_size = curr->size;
+        plat_printf("used: %d b,", used_size);
+        const long free_size = curr_blk_tail_free(curr);
+        plat_printf("free: %ld b\n", free_size);
+
+        const long total = pre_size + used_size + free_size;
+        if (total != PKTBUF_PAYLOAD_SIZE)
+        {
+            dbug_error("pktblk size error,total=%ld", total);
+        }
+        total_size += curr->size;
+    }
+    if (total_size != pktbuf->total_size)
+    {
+        dbug_error("pktbuf total_size error,calc=%d,buf=%d", total_size, pktbuf->total_size);
+    }
+}
+#else
+#define display_pktbuf(buf)
+#endif
+
 net_err_t pktbuf_init()
 {
     dbug_info("pktbuf init...");
@@ -21,10 +91,10 @@ net_err_t pktbuf_init()
     nlocker_init(&locker, NLOCKER_TYPE_THREAD);
 
     // 初始化 pktblk_t 内存块管理器
-    mblock_init(&block_list, block_buffer, PKTBUF_BLK_COUNT, sizeof(pktblk_t), NLOCKER_TYPE_THREAD);
+    mblock_init(&block_list, block_buffer, sizeof(pktblk_t), PKTBUF_BLK_COUNT, NLOCKER_TYPE_THREAD);
 
     // 初始化 pktbuf 内存块管理器
-    mblock_init(&pktbuf_list, pktbuf_buffer, PKTBUF_BUF_COUNT, sizeof(pktbuf_t), NLOCKER_TYPE_THREAD);
+    mblock_init(&pktbuf_list, pktbuf_buffer, sizeof(pktbuf_t),PKTBUF_BUF_COUNT, NLOCKER_TYPE_THREAD);
 
     dbug_info("pktbuf init ok");
     return NET_ERR_OK;
@@ -92,15 +162,6 @@ static pktblk_t* pktblock_alloc_list(int size, const bool is_head)
     return first_blk;
 }
 
-static pktblk_t* pktblock_get_next(const pktblk_t* block)
-{
-    if (block == NULL || block->node.next == NULL)
-    {
-        return NULL;
-    }
-    return (pktblk_t*)block->node.next->data;
-}
-
 static void pktbuf_insert_blk_list(pktbuf_t* buf, pktblk_t* block, const bool is_head)
 {
     if (is_head) // 头插法
@@ -146,29 +207,46 @@ pktbuf_t* pktbuf_alloc(const int size)
     buf->total_size = 0;
     nlist_init(&buf->blk_list);
     nlist_node_init(&buf->node, NULL, NULL, NULL);
+
+    bool is_head = true;
+    if (size > 1000)
+    {
+        is_head = false;
+    }
+
     if (size)
     {
-        pktblk_t* block = pktblock_alloc_list(size, false);
+        pktblk_t* block = pktblock_alloc_list(size, is_head);
         if (block == NULL)
         {
             dbug_error("pktblock alloc list failed");
             mblock_free(&pktbuf_list, buf);
             return NULL;
         }
-
-        // todo 根据 size 大小决定头插法还是尾插法
-        if (size > 1000)
-        {
-            pktbuf_insert_blk_list(buf, block, false);
-        }
-        else
-        {
-            pktbuf_insert_blk_list(buf, block, true);
-        }
+        pktbuf_insert_blk_list(buf, block, is_head);
     }
+    display_check_buf(buf);
     return buf;
 }
 
 void pktbuf_free(pktbuf_t* pktbuf)
 {
+    if (!pktbuf) return;
+
+    nlocker_lock(&locker);
+
+    // free 块链表
+    // pktblock_free_list(pktbuf_first_blk(pktbuf));
+    pktblk_t* curr = pktbuf_first_blk(pktbuf);
+    while (curr)
+    {
+        pktblk_t* next = pktblock_get_next(curr);
+        mblock_free(&block_list, curr);
+        curr = next;
+    }
+
+    // free pktbuf
+    mblock_free(&pktbuf_list, pktbuf);
+
+    nlocker_unlock(&locker);
 }

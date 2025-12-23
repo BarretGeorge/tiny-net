@@ -11,6 +11,8 @@ typedef enum debug_level_t
     DBUG_LEVEL_TRACE,
 } debug_level_t;
 
+#define DBG_DISPLAY_ENABLE(model) (model >= DBUG_LEVEL_INFO)
+
 void dbug_printf(debug_level_t level, const char* file, const char* func, int line, const char* fmt, ...);
 
 #define dbug_info(fmt, ...) dbug_printf(DBUG_LEVEL_INFO, __FILE__, __FUNCTION__, __LINE__, fmt, ##__VA_ARGS__)

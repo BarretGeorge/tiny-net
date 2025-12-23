@@ -27,4 +27,22 @@ pktbuf_t* pktbuf_alloc(int size);
 
 void pktbuf_free(pktbuf_t* pktbuf);
 
+static inline pktblk_t* pktblock_get_next(const pktblk_t* block)
+{
+    if (block == NULL || block->node.next == NULL)
+    {
+        return NULL;
+    }
+    return block->node.next->data;
+}
+
+static inline pktblk_t* pktblock_get_prev(const pktblk_t* block)
+{
+    if (block == NULL || block->node.prev == NULL)
+    {
+        return NULL;
+    }
+    return block->node.prev->data;
+}
+
 #endif //TINY_NET_PKTBUF_H

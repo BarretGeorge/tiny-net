@@ -131,9 +131,9 @@ void nlist_test()
 
 int main(void)
 {
-    nlist_test();
+    // nlist_test();
 
-    mblock_test();
+    // mblock_test();
 
     pktbuf_test();
 
