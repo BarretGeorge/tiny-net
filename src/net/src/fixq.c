@@ -32,6 +32,7 @@ net_err_t fixq_init(fixq_t* q, void** buf, const int size, const nlocker_type_t 
     q->out = 0;
     q->cnt = 0;
     q->buf = buf;
+    return NET_ERR_OK;
 
 fail:
     if (q->recv_sem != SYS_SEM_INVALID)
