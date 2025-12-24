@@ -1,8 +1,8 @@
 #ifndef TINY_NET_PKTBUF_H
 #define TINY_NET_PKTBUF_H
 
+#include <stdbool.h>
 #include <stddef.h>
-
 #include "net_err.h"
 #include "nlist.h"
 #include "net_cfg.h"
@@ -40,5 +40,7 @@ static inline pktblk_t* pktblock_get_prev(const pktblk_t* block)
     nlist_node_t* prev = nlist_node_prev(&block->node);
     return nlist_entry(prev, pktblk_t, node);
 }
+
+net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, bool is_cont);
 
 #endif //TINY_NET_PKTBUF_H

@@ -250,3 +250,51 @@ void pktbuf_free(pktbuf_t* pktbuf)
 
     nlocker_unlock(&locker);
 }
+
+net_err_t pktbuf_add_header(pktbuf_t* pktbuf, const int size, bool is_cont)
+{
+    if (!pktbuf || size <= 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    pktblk_t* block = pktbuf_first_blk(pktbuf);
+
+    // 获取剩余空间
+    const int remain_size = (int)(block->data - block->payload);
+    if (size <= remain_size)
+    {
+        block->size += size;
+        block->data -= size;
+        pktbuf->total_size += size;
+        display_check_buf(pktbuf);
+        return NET_ERR_OK;
+    }
+
+    pktblk_t* new_blk = NULL;
+    if (is_cont) // 需要连续空间
+    {
+        if (size > PKTBUF_PAYLOAD_SIZE)
+        {
+            dbug_error("pktbuf add header size too large for cont,size=%d", size);
+            return NET_ERR_INVALID_PARAM;
+        }
+        // 分配新块
+        new_blk = pktblock_alloc_list(size, true);
+    }
+    else
+    {
+        // 非连续空间，分配多块
+        // new_blk = pktblock_alloc_list(size, true);
+    }
+
+    if (new_blk == NULL)
+    {
+        dbug_error("pktblock alloc failed");
+        return NET_ERR_MEM;
+    }
+
+    pktbuf_insert_blk_list(pktbuf, new_blk, true);
+    display_check_buf(pktbuf);
+    return NET_ERR_OK;
+}

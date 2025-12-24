@@ -7,7 +7,7 @@ void recv_thread(void* arg)
     plat_printf("pcap recv_thread started\n");
     while (1)
     {
-        sys_sleep(1000);
+        sys_sleep(200);
         exmsg_netif_in();
     }
 }

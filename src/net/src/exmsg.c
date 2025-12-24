@@ -48,6 +48,7 @@ static void work_thread(void* arg)
     dbug_info("exmsg work_thread started");
     while (1)
     {
+        // 接收消息，阻塞等待
         exmsg_t* msg = fixq_recv(&msg_queue, -1);
         if (msg == NULL)
         {
