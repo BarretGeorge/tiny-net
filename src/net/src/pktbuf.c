@@ -1,4 +1,7 @@
 #include "pktbuf.h"
+
+#include <stdbool.h>
+
 #include "dbug.h"
 #include "mblock.h"
 #include "nlocker.h"
@@ -30,11 +33,8 @@ static long curr_blk_tail_free(const pktblk_t* curr)
 
 static pktblk_t* pktbuf_first_blk(const pktbuf_t* pktbuf)
 {
-    if (pktbuf->blk_list.head)
-    {
-        return pktbuf->blk_list.head->data;
-    }
-    return NULL;
+    nlist_node_t* first = nlist_first(&pktbuf->blk_list);
+    return nlist_entry(first, pktblk_t, node);
 }
 
 #if DBG_DISPLAY_ENABLE(DBG_BUG)
@@ -109,7 +109,7 @@ static pktblk_t* pktblock_alloc()
     {
         blk->size = 0;
         blk->data = 0;
-        nlist_node_init(&blk->node, blk, NULL, NULL);
+        nlist_node_init(&blk->node);
     }
     return blk;
 }
@@ -178,7 +178,7 @@ static void pktbuf_insert_blk_list(pktbuf_t* buf, pktblk_t* block, const bool is
             }
             else
             {
-                nlist_inset_head(&buf->blk_list, &block->node);
+                nlist_insert_first(&buf->blk_list, &block->node);
             }
             prev_blk = block;
             block = next_blk;
@@ -189,7 +189,7 @@ static void pktbuf_insert_blk_list(pktbuf_t* buf, pktblk_t* block, const bool is
         while (block)
         {
             pktblk_t* next_blk = pktblock_get_next(block);
-            nlist_inset_tail(&buf->blk_list, &block->node);
+            nlist_insert_last(&buf->blk_list, &block->node);
             buf->total_size += block->size;
             block = next_blk;
         }
@@ -206,7 +206,7 @@ pktbuf_t* pktbuf_alloc(const int size)
     }
     buf->total_size = 0;
     nlist_init(&buf->blk_list);
-    nlist_node_init(&buf->node, NULL, NULL, NULL);
+    nlist_node_init(&buf->node);
 
     bool is_head = true;
     if (size > 1000)

@@ -2,13 +2,13 @@
 
 net_err_t mblock_init(mblock_t* mblock, void* mem, const size_t block_size, const size_t cnt, const nlocker_type_t type)
 {
-    uint8_t* ptr = mem;
+    uint8_t* buf = mem;
     nlist_init(&mblock->free_list);
     for (size_t i = 0; i < cnt; i++)
     {
-        nlist_node_t* block = (nlist_node_t*)(ptr + i * block_size);
-        nlist_node_init(block, ptr + i * block_size, NULL, NULL);
-        nlist_inset_tail(&mblock->free_list, block);
+        nlist_node_t* block = (nlist_node_t*)(buf + i * block_size);
+        nlist_node_init(block);
+        nlist_insert_last(&mblock->free_list, block);
     }
     if (nlocker_init(&mblock->lock, type) != NET_ERR_OK)
     {
@@ -37,13 +37,9 @@ void* mblock_alloc(mblock_t* mblock, const int32_t timeout_ms)
         }
     }
     nlocker_lock(&mblock->lock);
-    const nlist_node_t* node = nlist_remove_and_get_head(&mblock->free_list);
+    nlist_node_t* block = nlist_remove_first(&mblock->free_list);
     nlocker_unlock(&mblock->lock);
-    if (node == NULL)
-    {
-        return NULL;
-    }
-    return node->data;
+    return block;
 }
 
 int mblock_free_cnt(const mblock_t* mblock)
@@ -53,7 +49,7 @@ int mblock_free_cnt(const mblock_t* mblock)
         return -1;
     }
     nlocker_lock(&mblock->lock);
-    const int cnt = nlist_size(&mblock->free_list);
+    const int cnt = nlist_count(&mblock->free_list);
     nlocker_unlock(&mblock->lock);
     return cnt;
 }
@@ -65,7 +61,7 @@ void mblock_free(mblock_t* mblock, void* block)
         return;
     }
     nlocker_lock(&mblock->lock);
-    nlist_inset_tail(&mblock->free_list, block);
+    nlist_insert_last(&mblock->free_list, block);
     nlocker_unlock(&mblock->lock);
     if (mblock->lock.type == NLOCKER_TYPE_THREAD)
     {

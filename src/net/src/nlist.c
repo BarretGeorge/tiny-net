@@ -1,256 +1,139 @@
 #include "nlist.h"
 
-#include <stdlib.h>
-
-void nlist_insert_before(nlist_t* list, nlist_node_t* next, nlist_node_t* node)
+/**
+ * 初始化链表
+ * @param list 待初始化的链表
+ */
+void nlist_init(nlist_t* list)
 {
-    if (list == NULL || next == NULL) return;
+    list->first = list->last = (nlist_node_t*)0;
+    list->count = 0;
+}
 
-    if (next == list->head)
+/**
+ * 将指定表项插入到指定链表的头部
+ * @param list 待插入的链表
+ * @param node 待插入的结点
+ */
+void nlist_insert_first(nlist_t* list, nlist_node_t* node)
+{
+    // 设置好待插入结点的前后，前面为空
+    node->next = list->first;
+    node->prev = (nlist_node_t*)0;
+
+    // 如果为空，需要同时设置first和last指向自己
+    if (nlist_is_empty(list))
     {
-        nlist_inset_head(list, node);
+        list->last = list->first = node;
+    }
+    else
+    {
+        // 否则，设置好原本第一个结点的pre
+        list->first->prev = node;
+
+        // 调整first指向
+        list->first = node;
+    }
+
+    list->count++;
+}
+
+/**
+ * 移除指定链表的中的表项
+ * 不检查node是否在结点中
+ */
+nlist_node_t* nlist_remove(nlist_t* list, nlist_node_t* remove_node)
+{
+    // 如果是头，头往前移
+    if (remove_node == list->first)
+    {
+        list->first = remove_node->next;
+    }
+
+    // 如果是尾，则尾往回移
+    if (remove_node == list->last)
+    {
+        list->last = remove_node->prev;
+    }
+
+    // 如果有前，则调整前的后继
+    if (remove_node->prev)
+    {
+        remove_node->prev->next = remove_node->next;
+    }
+
+    // 如果有后，则调整后往前的
+    if (remove_node->next)
+    {
+        remove_node->next->prev = remove_node->prev;
+    }
+
+    // 清空node指向
+    remove_node->prev = remove_node->next = (nlist_node_t*)0;
+    --list->count;
+    return remove_node;
+}
+
+/**
+ * 将指定表项插入到指定链表的尾部
+ * @param list 操作的链表
+ * @param node 待插入的结点
+ */
+void nlist_insert_last(nlist_t* list, nlist_node_t* node)
+{
+    // 设置好结点本身
+    node->prev = list->last;
+    node->next = (nlist_node_t*)0;
+
+    // 表空，则first/last都指向唯一的node
+    if (nlist_is_empty(list))
+    {
+        list->first = list->last = node;
+    }
+    else
+    {
+        // 否则，调整last结点的向一指向为node
+        list->last->next = node;
+
+        // node变成了新的后继结点
+        list->last = node;
+    }
+
+    list->count++;
+}
+
+/**
+ * 将Node插入指定结点之后
+ * @param 操作的链表
+ * @param pre 前一结点
+ * @param node 待插入的结点
+ */
+void nlist_insert_after(nlist_t* list, nlist_node_t* pre, nlist_node_t* node)
+{
+    // 原链表为空
+    if (nlist_is_empty(list))
+    {
+        nlist_insert_first(list, node);
         return;
     }
-    nlist_insert(list, next->prev, next, node);
-}
 
-void nlist_insert_after(nlist_t* list, nlist_node_t* prev, nlist_node_t* node)
-{
-    if (list == NULL || prev == NULL) return;
+    // node的下一结点，应当为pre的下一结点
+    node->next = pre->next;
+    node->prev = pre;
 
-    if (prev == list->tail)
+    // 先调整后继，再更新自己
+    if (pre->next)
     {
-        nlist_inset_tail(list, node);
-        return;
+        pre->next->prev = node;
     }
-    nlist_insert(list, prev, prev->next, node);
-}
-
-nlist_node_t* nlist_insert(nlist_t* list, nlist_node_t* prev, nlist_node_t* next, nlist_node_t* node)
-{
-    if (list == NULL)
-    {
-        return NULL;
-    }
-
-    node->prev = prev;
-    node->next = next;
-
-    if (prev != NULL)
-    {
-        prev->next = node;
-    }
-    else
-    {
-        list->head = node;
-    }
-
-    if (next != NULL)
-    {
-        next->prev = node;
-    }
-    else
-    {
-        list->tail = node;
-    }
-
-    list->size++;
-    return node;
-}
+    pre->next = node;
 
 
-nlist_node_t* nlist_insert_index(nlist_t* list, const int index, nlist_node_t* node)
-{
-    if (list == NULL || index < 0 || index > list->size)
+    // 如果pre恰好位于表尾，则新的表尾就需要更新成node
+    if (list->last == pre)
     {
-        return NULL;
+        list->last = node;
     }
 
-    // 头部插入
-    if (index == 0)
-    {
-        return nlist_insert(list, NULL, list->head, node);
-    }
-
-    // 尾部插入
-    if (index == list->size)
-    {
-        return nlist_insert(list, list->tail, NULL, node);
-    }
-
-    int pos = 0;
-    nlist_node_t* temp = NULL;
-
-    if (index < list->size / 2)
-    {
-        // 从前往后找插入位置
-        temp = list->head;
-        while (pos < index)
-        {
-            temp = temp->next;
-            pos++;
-        }
-    }
-    else
-    {
-        // 从后往前找插入位置
-        temp = list->tail;
-        while (pos < list->size - index - 1)
-        {
-            temp = temp->prev;
-            pos++;
-        }
-    }
-    return nlist_insert(list, temp->prev, temp, node);
-}
-
-nlist_node_t* nlist_inset_head(nlist_t* list, nlist_node_t* node)
-{
-    return nlist_insert_index(list, 0, node);
-}
-
-nlist_node_t* nlist_inset_tail(nlist_t* list, nlist_node_t* node)
-{
-    return nlist_insert_index(list, list->size, node);
-}
-
-void nlist_for_each(const nlist_t* list, const nlist_for_each_cb_t cb)
-{
-    if (list == NULL || cb == NULL)
-    {
-        return;
-    }
-    const nlist_node_t* temp = list->head;
-    while (temp != NULL)
-    {
-        cb(temp->data);
-        temp = temp->next;
-    }
-}
-
-bool nlist_remove_head(nlist_t* list)
-{
-    if (list == NULL)
-    {
-        return false;
-    }
-    return nlist_remove_node(list, list->head);
-}
-
-bool nlist_remove_tail(nlist_t* list)
-{
-    if (list == NULL)
-    {
-        return false;
-    }
-    return nlist_remove_node(list, list->tail);
-}
-
-bool nlist_remove_node(nlist_t* list, nlist_node_t* node)
-{
-    if (list == NULL || node == NULL)
-    {
-        return false;
-    }
-
-    if (node->prev == NULL) // 删除头节点
-    {
-        list->head = node->next;
-    }
-    else
-    {
-        node->prev->next = node->next;
-    }
-
-    if (node->next == NULL) // 删除尾节点
-    {
-        list->tail = node->prev;
-    }
-    else
-    {
-        node->next->prev = node->prev;
-    }
-
-    node->prev = node->next = NULL;
-
-    list->size--;
-    return true;
-}
-
-bool nlist_remove_index(nlist_t* list, const int index)
-{
-    if (list == NULL || index < 0 || index > list->size - 1)
-    {
-        return false;
-    }
-    if (index == 0)
-    {
-        return nlist_remove_node(list, list->head);
-    }
-    if (index == list->size - 1)
-    {
-        return nlist_remove_node(list, list->tail);
-    }
-
-    int pos = 0;
-    nlist_node_t* temp = NULL;
-    if (index < list->size / 2)
-    {
-        // 从前往后找删除节点
-        temp = list->head;
-        while (pos < index)
-        {
-            temp = temp->next;
-            pos++;
-        }
-    }
-    else
-    {
-        // 从后往前找删除节点
-        temp = list->tail;
-        while (pos < list->size - index - 1)
-        {
-            temp = temp->prev;
-            pos++;
-        }
-    }
-    return nlist_remove_node(list, temp);
-}
-
-void nlist_clear(nlist_t* list)
-{
-    if (list == NULL)
-    {
-        return;
-    }
-    nlist_node_t* temp = list->head;
-    while (temp != NULL)
-    {
-        nlist_node_t* next = temp->next;
-        temp->prev = temp->next = temp->data = NULL;
-        temp = next;
-    }
-    list->head = NULL;
-    list->tail = NULL;
-    list->size = 0;
-}
-
-nlist_node_t* nlist_remove_and_get_head(nlist_t* list)
-{
-    nlist_node_t* node = list->head;
-    if (node != NULL)
-    {
-        nlist_remove_node(list, node);
-    }
-    return node;
-}
-
-nlist_node_t* nlist_remove_and_get_tail(nlist_t* list)
-{
-    nlist_node_t* node = list->tail;
-    if (node != NULL)
-    {
-        nlist_remove_node(list, node);
-    }
-    return node;
+    list->count++;
 }
