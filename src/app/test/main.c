@@ -93,7 +93,13 @@ void pktbuf_test()
     {
         pktbuf_add_header(pktbuf, 33, true);
     }
-    plat_printf("");
+    plat_printf("添加完成\n");
+
+    for (int i = 0; i < 16; ++i)
+    {
+        pktbuf_remove_header(pktbuf, 33);
+    }
+    plat_printf("移除完成\n");
 }
 
 void print_node_callback(void* arg)

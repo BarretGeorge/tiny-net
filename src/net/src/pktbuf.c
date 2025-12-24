@@ -21,15 +21,23 @@ static long curr_blk_tail_free(const pktblk_t* curr)
     return curr->payload + PKTBUF_PAYLOAD_SIZE - (curr->data + curr->size);
 }
 
-// static void pktblock_free_list(pktblk_t* first)
-// {
-//     while (first)
-//     {
-//         pktblk_t* next = pktblock_get_next(first);
-//         mblock_free(&block_list, first);
-//         first = next;
-//     }
-// }
+static void pktblock_free(pktblk_t* block)
+{
+    if (block)
+    {
+        mblock_free(&block_list, block);
+    }
+}
+
+static void pktblock_free_list(pktblk_t* first)
+{
+    while (first)
+    {
+        pktblk_t* next = pktblock_get_next(first);
+        pktblock_free(first);
+        first = next;
+    }
+}
 
 static pktblk_t* pktbuf_first_blk(const pktbuf_t* pktbuf)
 {
@@ -208,11 +216,13 @@ pktbuf_t* pktbuf_alloc(const int size)
     nlist_init(&buf->blk_list);
     nlist_node_init(&buf->node);
 
+    /**
+    添加包头 即为 发送数据 需要头插法
+    移除包头 即为 接收数据 需要尾插法
+     */
+
+    // todo 写死头插法
     bool is_head = true;
-    if (size > 1000)
-    {
-        is_head = false;
-    }
 
     if (size)
     {
@@ -220,7 +230,7 @@ pktbuf_t* pktbuf_alloc(const int size)
         if (block == NULL)
         {
             dbug_error("pktblock alloc list failed");
-            mblock_free(&pktbuf_list, buf);
+            pktblock_free(block);
             return NULL;
         }
         pktbuf_insert_blk_list(buf, block, is_head);
@@ -295,6 +305,40 @@ net_err_t pktbuf_add_header(pktbuf_t* pktbuf, const int size, bool is_cont)
     }
 
     pktbuf_insert_blk_list(pktbuf, new_blk, true);
+    display_check_buf(pktbuf);
+    return NET_ERR_OK;
+}
+
+net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size)
+{
+    if (!pktbuf || size <= 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    pktblk_t* block = pktbuf_first_blk(pktbuf);
+    if (!block)
+    {
+        dbug_error("pktbuf remove header failed,buf is empty");
+        return NET_ERR_SYS;
+    }
+
+    while (true)
+    {
+        pktblk_t* next = pktblock_get_next(block);
+        if (size < block->size)
+        {
+            block->data += size;
+            block->size -= size;
+            pktbuf->total_size -= size;
+            break;
+        }
+        const int curr_size = (int)block->size;
+        nlist_remove_first(&pktbuf->blk_list);
+        pktblock_free(block);
+        pktbuf->total_size -= curr_size;
+        size -= curr_size;
+        block = next;
+    }
     display_check_buf(pktbuf);
     return NET_ERR_OK;
 }

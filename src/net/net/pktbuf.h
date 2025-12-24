@@ -43,4 +43,6 @@ static inline pktblk_t* pktblock_get_prev(const pktblk_t* block)
 
 net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, bool is_cont);
 
+net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size);
+
 #endif //TINY_NET_PKTBUF_H
