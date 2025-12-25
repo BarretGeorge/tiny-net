@@ -47,4 +47,6 @@ net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size);
 
 net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size);
 
+net_err_t join_pktbuf(pktbuf_t* dst, pktbuf_t* src);
+
 #endif //TINY_NET_PKTBUF_H

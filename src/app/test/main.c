@@ -125,6 +125,12 @@ void pktbuf_test()
     pktbuf_resize(pktbuf, 8);
     pktbuf_resize(pktbuf, 0);
     pktbuf_free(pktbuf);
+
+
+    pktbuf_t* pktbuf1 = pktbuf_alloc(432);
+    pktbuf_t* pktbuf2 = pktbuf_alloc(256);
+    join_pktbuf(pktbuf1, pktbuf2);
+    pktbuf_free(pktbuf1);
 }
 
 void print_node_callback(void* arg)

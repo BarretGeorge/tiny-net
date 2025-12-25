@@ -1,7 +1,5 @@
-#include "pktbuf.h"
-
 #include <stdbool.h>
-
+#include "pktbuf.h"
 #include "dbug.h"
 #include "mblock.h"
 #include "nlocker.h"
@@ -441,5 +439,26 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, const int new_size)
     }
 
     display_check_buf(pktbuf);
+    return NET_ERR_OK;
+}
+
+net_err_t join_pktbuf(pktbuf_t* dst, pktbuf_t* src)
+{
+    if (!dst || !src)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    pktblk_t* first = NULL;
+    while ((first = pktbuf_first_blk(src)))
+    {
+        nlist_remove_first(&src->blk_list);
+        pktbuf_insert_blk_list(dst, first, false);
+    }
+
+    // 释放 src
+    pktbuf_free(src);
+
+    display_check_buf(dst);
     return NET_ERR_OK;
 }
