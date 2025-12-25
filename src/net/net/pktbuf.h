@@ -45,4 +45,6 @@ net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, bool is_cont);
 
 net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size);
 
+net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size);
+
 #endif //TINY_NET_PKTBUF_H

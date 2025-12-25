@@ -39,6 +39,12 @@ static void pktblock_free_list(pktblk_t* first)
     }
 }
 
+static pktblk_t* pktbuf_last_blk(const pktbuf_t* pktbuf)
+{
+    nlist_node_t* last = nlist_last(&pktbuf->blk_list);
+    return nlist_entry(last, pktblk_t, node);
+}
+
 static pktblk_t* pktbuf_first_blk(const pktbuf_t* pktbuf)
 {
     nlist_node_t* first = nlist_first(&pktbuf->blk_list);
@@ -60,7 +66,7 @@ static void display_check_buf(const pktbuf_t* pktbuf)
 
     for (curr = pktbuf_first_blk(pktbuf); curr != NULL; curr = pktblock_get_next(curr))
     {
-        plat_printf("idx:%d ,", idx++);
+        plat_printf("idx:%d,", idx++);
 
         if ((curr->data < curr->payload) || (curr->data > (curr->payload + PKTBUF_PAYLOAD_SIZE)))
         {
@@ -261,7 +267,7 @@ void pktbuf_free(pktbuf_t* pktbuf)
     nlocker_unlock(&locker);
 }
 
-net_err_t pktbuf_add_header(pktbuf_t* pktbuf, const int size, bool is_cont)
+net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, const bool is_cont)
 {
     if (!pktbuf || size <= 0)
     {
@@ -272,7 +278,7 @@ net_err_t pktbuf_add_header(pktbuf_t* pktbuf, const int size, bool is_cont)
 
     // 获取剩余空间
     const int remain_size = (int)(block->data - block->payload);
-    if (size <= remain_size)
+    if (size <= remain_size) // 当前块有足够空间 直接分配
     {
         block->size += size;
         block->data -= size;
@@ -292,10 +298,15 @@ net_err_t pktbuf_add_header(pktbuf_t* pktbuf, const int size, bool is_cont)
         // 分配新块
         new_blk = pktblock_alloc_list(size, true);
     }
-    else
+    else // 非连续空间，分配多块
     {
-        // 非连续空间，分配多块
-        // new_blk = pktblock_alloc_list(size, true);
+        block->data = block->payload;
+        block->size += remain_size;
+        pktbuf->total_size += remain_size;
+        size -= remain_size;
+
+        // 分配新块
+        new_blk = pktblock_alloc_list(size, true);
     }
 
     if (new_blk == NULL)
@@ -322,7 +333,7 @@ net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size)
         return NET_ERR_SYS;
     }
 
-    while (true)
+    while (size > 0 && block != NULL)
     {
         pktblk_t* next = pktblock_get_next(block);
         if (size < block->size)
@@ -339,6 +350,58 @@ net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size)
         size -= curr_size;
         block = next;
     }
+    display_check_buf(pktbuf);
+    return NET_ERR_OK;
+}
+
+net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size)
+{
+    if (!pktbuf || new_size < 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (new_size == (int)pktbuf->total_size)
+    {
+        return NET_ERR_OK;
+    }
+    if (new_size == 0)
+    {
+        pktblk_t* blk = pktblock_alloc_list(new_size, false);
+        if (blk == NULL)
+        {
+            dbug_error("pktblock alloc list failed");
+            return NET_ERR_MEM;
+        }
+        pktbuf_insert_blk_list(pktbuf, blk, false);
+        return NET_ERR_OK;
+    }
+    if (pktbuf->total_size < (uint32_t)new_size) // 扩展
+    {
+        pktblk_t* last_blk = pktbuf_last_blk(pktbuf);
+        const int inc_size = new_size - (int)pktbuf->total_size;
+        const int remain_size = (int)curr_blk_tail_free(last_blk);
+        if (inc_size <= remain_size) // 当前块有足够空间 直接分配
+        {
+            last_blk->size += inc_size;
+            pktbuf->total_size += inc_size;
+        }
+        else
+        {
+            pktblk_t* new_blk = pktblock_alloc_list(inc_size - remain_size, false);
+            if (new_blk == NULL)
+            {
+                dbug_error("pktblock alloc list failed");
+                return NET_ERR_MEM;
+            }
+            last_blk->size += remain_size;
+            pktbuf->total_size += remain_size;
+            pktbuf_insert_blk_list(pktbuf, new_blk, false);
+        }
+    }
+    else // 缩小
+    {
+    }
+
     display_check_buf(pktbuf);
     return NET_ERR_OK;
 }

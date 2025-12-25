@@ -100,6 +100,26 @@ void pktbuf_test()
         pktbuf_remove_header(pktbuf, 33);
     }
     plat_printf("移除完成\n");
+
+
+    for (int i = 0; i < 16; ++i)
+    {
+        pktbuf_add_header(pktbuf, 33, false);
+    }
+    plat_printf("添加完成\n");
+
+    for (int i = 0; i < 16; ++i)
+    {
+        pktbuf_remove_header(pktbuf, 33);
+    }
+    plat_printf("移除完成\n");
+
+    pktbuf_free(pktbuf);
+
+    pktbuf = pktbuf_alloc(8);
+    pktbuf_resize(pktbuf, 32);
+    pktbuf_resize(pktbuf, 200);
+    pktbuf_resize(pktbuf, 4000);
 }
 
 void print_node_callback(void* arg)
