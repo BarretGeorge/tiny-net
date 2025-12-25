@@ -120,6 +120,11 @@ void pktbuf_test()
     pktbuf_resize(pktbuf, 32);
     pktbuf_resize(pktbuf, 200);
     pktbuf_resize(pktbuf, 4000);
+    pktbuf_resize(pktbuf, 1921);
+    pktbuf_resize(pktbuf, 32);
+    pktbuf_resize(pktbuf, 8);
+    pktbuf_resize(pktbuf, 0);
+    pktbuf_free(pktbuf);
 }
 
 void print_node_callback(void* arg)

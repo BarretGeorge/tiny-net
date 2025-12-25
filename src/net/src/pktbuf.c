@@ -354,7 +354,7 @@ net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size)
     return NET_ERR_OK;
 }
 
-net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size)
+net_err_t pktbuf_resize(pktbuf_t* pktbuf, const int new_size)
 {
     if (!pktbuf || new_size < 0)
     {
@@ -364,7 +364,7 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size)
     {
         return NET_ERR_OK;
     }
-    if (new_size == 0)
+    if (pktbuf->total_size == 0)
     {
         pktblk_t* blk = pktblock_alloc_list(new_size, false);
         if (blk == NULL)
@@ -373,6 +373,14 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size)
             return NET_ERR_MEM;
         }
         pktbuf_insert_blk_list(pktbuf, blk, false);
+        pktbuf->total_size = new_size;
+        return NET_ERR_OK;
+    }
+    if (new_size == 0)
+    {
+        pktblock_free_list(pktbuf_first_blk(pktbuf));
+        nlist_init(&pktbuf->blk_list);
+        pktbuf->total_size = 0;
         return NET_ERR_OK;
     }
     if (pktbuf->total_size < (uint32_t)new_size) // 扩展
@@ -383,7 +391,7 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size)
         if (inc_size <= remain_size) // 当前块有足够空间 直接分配
         {
             last_blk->size += inc_size;
-            pktbuf->total_size += inc_size;
+            // pktbuf->total_size += inc_size;
         }
         else
         {
@@ -394,12 +402,42 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size)
                 return NET_ERR_MEM;
             }
             last_blk->size += remain_size;
-            pktbuf->total_size += remain_size;
+            // pktbuf->total_size += remain_size;
             pktbuf_insert_blk_list(pktbuf, new_blk, false);
         }
+        pktbuf->total_size = new_size;
     }
     else // 缩小
     {
+        int total_size = 0;
+        pktblk_t* tail = NULL;
+        for (tail = pktbuf_first_blk(pktbuf); tail != NULL; tail = pktblock_get_next(tail))
+        {
+            total_size += (int)tail->size;
+            if (total_size >= new_size)
+            {
+                break;
+            }
+        }
+        if (tail == NULL)
+        {
+            dbug_error("pktbuf resize failed,calc size less than new size");
+            return NET_ERR_SYS;
+        }
+        total_size = 0;
+        // 处理最后一个块
+        pktblk_t* curr = pktblock_get_next(tail);
+        while (curr)
+        {
+            pktblk_t* next = pktblock_get_next(curr);
+            total_size += (int)curr->size;
+            nlist_remove(&pktbuf->blk_list, &curr->node);
+            pktblock_free(curr);
+            curr = next;
+        }
+
+        tail->size -= pktbuf->total_size - total_size - new_size;
+        pktbuf->total_size = new_size;
     }
 
     display_check_buf(pktbuf);
