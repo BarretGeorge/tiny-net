@@ -462,3 +462,59 @@ net_err_t join_pktbuf(pktbuf_t* dst, pktbuf_t* src)
     display_check_buf(dst);
     return NET_ERR_OK;
 }
+
+net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, const int size)
+{
+    if (size > (int)pktbuf->total_size)
+    {
+        dbug_error("pktbuf set cont size too large,size=%d", size);
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (size > PKTBUF_PAYLOAD_SIZE)
+    {
+        dbug_error("pktbuf set cont size too large for block,size=%d", size);
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    pktblk_t* first_blk = pktbuf_first_blk(pktbuf);
+    if (!first_blk)
+    {
+        dbug_error("pktbuf set cont failed,buf is empty");
+        return NET_ERR_SYS;
+    }
+
+    // 是否已经是连续的
+    if (first_blk->size >= (uint32_t)size)
+    {
+        display_check_buf(pktbuf);
+        return NET_ERR_OK;
+    }
+
+    uint8_t* dist = first_blk->payload;
+    for (int i = 0; i < first_blk->size; ++i)
+    {
+        *dist++ = first_blk->data[i];
+    }
+    first_blk->data = first_blk->payload;
+    int remain_size = size - (int)first_blk->size;
+    pktblk_t* curr_blk = pktblock_get_next(first_blk);
+    while (remain_size && curr_blk)
+    {
+        const int curr_size = curr_blk->size <= (uint32_t)remain_size ? (int)curr_blk->size : remain_size;
+        plat_memcpy(dist, curr_blk->data, curr_size);
+        dist += curr_size;
+        curr_blk->data += curr_size;
+        curr_blk->size -= curr_size;
+        first_blk->size += curr_size;
+        remain_size -= curr_size;
+        if (curr_blk->size == 0)
+        {
+            pktblk_t* next_blk = pktblock_get_next(curr_blk);
+            nlist_remove(&pktbuf->blk_list, &curr_blk->node);
+            pktblock_free(curr_blk);
+            curr_blk = next_blk;
+        }
+    }
+    display_check_buf(pktbuf);
+    return NET_ERR_OK;
+}

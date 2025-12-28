@@ -131,6 +131,19 @@ void pktbuf_test()
     pktbuf_t* pktbuf2 = pktbuf_alloc(256);
     join_pktbuf(pktbuf1, pktbuf2);
     pktbuf_free(pktbuf1);
+
+    pktbuf_t* pktbuf3 = pktbuf_alloc(32);
+    join_pktbuf(pktbuf3, pktbuf_alloc(4));
+    join_pktbuf(pktbuf3, pktbuf_alloc(16));
+    join_pktbuf(pktbuf3, pktbuf_alloc(54));
+    join_pktbuf(pktbuf3, pktbuf_alloc(32));
+    join_pktbuf(pktbuf3, pktbuf_alloc(38));
+    pktbuf_set_cont(pktbuf3, 44);
+    pktbuf_set_cont(pktbuf3, 60);
+    pktbuf_set_cont(pktbuf3, 44);
+    pktbuf_set_cont(pktbuf3, 128);
+    pktbuf_set_cont(pktbuf3, 135);
+    pktbuf_free(pktbuf3);
 }
 
 void print_node_callback(void* arg)

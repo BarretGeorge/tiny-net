@@ -41,12 +41,19 @@ static inline pktblk_t* pktblock_get_prev(const pktblk_t* block)
     return nlist_entry(prev, pktblk_t, node);
 }
 
+// 添加包头
 net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, bool is_cont);
 
+// 移除包头
 net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size);
 
+// 调整包大小
 net_err_t pktbuf_resize(pktbuf_t* pktbuf, int new_size);
 
+// 拼接两个包
 net_err_t join_pktbuf(pktbuf_t* dst, pktbuf_t* src);
+
+// 设置包头连续
+net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, int size);
 
 #endif //TINY_NET_PKTBUF_H
