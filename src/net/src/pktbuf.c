@@ -239,6 +239,7 @@ pktbuf_t* pktbuf_alloc(const int size)
         }
         pktbuf_insert_blk_list(buf, block, is_head);
     }
+    pktbuf_reset_access(buf);
     display_check_buf(buf);
     return buf;
 }
@@ -516,5 +517,24 @@ net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, const int size)
         }
     }
     display_check_buf(pktbuf);
+    return NET_ERR_OK;
+}
+
+net_err_t pktbuf_reset_access(pktbuf_t* pktbuf)
+{
+    if (!pktbuf)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    pktbuf->pos = 0;
+    pktbuf->curr_blk = pktbuf_first_blk(pktbuf);
+    if (pktbuf->curr_blk)
+    {
+        pktbuf->blk_offset = pktbuf->curr_blk->data;
+    }
+    else
+    {
+        pktbuf->blk_offset = NULL;
+    }
     return NET_ERR_OK;
 }

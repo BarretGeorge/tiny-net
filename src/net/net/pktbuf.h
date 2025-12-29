@@ -21,6 +21,9 @@ typedef struct pktbuf_t
     uint32_t total_size;
     nlist_t blk_list;
     nlist_node_t node;
+    int pos;
+    pktblk_t* curr_blk;
+    uint8_t* blk_offset;
 } pktbuf_t;
 
 net_err_t pktbuf_init();
@@ -55,5 +58,8 @@ net_err_t join_pktbuf(pktbuf_t* dst, pktbuf_t* src);
 
 // 设置包头连续
 net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, int size);
+
+// 重置访问位置
+net_err_t pktbuf_reset_access(pktbuf_t* pktbuf);
 
 #endif //TINY_NET_PKTBUF_H
