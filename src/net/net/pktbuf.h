@@ -44,6 +44,11 @@ static inline pktblk_t* pktblock_get_prev(const pktblk_t* block)
     return nlist_entry(prev, pktblk_t, node);
 }
 
+static inline int pktbuf_total(const pktbuf_t* pktbuf)
+{
+    return pktbuf ? (int)pktbuf->total_size : 0;
+}
+
 // 添加包头
 net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, bool is_cont);
 
@@ -60,6 +65,12 @@ net_err_t join_pktbuf(pktbuf_t* dst, pktbuf_t* src);
 net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, int size);
 
 // 重置访问位置
-net_err_t pktbuf_reset_access(pktbuf_t* pktbuf);
+void pktbuf_reset_access(pktbuf_t* pktbuf);
+
+// 对pktbuf中写入数据
+net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size);
+
+// 从pktbuf中读数据
+net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size);
 
 #endif //TINY_NET_PKTBUF_H

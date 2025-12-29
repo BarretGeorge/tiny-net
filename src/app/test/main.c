@@ -144,6 +144,22 @@ void pktbuf_test()
     pktbuf_set_cont(pktbuf3, 128);
     pktbuf_set_cont(pktbuf3, 135);
     pktbuf_free(pktbuf3);
+
+
+    pktbuf_t* pktbuf4 = pktbuf_alloc(32);
+    join_pktbuf(pktbuf4, pktbuf_alloc(4));
+    join_pktbuf(pktbuf4, pktbuf_alloc(16));
+    join_pktbuf(pktbuf4, pktbuf_alloc(54));
+    join_pktbuf(pktbuf4, pktbuf_alloc(32));
+    join_pktbuf(pktbuf4, pktbuf_alloc(38));
+    pktbuf_reset_access(pktbuf4);
+
+    uint16_t temp[1000];
+    for (int i = 0; i < 1000; ++i)
+    {
+        temp[i] = i;
+    }
+    pktbuf_write(pktbuf4, (uint8_t*)temp, pktbuf_total(pktbuf4));
 }
 
 void print_node_callback(void* arg)

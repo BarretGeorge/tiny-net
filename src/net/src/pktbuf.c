@@ -520,11 +520,11 @@ net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, const int size)
     return NET_ERR_OK;
 }
 
-net_err_t pktbuf_reset_access(pktbuf_t* pktbuf)
+void pktbuf_reset_access(pktbuf_t* pktbuf)
 {
     if (!pktbuf)
     {
-        return NET_ERR_INVALID_PARAM;
+        return;
     }
     pktbuf->pos = 0;
     pktbuf->curr_blk = pktbuf_first_blk(pktbuf);
@@ -535,6 +535,77 @@ net_err_t pktbuf_reset_access(pktbuf_t* pktbuf)
     else
     {
         pktbuf->blk_offset = NULL;
+    }
+}
+
+// static int total_blk_remain(pktbuf_t* pktbuf)
+// {
+//     return pktbuf->total_size - pktbuf->pos;
+// }
+
+static int curr_blk_remain(const pktbuf_t* pktbuf)
+{
+    const pktblk_t* block = pktbuf->curr_blk;
+    if (block == NULL)
+    {
+        return 0;
+    }
+    return (int)(block->data + block->size - pktbuf->blk_offset);
+}
+
+static void move_forward(pktbuf_t* pktbuf, const int size)
+{
+    pktbuf->pos += size;
+    pktbuf->blk_offset += size;
+
+    const pktblk_t* curr_blk = pktbuf->curr_blk;
+    if (pktbuf->blk_offset >= curr_blk->data + curr_blk->size)
+    {
+        // 移动到下一个块
+        pktbuf->curr_blk = pktblock_get_next(curr_blk);
+        if (pktbuf->curr_blk)
+        {
+            pktbuf->blk_offset = pktbuf->curr_blk->data;
+        }
+        else
+        {
+            pktbuf->blk_offset = NULL;
+        }
+    }
+}
+
+net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size)
+{
+    if (buf == NULL || size <= 0 || pktbuf == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
+    if (remain_size < size)
+    {
+        dbug_error("size too large to write,size=%d,remain=%d", size, remain_size);
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    while (size)
+    {
+        const int blk_size = curr_blk_remain(pktbuf);
+
+        int curr_copy = size > blk_size ? blk_size : size;
+        plat_memcpy(pktbuf->blk_offset, buf, curr_copy);
+        buf += curr_copy;
+        size -= curr_copy;
+        move_forward(pktbuf, curr_copy);
+    }
+    return NET_ERR_OK;
+}
+
+net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size)
+{
+    if (buf == NULL || size <= 0 || pktbuf == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
     }
     return NET_ERR_OK;
 }
