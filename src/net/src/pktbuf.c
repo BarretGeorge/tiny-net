@@ -601,7 +601,7 @@ net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size)
     return NET_ERR_OK;
 }
 
-net_err_t pktbuf_read(pktbuf_t* pktbuf, const uint8_t* buf, int size)
+net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size)
 {
     if (buf == NULL || size <= 0 || pktbuf == NULL)
     {
@@ -611,7 +611,7 @@ net_err_t pktbuf_read(pktbuf_t* pktbuf, const uint8_t* buf, int size)
     const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
     if (remain_size < size)
     {
-        dbug_error("size too large to write,size=%d,remain=%d", size, remain_size);
+        dbug_error("size too large to read,size=%d,remain=%d", size, remain_size);
         return NET_ERR_INVALID_PARAM;
     }
 
@@ -624,6 +624,87 @@ net_err_t pktbuf_read(pktbuf_t* pktbuf, const uint8_t* buf, int size)
         buf += curr_copy;
         size -= curr_copy;
         move_forward(pktbuf, curr_copy);
+    }
+    return NET_ERR_OK;
+}
+
+net_err_t pktbuf_peek(pktbuf_t* pktbuf, uint8_t* buf, const int size, const int offset)
+{
+    if (buf == NULL || size <= 0 || pktbuf == NULL || offset < 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    // 1. 保存当前状态
+    const int saved_pos = pktbuf->pos;
+    pktblk_t* saved_blk = pktbuf->curr_blk;
+    uint8_t* saved_offset = pktbuf->blk_offset;
+
+    // 2. 跳转到读取位置
+    net_err_t err = pktbuf_seek(pktbuf, offset);
+    if (err < 0)
+    {
+        // 恢复状态（虽然 seek 失败可能没改状态，但为了保险）
+        pktbuf->pos = saved_pos;
+        pktbuf->curr_blk = saved_blk;
+        pktbuf->blk_offset = saved_offset;
+        return err;
+    }
+
+    // 3. 读取数据
+    err = pktbuf_read(pktbuf, buf, size);
+
+    // 4. 恢复状态
+    pktbuf->pos = saved_pos;
+    pktbuf->curr_blk = saved_blk;
+    pktbuf->blk_offset = saved_offset;
+    return err;
+}
+
+net_err_t pktbuf_seek(pktbuf_t* pktbuf, const int offset)
+{
+    if (pktbuf == NULL || offset < 0 || offset > (int)pktbuf->total_size)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    // 重置访问位置
+    pktbuf->pos = 0;
+    pktbuf->curr_blk = pktbuf_first_blk(pktbuf);
+    if (pktbuf->curr_blk)
+    {
+        pktbuf->blk_offset = pktbuf->curr_blk->data;
+    }
+    else
+    {
+        pktbuf->blk_offset = NULL;
+    }
+
+    // 移动到偏移位置
+    int to_move = offset;
+    while (to_move)
+    {
+        const int blk_size = curr_blk_remain(pktbuf);
+        if (to_move < blk_size)
+        {
+            pktbuf->blk_offset += to_move;
+            pktbuf->pos += to_move;
+            to_move = 0;
+        }
+        else
+        {
+            to_move -= blk_size;
+            pktbuf->pos += blk_size;
+            pktbuf->curr_blk = pktblock_get_next(pktbuf->curr_blk);
+            if (pktbuf->curr_blk)
+            {
+                pktbuf->blk_offset = pktbuf->curr_blk->data;
+            }
+            else
+            {
+                pktbuf->blk_offset = NULL;
+            }
+        }
     }
     return NET_ERR_OK;
 }

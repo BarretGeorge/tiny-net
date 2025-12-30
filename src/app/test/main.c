@@ -160,10 +160,14 @@ void pktbuf_test()
         temp[i] = i;
     }
     pktbuf_write(pktbuf4, (uint8_t*)temp, pktbuf_total(pktbuf4));
-    pktbuf_reset_access(pktbuf4);
 
     plat_memset(temp, 0, sizeof(temp));
-    pktbuf_read(pktbuf4, (uint8_t*)temp, pktbuf_total(pktbuf4));
+    pktbuf_seek(pktbuf4, 16);
+    pktbuf_read(pktbuf4, (uint8_t*)temp, 100);
+    for (int i = 0; i < 100; ++i)
+    {
+        plat_printf("temp[%d]=%d\n", i, temp[i]);
+    }
 }
 
 void print_node_callback(void* arg)

@@ -71,6 +71,12 @@ void pktbuf_reset_access(pktbuf_t* pktbuf);
 net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size);
 
 // 从pktbuf中读数据
-net_err_t pktbuf_read(pktbuf_t* pktbuf, const uint8_t* buf, int size);
+net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size);
+
+// 从pktbuf中窥探数据，不移动访问位置
+net_err_t pktbuf_peek(pktbuf_t* pktbuf, uint8_t* buf, int size, int offset);
+
+// 移动访问位置
+net_err_t pktbuf_seek(pktbuf_t* pktbuf, int offset);
 
 #endif //TINY_NET_PKTBUF_H
