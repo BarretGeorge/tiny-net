@@ -154,12 +154,16 @@ void pktbuf_test()
     join_pktbuf(pktbuf4, pktbuf_alloc(38));
     pktbuf_reset_access(pktbuf4);
 
-    uint16_t temp[1000];
+    static uint16_t temp[1000];
     for (int i = 0; i < 1000; ++i)
     {
         temp[i] = i;
     }
     pktbuf_write(pktbuf4, (uint8_t*)temp, pktbuf_total(pktbuf4));
+    pktbuf_reset_access(pktbuf4);
+
+    plat_memset(temp, 0, sizeof(temp));
+    pktbuf_read(pktbuf4, (uint8_t*)temp, pktbuf_total(pktbuf4));
 }
 
 void print_node_callback(void* arg)

@@ -71,6 +71,6 @@ void pktbuf_reset_access(pktbuf_t* pktbuf);
 net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size);
 
 // 从pktbuf中读数据
-net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size);
+net_err_t pktbuf_read(pktbuf_t* pktbuf, const uint8_t* buf, int size);
 
 #endif //TINY_NET_PKTBUF_H

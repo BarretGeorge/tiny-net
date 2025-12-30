@@ -601,11 +601,29 @@ net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size)
     return NET_ERR_OK;
 }
 
-net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size)
+net_err_t pktbuf_read(pktbuf_t* pktbuf, const uint8_t* buf, int size)
 {
     if (buf == NULL || size <= 0 || pktbuf == NULL)
     {
         return NET_ERR_INVALID_PARAM;
+    }
+
+    const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
+    if (remain_size < size)
+    {
+        dbug_error("size too large to write,size=%d,remain=%d", size, remain_size);
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    while (size)
+    {
+        const int blk_size = curr_blk_remain(pktbuf);
+
+        int curr_copy = size > blk_size ? blk_size : size;
+        plat_memcpy((void*)buf, pktbuf->blk_offset, curr_copy);
+        buf += curr_copy;
+        size -= curr_copy;
+        move_forward(pktbuf, curr_copy);
     }
     return NET_ERR_OK;
 }
