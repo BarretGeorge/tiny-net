@@ -168,6 +168,40 @@ void pktbuf_test()
     {
         plat_printf("temp[%d]=%d\n", i, temp[i]);
     }
+    pktbuf_free(pktbuf4);
+
+    pktbuf_t* dist = pktbuf_alloc(1024);
+    pktbuf_t* src = pktbuf_alloc(1024);
+
+    for (int i = 0; i < 512; ++i)
+    {
+        temp[i] = i;
+    }
+    pktbuf_write(src, (uint8_t*)temp, 512);
+
+    pktbuf_seek(dist, 600);
+    pktbuf_seek(src, 0);
+    pktbuf_copy(dist, src, 100);
+
+    // 验证复制结果
+    plat_memset(temp, 0, sizeof(temp));
+    pktbuf_seek(dist, 590);
+    pktbuf_read(dist, (uint8_t*)temp, 100);
+    for (int i = 0; i < 100; ++i)
+    {
+        plat_printf("copy temp[%d]=%d\n", i, temp[i]);
+    }
+
+    pktbuf_seek(src, 0);
+    pktbuf_fill(src, 66, 1024);
+    pktbuf_seek(src, 0);
+
+    plat_memset(temp, 0, sizeof(temp));
+    pktbuf_read(src, (uint8_t*)temp, 1024);
+
+
+    pktbuf_free(dist);
+    pktbuf_free(src);
 }
 
 void print_node_callback(void* arg)

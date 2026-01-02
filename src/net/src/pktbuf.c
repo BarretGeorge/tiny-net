@@ -1,5 +1,8 @@
-#include <stdbool.h>
 #include "pktbuf.h"
+#include <stdbool.h>
+
+#include <assert.h>
+
 #include "dbug.h"
 #include "mblock.h"
 #include "nlocker.h"
@@ -43,12 +46,6 @@ static pktblk_t* pktbuf_last_blk(const pktbuf_t* pktbuf)
     return nlist_entry(last, pktblk_t, node);
 }
 
-static pktblk_t* pktbuf_first_blk(const pktbuf_t* pktbuf)
-{
-    nlist_node_t* first = nlist_first(&pktbuf->blk_list);
-    return nlist_entry(first, pktblk_t, node);
-}
-
 #if DBG_DISPLAY_ENABLE(DBG_BUG)
 static void display_check_buf(const pktbuf_t* pktbuf)
 {
@@ -62,11 +59,13 @@ static void display_check_buf(const pktbuf_t* pktbuf)
     const pktblk_t* curr = NULL;
     int idx = 0;
 
-    for (curr = pktbuf_first_blk(pktbuf); curr != NULL; curr = pktblock_get_next(curr))
+    for (curr = pktbuf_first_blk(pktbuf); curr != NULL;
+         curr = pktblock_get_next(curr))
     {
         plat_printf("idx:%d,", idx++);
 
-        if ((curr->data < curr->payload) || (curr->data > (curr->payload + PKTBUF_PAYLOAD_SIZE)))
+        if ((curr->data < curr->payload) ||
+            (curr->data > (curr->payload + PKTBUF_PAYLOAD_SIZE)))
         {
             dbug_error("pktblk data ptr error,addr=%p", curr->data);
             break;
@@ -88,7 +87,8 @@ static void display_check_buf(const pktbuf_t* pktbuf)
     }
     if (total_size != pktbuf->total_size)
     {
-        dbug_error("pktbuf total_size error,calc=%d,buf=%d", total_size, pktbuf->total_size);
+        dbug_error("pktbuf total_size error,calc=%d,buf=%d", total_size,
+                   pktbuf->total_size);
     }
 }
 #else
@@ -103,10 +103,12 @@ net_err_t pktbuf_init()
     nlocker_init(&locker, NLOCKER_TYPE_THREAD);
 
     // 初始化 pktblk_t 内存块管理器
-    mblock_init(&block_list, block_buffer, sizeof(pktblk_t), PKTBUF_BLK_COUNT, NLOCKER_TYPE_THREAD);
+    mblock_init(&block_list, block_buffer, sizeof(pktblk_t), PKTBUF_BLK_COUNT,
+                NLOCKER_TYPE_NONE);
 
     // 初始化 pktbuf 内存块管理器
-    mblock_init(&pktbuf_list, pktbuf_buffer, sizeof(pktbuf_t),PKTBUF_BUF_COUNT, NLOCKER_TYPE_THREAD);
+    mblock_init(&pktbuf_list, pktbuf_buffer, sizeof(pktbuf_t), PKTBUF_BUF_COUNT,
+                NLOCKER_TYPE_NONE);
 
     dbug_info("pktbuf init ok");
     return NET_ERR_OK;
@@ -115,15 +117,15 @@ net_err_t pktbuf_init()
 static pktblk_t* pktblock_alloc()
 {
     nlocker_lock(&locker);
-    pktblk_t* blk = mblock_alloc(&block_list, 0);
+    pktblk_t* block = mblock_alloc(&block_list, 0);
     nlocker_unlock(&locker);
-    if (blk)
+    if (block)
     {
-        blk->size = 0;
-        blk->data = 0;
-        nlist_node_init(&blk->node);
+        block->size = 0;
+        block->data = 0;
+        nlist_node_init(&block->node);
     }
-    return blk;
+    return block;
 }
 
 static pktblk_t* pktblock_alloc_list(int size, const bool is_head)
@@ -136,11 +138,15 @@ static pktblk_t* pktblock_alloc_list(int size, const bool is_head)
         if (new_blk == NULL)
         {
             dbug_error("pktblock alloc(%d) failed", size);
-            // todo free 已经分配的块
+            if (first_blk)
+            {
+                pktblock_free_list(first_blk);
+            }
             return NULL;
         }
 
-        const int curr_size = size > PKTBUF_PAYLOAD_SIZE ? PKTBUF_PAYLOAD_SIZE : size;
+        const int curr_size =
+            size > PKTBUF_PAYLOAD_SIZE ? PKTBUF_PAYLOAD_SIZE : size;
         new_blk->size = curr_size;
 
         if (is_head) // 是否头插法
@@ -174,7 +180,8 @@ static pktblk_t* pktblock_alloc_list(int size, const bool is_head)
     return first_blk;
 }
 
-static void pktbuf_insert_blk_list(pktbuf_t* buf, pktblk_t* block, const bool is_head)
+static void pktbuf_insert_blk_list(pktbuf_t* buf, pktblk_t* block,
+                                   const bool is_head)
 {
     if (is_head) // 头插法
     {
@@ -217,6 +224,7 @@ pktbuf_t* pktbuf_alloc(const int size)
         return NULL;
     }
     buf->total_size = 0;
+    buf->ref_count = 1;
     nlist_init(&buf->blk_list);
     nlist_node_init(&buf->node);
 
@@ -235,6 +243,7 @@ pktbuf_t* pktbuf_alloc(const int size)
         {
             dbug_error("pktblock alloc list failed");
             pktblock_free(block);
+            mblock_free(&pktbuf_list, buf);
             return NULL;
         }
         pktbuf_insert_blk_list(buf, block, is_head);
@@ -246,9 +255,14 @@ pktbuf_t* pktbuf_alloc(const int size)
 
 void pktbuf_free(pktbuf_t* pktbuf)
 {
-    if (!pktbuf) return;
-
     nlocker_lock(&locker);
+
+    // 引用计数大于1 只减少引用计数
+    if (!pktbuf || --pktbuf->ref_count > 0)
+    {
+        nlocker_unlock(&locker);
+        return;
+    }
 
     // free 块链表
     // pktblock_free_list(pktbuf_first_blk(pktbuf));
@@ -410,7 +424,8 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, const int new_size)
     {
         int total_size = 0;
         pktblk_t* tail = NULL;
-        for (tail = pktbuf_first_blk(pktbuf); tail != NULL; tail = pktblock_get_next(tail))
+        for (tail = pktbuf_first_blk(pktbuf); tail != NULL;
+             tail = pktblock_get_next(tail))
         {
             total_size += (int)tail->size;
             if (total_size >= new_size)
@@ -501,7 +516,9 @@ net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, const int size)
     pktblk_t* curr_blk = pktblock_get_next(first_blk);
     while (remain_size && curr_blk)
     {
-        const int curr_size = curr_blk->size <= (uint32_t)remain_size ? (int)curr_blk->size : remain_size;
+        const int curr_size = curr_blk->size <= (uint32_t)remain_size
+                                  ? (int)curr_blk->size
+                                  : remain_size;
         plat_memcpy(dist, curr_blk->data, curr_size);
         dist += curr_size;
         curr_blk->data += curr_size;
@@ -555,6 +572,11 @@ static int curr_blk_remain(const pktbuf_t* pktbuf)
 
 static void move_forward(pktbuf_t* pktbuf, const int size)
 {
+    if (pktbuf->curr_blk == NULL)
+    {
+        return;
+    }
+    assert(size <= curr_blk_remain(pktbuf));
     pktbuf->pos += size;
     pktbuf->blk_offset += size;
 
@@ -620,7 +642,7 @@ net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size)
         const int blk_size = curr_blk_remain(pktbuf);
 
         int curr_copy = size > blk_size ? blk_size : size;
-        plat_memcpy((void*)buf, pktbuf->blk_offset, curr_copy);
+        plat_memcpy((void *)buf, pktbuf->blk_offset, curr_copy);
         buf += curr_copy;
         size -= curr_copy;
         move_forward(pktbuf, curr_copy);
@@ -628,7 +650,8 @@ net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size)
     return NET_ERR_OK;
 }
 
-net_err_t pktbuf_peek(pktbuf_t* pktbuf, uint8_t* buf, const int size, const int offset)
+net_err_t pktbuf_peek(pktbuf_t* pktbuf, uint8_t* buf, const int size,
+                      const int offset)
 {
     if (buf == NULL || size <= 0 || pktbuf == NULL || offset < 0)
     {
@@ -644,7 +667,7 @@ net_err_t pktbuf_peek(pktbuf_t* pktbuf, uint8_t* buf, const int size, const int 
     net_err_t err = pktbuf_seek(pktbuf, offset);
     if (err < 0)
     {
-        // 恢复状态（虽然 seek 失败可能没改状态，但为了保险）
+        // 恢复状态
         pktbuf->pos = saved_pos;
         pktbuf->curr_blk = saved_blk;
         pktbuf->blk_offset = saved_offset;
@@ -667,44 +690,110 @@ net_err_t pktbuf_seek(pktbuf_t* pktbuf, const int offset)
     {
         return NET_ERR_INVALID_PARAM;
     }
-
-    // 重置访问位置
-    pktbuf->pos = 0;
-    pktbuf->curr_blk = pktbuf_first_blk(pktbuf);
-    if (pktbuf->curr_blk)
+    if (offset == pktbuf->pos)
     {
+        return NET_ERR_OK;
+    }
+
+    int move_bytes = 0;
+    if (offset < pktbuf->pos) // 回退
+    {
+        pktbuf->curr_blk = pktbuf_first_blk(pktbuf);
         pktbuf->blk_offset = pktbuf->curr_blk->data;
+        pktbuf->pos = 0;
+        move_bytes = offset;
     }
-    else
+    else // 前进
     {
-        pktbuf->blk_offset = NULL;
+        move_bytes = offset - pktbuf->pos;
     }
 
-    // 移动到偏移位置
-    int to_move = offset;
-    while (to_move)
+    while (move_bytes)
     {
-        const int blk_size = curr_blk_remain(pktbuf);
-        if (to_move < blk_size)
+        if (pktbuf->curr_blk == NULL)
         {
-            pktbuf->blk_offset += to_move;
-            pktbuf->pos += to_move;
-            to_move = 0;
+            return NET_ERR_INVALID_PARAM;
         }
-        else
-        {
-            to_move -= blk_size;
-            pktbuf->pos += blk_size;
-            pktbuf->curr_blk = pktblock_get_next(pktbuf->curr_blk);
-            if (pktbuf->curr_blk)
-            {
-                pktbuf->blk_offset = pktbuf->curr_blk->data;
-            }
-            else
-            {
-                pktbuf->blk_offset = NULL;
-            }
-        }
+        const int remain_size = curr_blk_remain(pktbuf);
+        const int curr_move = move_bytes > remain_size ? remain_size : move_bytes;
+        move_forward(pktbuf, curr_move);
+        move_bytes -= curr_move;
     }
     return NET_ERR_OK;
+}
+
+net_err_t pktbuf_copy(pktbuf_t* dst, pktbuf_t* src, int size)
+{
+    if (dst == NULL || src == NULL || size <= 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    const int dst_remain_size = (int)dst->total_size - dst->pos;
+    const int src_remain_size = (int)src->total_size - src->pos;
+    if (dst_remain_size < size || src_remain_size < size)
+    {
+        dbug_error("size too large to copy,size=%d,dst_remain=%d,src_remain=%d",
+                   size, dst_remain_size, src_remain_size);
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    while (size)
+    {
+        const int dst_remain = curr_blk_remain(dst);
+        const int src_remain = curr_blk_remain(src);
+        int copy_size = dst_remain < src_remain ? dst_remain : src_remain;
+        copy_size = copy_size < size ? copy_size : size;
+        // 复制数据
+        plat_memcpy(dst->blk_offset, src->blk_offset, copy_size);
+
+        // 移动位置
+        move_forward(dst, copy_size);
+        move_forward(src, copy_size);
+
+        // 更新剩余大小
+        size -= copy_size;
+    }
+
+    return NET_ERR_OK;
+}
+
+
+net_err_t pktbuf_fill(pktbuf_t* pktbuf, const uint8_t value, int size)
+{
+    if (pktbuf == NULL || size <= 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
+    if (remain_size < size)
+    {
+        dbug_error("size too large to fill,size=%d,remain=%d", size, remain_size);
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    while (size)
+    {
+        const int blk_size = curr_blk_remain(pktbuf);
+
+        int curr_fill = size > blk_size ? blk_size : size;
+
+        plat_memset(pktbuf->blk_offset, value, curr_fill);
+
+        size -= curr_fill;
+        move_forward(pktbuf, curr_fill);
+    }
+    return NET_ERR_OK;
+}
+
+void pktbuf_incr_ref(pktbuf_t* pktbuf)
+{
+    if (!pktbuf)
+    {
+        return;
+    }
+    nlocker_lock(&locker);
+    ++pktbuf->ref_count;
+    nlocker_unlock(&locker);
 }
