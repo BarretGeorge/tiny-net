@@ -5,6 +5,8 @@
 #include "dbug.h"
 #include "mblock.h"
 #include "pktbuf.h"
+#include "netif.h"
+#include "loop.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -209,11 +211,20 @@ void print_node_callback(void* arg)
     plat_printf("node data=%s\n", (char*)arg);
 }
 
+void netif_test()
+{
+    netif_init();
+
+    loop_init();
+}
+
 int main(void)
 {
     // mblock_test();
 
-    pktbuf_test();
+    // pktbuf_test();
+
+    netif_test();
 
     return 0;
 

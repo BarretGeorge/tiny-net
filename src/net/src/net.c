@@ -3,6 +3,8 @@
 #include "net_plat.h"
 #include "pktbuf.h"
 #include "dbug.h"
+#include "netif.h"
+#include "loop.h"
 
 net_err_t net_init()
 {
@@ -15,6 +17,12 @@ net_err_t net_init()
 
     // 数据包缓冲区初始化
     pktbuf_init();
+
+    // 网卡接口初始化
+    netif_init();
+
+    // 回环接口初始化
+    loop_init();
     return NET_ERR_OK;
 }
 
