@@ -28,7 +28,6 @@ net_err_t netif_init()
     return NET_ERR_OK;
 }
 
-
 netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void* opts_data)
 {
     netif_t* netif = mblock_alloc(&netif_mblock, 0);

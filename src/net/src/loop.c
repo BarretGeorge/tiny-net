@@ -1,7 +1,7 @@
 #include "loop.h"
-
 #include "dbug.h"
 #include "netif.h"
+#include "ipaddr.h"
 
 static net_err_t loop_open(netif_t* netif, void* data)
 {
@@ -34,6 +34,11 @@ net_err_t loop_init()
         return NET_ERR_SYS;
     }
 
+    ipaddr_t ipaddr;
+    ipaddr_t netmask;
+
+    ipaddr4_form_str(&ipaddr, "127.0.0.1");
+    ipaddr4_form_str(&netmask, "255.0.0.0");
 
     return NET_ERR_OK;
 }

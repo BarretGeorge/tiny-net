@@ -1,6 +1,7 @@
 #ifndef TINY_NET_IPADDR_H
 #define TINY_NET_IPADDR_H
 
+#include "net_err.h"
 #include <stdint.h>
 
 #define IPV4_ADDR_LEN 4
@@ -21,5 +22,7 @@ typedef struct ipaddr_t
 } ipaddr_t;
 
 void ipaddr_set_any(ipaddr_t* ip);
+
+net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str);
 
 #endif //TINY_NET_IPADDR_H
