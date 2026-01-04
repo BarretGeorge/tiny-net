@@ -72,7 +72,7 @@ net_err_t exmsg_start()
     return NET_ERR_OK;
 }
 
-net_err_t exmsg_netif_in()
+net_err_t exmsg_netif_in(netif_t* netif)
 {
     exmsg_t* msg = mblock_alloc(&msg_mblock, -1);
     if (msg == NULL)

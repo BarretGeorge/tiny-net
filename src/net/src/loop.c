@@ -2,6 +2,7 @@
 #include "dbug.h"
 #include "netif.h"
 #include "ipaddr.h"
+#include "exmsg.h"
 
 static net_err_t loop_open(netif_t* netif, void* data)
 {
@@ -16,6 +17,25 @@ static net_err_t loop_close(netif_t* netif)
 
 static net_err_t loop_output(netif_t* netif)
 {
+    // 从输出队列获取数据包
+    pktbuf_t* buf = netif_get_out(netif, -1);
+    if (!buf)
+    {
+        dbug_error("loop_output: failed to get pktbuf from out_q");
+        return NET_ERR_SYS;
+    }
+
+    // 直接放回输入队列
+    const net_err_t err = netif_put_in(netif, buf, -1);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("loop_output: failed to put pktbuf to in_q");
+        pktbuf_free(buf);
+        return err;
+    }
+
+    // 通知有数据包到达
+    // exmsg_netif_in(netif);
     return NET_ERR_OK;
 }
 
@@ -39,6 +59,20 @@ net_err_t loop_init()
 
     ipaddr4_form_str(&ipaddr, "127.0.0.1");
     ipaddr4_form_str(&netmask, "255.0.0.0");
+
+    netif_set_addr(netif, &ipaddr, &netmask, NULL);
+
+    netif_set_hwaddr(netif, (uint8_t[]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 6);
+
+    netif_set_active(netif);
+
+    // netif_set_inactive(netif);
+
+    // 模拟发送一个数据包到回环接口
+    pktbuf_t* pkt = pktbuf_alloc(100);
+    pktbuf_write(pkt, (uint8_t[]){0x45, 0x00, 0x00, 0x54}, 4);
+
+    netif_out(netif, NULL, pkt);
 
     return NET_ERR_OK;
 }

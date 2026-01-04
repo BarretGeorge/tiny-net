@@ -1,4 +1,5 @@
 #include "ipaddr.h"
+#include "sys.h"
 #include <ctype.h>
 
 void ipaddr_set_any(ipaddr_t* ip)
@@ -63,4 +64,16 @@ net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str)
     }
     p[index] = (uint8_t)val;
     return NET_ERR_OK;
+}
+
+const ipaddr_t* get_addr_any()
+{
+    static ipaddr_t addr_any;
+    ipaddr_set_any(&addr_any);
+    return &addr_any;
+}
+
+void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src)
+{
+    plat_memcpy(dest, src, sizeof(ipaddr_t));
 }

@@ -2,6 +2,7 @@
 #define TINY_NET_EXMSG_H
 
 #include "net_err.h"
+#include "netif.h"
 
 typedef enum exmsg_type_t
 {
@@ -22,6 +23,6 @@ net_err_t exmsg_init();
 
 net_err_t exmsg_start();
 
-net_err_t exmsg_netif_in();
+net_err_t exmsg_netif_in(netif_t* netif);
 
 #endif //TINY_NET_EXMSG_H

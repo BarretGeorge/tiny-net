@@ -7,6 +7,7 @@
 #include "pktbuf.h"
 #include "netif.h"
 #include "loop.h"
+#include "exmsg.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -213,6 +214,10 @@ void print_node_callback(void* arg)
 
 void netif_test()
 {
+    pktbuf_init();
+
+    exmsg_init();
+
     netif_init();
 
     loop_init();

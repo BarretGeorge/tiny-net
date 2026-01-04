@@ -1,6 +1,8 @@
 #include "netif.h"
 #include "mblock.h"
+#include "pktbuf.h"
 #include "dbug.h"
+#include "exmsg.h"
 
 // 网卡接口内存块
 static netif_t netif_buffer[NETIF_DEV_CNT];
@@ -13,6 +15,65 @@ static nlist_t netif_list;
 
 // 默认网卡接口
 static netif_t* netif_default;
+
+#if DBG_DISPLAY_ENABLE(DBG_BUG)
+static void display_netif_list()
+{
+    plat_printf("netif list:\n");
+
+    nlist_node_t* node;
+
+    nlist_for_each(node, &netif_list)
+    {
+        netif_t* netif = nlist_entry(node, netif_t, node);
+        plat_printf("  %s", netif->name);
+        switch (netif->state)
+        {
+        case NETIF_STATE_OPENED:
+            plat_printf(" (OPENED) ");
+            break;
+        case NETIF_STATE_ACTIVE:
+            plat_printf(" (ACTIVE) ");
+            break;
+        case NETIF_STATE_CLOSED:
+            plat_printf(" (CLOSED) ");
+        default:
+            plat_printf(" (UNKNOWN) ");
+            break;
+        }
+
+        switch (netif->type)
+        {
+        case NETIF_TYPE_ETHERNET:
+            plat_printf(" Type: ETHERNET ");
+            break;
+        case NETIF_TYPE_WIFI:
+            plat_printf(" Type: WIFI ");
+            break;
+        case NETIF_TYPE_LOOPBACK:
+            plat_printf(" Type: LOOPBACK ");
+            break;
+        default:
+            plat_printf(" Type: NONE ");
+            break;
+        }
+
+        plat_printf("  mtu: %d\n", netif->mtu);
+
+        plat_printf("  hwaddr:");
+        dbug_dump_hwaddr(netif->hwaddr.addr, netif->hwaddr.len);
+        plat_printf("  ipaddr:");
+        dbug_dump_ipaddr(&netif->ipaddr);
+        plat_printf("  netmask:");
+        dbug_dump_ipaddr(&netif->netmask);
+        plat_printf("  gateway:");
+        dbug_dump_ipaddr(&netif->gateway);
+    }
+}
+#else
+#define display_netif_list()
+#endif
+
 
 net_err_t netif_init()
 {
@@ -83,6 +144,7 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
 
     // 插入到网卡链表尾部
     nlist_insert_last(&netif_list, &netif->node);
+    // display_netif_list();
     return netif;
 
 open_failed:
@@ -94,4 +156,179 @@ open_failed:
     fixq_destroy(&netif->out_q);
     mblock_free(&netif_mblock, netif);
     return NULL;
+}
+
+net_err_t netif_set_hwaddr(netif_t* netif, const uint8_t* hwaddr, uint8_t hwaddr_len)
+{
+    if (hwaddr_len > NETIF_HWADDR_LEN)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    plat_memcpy(netif->hwaddr.addr, hwaddr, hwaddr_len);
+    netif->hwaddr.len = hwaddr_len;
+    return NET_ERR_OK;
+}
+
+net_err_t netif_set_addr(netif_t* netif, const ipaddr_t* ipaddr, const ipaddr_t* netmask, const ipaddr_t* gateway)
+{
+    ipaddr_copy(&netif->ipaddr, ipaddr ? ipaddr : get_addr_any());
+    ipaddr_copy(&netif->netmask, netmask ? netmask : get_addr_any());
+    ipaddr_copy(&netif->gateway, gateway ? gateway : get_addr_any());
+    return NET_ERR_OK;
+}
+
+net_err_t netif_set_active(netif_t* netif)
+{
+    if (netif->state != NETIF_STATE_OPENED)
+    {
+        dbug_error("netif_set_active: invalid state");
+        return NET_ERR_INVALID_STATE;
+    }
+    netif->state = NETIF_STATE_ACTIVE;
+
+    // 设置为默认网卡（如果还没有默认网卡的话）
+    if (netif_default == NULL && netif->type != NETIF_TYPE_LOOPBACK)
+    {
+        netif_default = netif;
+    }
+
+    display_netif_list();
+    return NET_ERR_OK;
+}
+
+net_err_t netif_set_inactive(netif_t* netif)
+{
+    if (netif->state != NETIF_STATE_ACTIVE)
+    {
+        dbug_error("netif_set_active: invalid state");
+        return NET_ERR_INVALID_STATE;
+    }
+    netif->state = NETIF_STATE_OPENED;
+
+    pktbuf_t* buf;
+    // 清空接收队列
+    while ((buf = fixq_recv(&netif->in_q, -1)) != NULL)
+    {
+        pktbuf_free(buf);
+    }
+
+    // 清空发送队列
+    while ((buf = fixq_recv(&netif->out_q, -1)) != NULL)
+    {
+        pktbuf_free(buf);
+    }
+
+    // 如果是默认网卡，清除默认网卡指针
+    if (netif_default == netif)
+    {
+        netif_default = NULL;
+    }
+    display_netif_list();
+    return NET_ERR_OK;
+}
+
+net_err_t netif_close(netif_t* netif)
+{
+    if (netif->state == NETIF_STATE_ACTIVE)
+    {
+        dbug_error("netif_close: netif is active");
+        return NET_ERR_INVALID_STATE;
+    }
+
+    // 关闭网卡接口
+    netif->opts->close(netif);
+
+    // 设置状态为关闭
+    netif->state = NETIF_STATE_CLOSED;
+
+    // 销毁收发队列
+    fixq_destroy(&netif->in_q);
+    fixq_destroy(&netif->out_q);
+
+    // 从网卡链表中移除
+    nlist_remove(&netif_list, &netif->node);
+
+    // 如果是默认网卡，清除默认网卡指针
+    if (netif_default == netif)
+    {
+        netif_default = NULL;
+    }
+
+    display_netif_list();
+
+    mblock_free(&netif_mblock, netif);
+    return NET_ERR_OK;
+}
+
+net_err_t netif_set_default(netif_t* netif)
+{
+    netif_default = netif;
+    return NET_ERR_OK;
+}
+
+net_err_t netif_put_in(netif_t* netif, pktbuf_t* buf, const int tmo)
+{
+    const net_err_t err = fixq_send(&netif->in_q, buf, tmo);
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("netif_put_in: send to in_q failed");
+        return err;
+    }
+
+    exmsg_netif_in(netif);
+    return NET_ERR_OK;
+}
+
+pktbuf_t* netif_get_in(netif_t* netif, const int tmo)
+{
+    pktbuf_t* buf = fixq_recv(&netif->in_q, tmo);
+    if (buf)
+    {
+        pktbuf_reset_access(buf);
+        return buf;
+    }
+    dbug_info("netif_get_in: recv from in_q timeout");
+    return NULL;
+}
+
+net_err_t netif_put_out(netif_t* netif, pktbuf_t* buf, const int tmo)
+{
+    const net_err_t err = fixq_send(&netif->out_q, buf, tmo);
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("netif_put_out: send to out_q failed");
+        return err;
+    }
+    return NET_ERR_OK;
+}
+
+pktbuf_t* netif_get_out(netif_t* netif, const int tmo)
+{
+    pktbuf_t* buf = fixq_recv(&netif->out_q, tmo);
+    if (buf)
+    {
+        pktbuf_reset_access(buf);
+        return buf;
+    }
+    dbug_info("netif_get_out: recv from out_q timeout");
+    return NULL;
+}
+
+net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
+{
+    if (netif->state != NETIF_STATE_ACTIVE)
+    {
+        dbug_error("netif_out: netif is not active");
+        return NET_ERR_INVALID_STATE;
+    }
+
+    // 写入输出队列
+    const net_err_t err = netif_put_out(netif, buf, -1);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("netif_out: put out failed");
+        return err;
+    }
+
+    return netif->opts->linkoutput(netif);
 }

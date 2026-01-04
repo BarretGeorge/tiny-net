@@ -217,7 +217,7 @@ static void pktbuf_insert_blk_list(pktbuf_t* buf, pktblk_t* block,
 
 pktbuf_t* pktbuf_alloc(const int size)
 {
-    pktbuf_t* buf = mblock_alloc(&pktbuf_list, 0);
+    pktbuf_t* buf = mblock_alloc(&pktbuf_list, -1);
     if (buf == NULL)
     {
         dbug_error("pktbuf alloc failed");

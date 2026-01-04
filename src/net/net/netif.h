@@ -6,6 +6,7 @@
 #include "fixq.h"
 #include "net_cfg.h"
 #include "net_err.h"
+#include "pktbuf.h"
 
 typedef struct netif_hwaddr_t
 {
@@ -81,8 +82,43 @@ typedef struct netif_t
     } state;
 } netif_t;
 
+// 初始化网卡子系统
 net_err_t netif_init();
 
+// 打开网卡接口
 netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void* opts_data);
+
+// 设置网卡硬件地址
+net_err_t netif_set_hwaddr(netif_t* netif, const uint8_t* hwaddr, uint8_t hwaddr_len);
+
+// 设置网卡IP地址、子网掩码和默认网关
+net_err_t netif_set_addr(netif_t* netif, const ipaddr_t* ipaddr, const ipaddr_t* netmask, const ipaddr_t* gateway);
+
+// 设置网卡为活动状态
+net_err_t netif_set_active(netif_t* netif);
+
+// 设置网卡为非活动状态
+net_err_t netif_set_inactive(netif_t* netif);
+
+// 关闭网卡接口
+net_err_t netif_close(netif_t* netif);
+
+// 设置默认网卡
+net_err_t netif_set_default(netif_t* netif);
+
+// 将数据包放入网卡的接收队列
+net_err_t netif_put_in(netif_t* netif, pktbuf_t* buf, int tmo);
+
+// 从网卡的接收队列获取数据包
+pktbuf_t* netif_get_in(netif_t* netif, int tmo);
+
+// 将数据包放入网卡的发送队列
+net_err_t netif_put_out(netif_t* netif, pktbuf_t* buf, int tmo);
+
+// 从网卡的发送队列获取数据包
+pktbuf_t* netif_get_out(netif_t* netif, int tmo);
+
+// 通过网卡发送数据包
+net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf);
 
 #endif //TINY_NET_NETIF_H
