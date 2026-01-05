@@ -59,9 +59,41 @@ void threadProduce(void* arg)
     }
 }
 
+// 本地ip地址
+const char local_ip[] = "192.168.100.96";
+// 网关地址
+const char gateway_ip[] = "192.168.100.1";
+
+// 分配给虚拟网卡的虚拟地址
+const char virtual_ip[] = "192.168.100.95";
+
+pcap_data_t netdev_0 = {
+    .ipaddr = local_ip,
+    .hwaddr = (uint8_t[]){0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC},
+};
+
 net_err_t netdev_init(void)
 {
-    netif_pcap_open();
+    netif_t* netif = netif_open("vnet0", &netdev_ops, &netdev_0);
+    if (!netif)
+    {
+        dbug_error("loop_init: failed to open loopback interface");
+        return NET_ERR_SYS;
+    }
+
+    ipaddr_t ipaddr;
+    ipaddr_t netmask;
+    ipaddr_t gateway;
+
+    ipaddr4_form_str(&ipaddr, virtual_ip);
+    ipaddr4_form_str(&netmask, "255.255.255.0");
+    ipaddr4_form_str(&gateway, gateway_ip);
+
+    netif_set_addr(netif, &ipaddr, &netmask, &gateway);
+
+    netif_set_hwaddr(netif, netdev_0.hwaddr, 6);
+
+    netif_set_active(netif);
     return NET_ERR_OK;
 }
 
@@ -221,6 +253,8 @@ void netif_test()
     netif_init();
 
     loop_init();
+
+    netdev_init();
 }
 
 int main(void)

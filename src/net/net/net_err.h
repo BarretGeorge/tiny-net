@@ -8,6 +8,7 @@ typedef enum net_err_t
     NET_ERR_MEM = -2, // 内存错误
     NET_ERR_INVALID_PARAM = -3, // 无效参数
     NET_ERR_INVALID_STATE = -4, // 无效状态
+    NET_ERR_IO = -5, // 输入输出错误
 } net_err_t;
 
 #endif //TINY_NET_NET_ERR_H
