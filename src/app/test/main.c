@@ -255,6 +255,13 @@ void netif_test()
     loop_init();
 
     netdev_init();
+
+    exmsg_start();
+
+    while (true)
+    {
+        sys_sleep(100);
+    }
 }
 
 int main(void)

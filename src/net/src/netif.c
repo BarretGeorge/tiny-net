@@ -126,6 +126,9 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
         goto open_failed;
     }
 
+    netif->opts = (netif_open_options_t*)opts;
+    netif->opts_data = opts_data;
+
     err = opts->open(netif, opts_data);
     if (err != NET_ERR_OK)
     {
@@ -133,8 +136,6 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
         goto open_failed;
     }
     netif->state = NETIF_STATE_OPENED;
-    netif->opts = (netif_open_options_t*)opts;
-    netif->opts_data = opts_data;
 
     if (netif->type == NETIF_TYPE_NONE)
     {
@@ -329,6 +330,5 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
         dbug_error("netif_out: put out failed");
         return err;
     }
-
     return netif->opts->linkoutput(netif);
 }

@@ -67,12 +67,5 @@ net_err_t loop_init()
     netif_set_active(netif);
 
     // netif_set_inactive(netif);
-
-    // 模拟发送一个数据包到回环接口
-    pktbuf_t* pkt = pktbuf_alloc(100);
-    pktbuf_write(pkt, (uint8_t[]){0x45, 0x00, 0x00, 0x54}, 4);
-
-    netif_out(netif, NULL, pkt);
-
     return NET_ERR_OK;
 }

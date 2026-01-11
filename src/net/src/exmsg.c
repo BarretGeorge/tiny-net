@@ -43,19 +43,56 @@ fail:
     return err;
 }
 
+static net_err_t do_netif_input(const exmsg_t* msg)
+{
+    netif_t* netif = msg->netif.netif;
+    pktbuf_t* buf;
+    while ((buf = netif_get_in(netif, -1)) != NULL)
+    {
+        // 如果是回环网卡，则直接发送回去
+        // if (netif->type == NETIF_TYPE_LOOPBACK)
+        // {
+        //     dbug_info("回环网卡收到数据包，直接发送回去 size=%d", buf->total_size);
+        // }
+        // else
+        // {
+        //     dbug_info("收到一个数据包 size=%d", buf->total_size);
+        // }
+
+        pktbuf_fill(buf, 0x11, 6);
+
+        if (netif_out(netif, NULL, buf) != NET_ERR_OK)
+        {
+            dbug_error("回环网卡发送数据包失败");
+            pktbuf_free(buf);
+        }
+    }
+    return NET_ERR_OK;
+}
+
 static void work_thread(void* arg)
 {
     dbug_info("exmsg work_thread started");
     while (1)
     {
         // 接收消息，阻塞等待
-        exmsg_t* msg = fixq_recv(&msg_queue, -1);
+        exmsg_t* msg = fixq_recv(&msg_queue, 0);
         if (msg == NULL)
         {
             continue;
         }
-        // 打印消息id 模拟处理消息
-        dbug_info("exmsg work_thread: received msg type=%d, id=%d", msg->type, msg->id);
+        dbug_info("exmsg work_thread: received msg type=%d", msg->type);
+
+        switch (msg->type)
+        {
+        case NET_EXMSG_TYPE_NETIF_IN:
+            {
+                do_netif_input(msg);
+                break;
+            }
+        default:
+            break;
+        }
 
         // 释放消息内存块
         mblock_free(&msg_mblock, msg);
@@ -80,15 +117,13 @@ net_err_t exmsg_netif_in(netif_t* netif)
         dbug_warn("no free exmsg block");
         return NET_ERR_MEM;
     }
-    static int counter = 0;
     msg->type = NET_EXMSG_TYPE_NETIF_IN;
-    msg->id = ++counter;
+    msg->netif.netif = netif;
     if (fixq_send(&msg_queue, msg, -1) != NET_ERR_OK)
     {
         dbug_error("fixq full");
         mblock_free(&msg_mblock, msg);
         return NET_ERR_MEM;
     }
-    dbug_info("发送 exmsg netif_in 消息, id=%d", msg->id);
     return NET_ERR_OK;
 }
