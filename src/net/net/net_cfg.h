@@ -1,6 +1,19 @@
 #ifndef TINY_NET_NET_CFG_H
 #define TINY_NET_NET_CFG_H
 
+// 大小端模式
+// 如果是大端模式，定义为0
+// 如果是小端模式，定义为1
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define NET_ENDIAN_LITTLE 1
+#elif __BYTE_ORDER__== __ORDER_BIG_ENDIAN__
+#define NET_ENDIAN_LITTLE 0
+#else
+// 默认小端模式
+#define NET_ENDIAN_LITTLE 1
+#endif
+
+
 // 消息队列大小
 #define EXMSG_QUEUE_SIZE 10
 

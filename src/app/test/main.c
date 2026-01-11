@@ -8,6 +8,7 @@
 #include "netif.h"
 #include "loop.h"
 #include "exmsg.h"
+#include "ether.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -253,6 +254,8 @@ void netif_test()
     netif_init();
 
     loop_init();
+
+    ether_init();
 
     netdev_init();
 

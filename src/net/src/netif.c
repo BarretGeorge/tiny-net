@@ -16,6 +16,9 @@ static nlist_t netif_list;
 // 默认网卡接口
 static netif_t* netif_default;
 
+// 链路层指针数组
+static const link_layer_t* link_layers[NETIF_TYPE_SIZE];
+
 #if DBG_DISPLAY_ENABLE(DBG_BUG)
 static void display_netif_list()
 {
@@ -86,7 +89,19 @@ net_err_t netif_init()
 
     // 初始化网卡接口内存块
     mblock_init(&netif_mblock, netif_buffer, sizeof(netif_t), NETIF_DEV_CNT, NLOCKER_TYPE_NONE);
+
+    // 初始化链路层指针数组
+    plat_memset(link_layers, 0, sizeof(link_layers));
     return NET_ERR_OK;
+}
+
+static const link_layer_t* netif_get_link_layer(const netif_type_t type)
+{
+    if (type <= NETIF_TYPE_NONE || type >= NETIF_TYPE_SIZE)
+    {
+        return NULL;
+    }
+    return link_layers[type - 1];
 }
 
 netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void* opts_data)
@@ -143,6 +158,14 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
         goto open_failed;
     }
 
+    // 关联链路层
+    netif->link_layer = netif_get_link_layer(netif->type);
+    if (netif->link_layer == NULL && netif->type != NETIF_TYPE_LOOPBACK)
+    {
+        dbug_error("netif %s type:%d link layer not registered", dev_name, netif->type);
+        goto open_failed;
+    }
+
     // 插入到网卡链表尾部
     nlist_insert_last(&netif_list, &netif->node);
     // display_netif_list();
@@ -193,6 +216,16 @@ net_err_t netif_set_active(netif_t* netif)
         netif_default = netif;
     }
 
+    if (netif->link_layer)
+    {
+        net_err_t err = netif->link_layer->open(netif);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error("netif_set_active: link layer open failed");
+            return err;
+        }
+    }
+
     display_netif_list();
     return NET_ERR_OK;
 }
@@ -205,6 +238,11 @@ net_err_t netif_set_inactive(netif_t* netif)
         return NET_ERR_INVALID_STATE;
     }
     netif->state = NETIF_STATE_OPENED;
+
+    if (netif->link_layer)
+    {
+        netif->link_layer->close(netif);
+    }
 
     pktbuf_t* buf;
     // 清空接收队列
@@ -331,4 +369,22 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
         return err;
     }
     return netif->opts->linkoutput(netif);
+}
+
+net_err_t netif_register_link_layer(const link_layer_t* ll)
+{
+    if (ll->type < NETIF_TYPE_NONE || ll->type >= NETIF_TYPE_SIZE)
+    {
+        dbug_error("netif_register_link_layer: invalid link layer type");
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    if (link_layers[ll->type - 1] != NULL)
+    {
+        dbug_error("netif_register_link_layer: link layer type already registered");
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    link_layers[ll->type - 1] = ll;
+    return NET_ERR_OK;
 }
