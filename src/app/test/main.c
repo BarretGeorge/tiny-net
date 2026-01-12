@@ -9,6 +9,7 @@
 #include "loop.h"
 #include "exmsg.h"
 #include "ether.h"
+#include "timer.h"
 
 void sendPacket(pcap_t* pcap, const uint8_t* data, const int len)
 {
@@ -259,10 +260,16 @@ void netif_test()
 
     netif_init();
 
+    // 定时器初始化
+    net_timer_init();
+
+    // 回环网卡初始化
     loop_init();
 
+    // 以太网卡初始化
     ether_init();
 
+    // 虚拟网卡初始化
     netdev_init();
 
     exmsg_start();
@@ -273,13 +280,32 @@ void netif_test()
     }
 }
 
+void timer_work_proc(net_timer_t* timer, void* arg)
+{
+    plat_printf("timer %s exec...\n", timer->name);
+}
+
+void timer_test()
+{
+    net_timer_init();
+
+    static net_timer_t t0, t1, t2, t3;
+
+    net_timer_add(&t0, "t0", timer_work_proc, NULL, 200, 0);
+    net_timer_add(&t1, "t1", timer_work_proc, NULL, 1000, TIMER_FLAG_PERIODIC);
+    net_timer_add(&t2, "t2", timer_work_proc, NULL, 1000, TIMER_FLAG_PERIODIC);
+    net_timer_add(&t3, "t3", timer_work_proc, NULL, 4000, TIMER_FLAG_PERIODIC);
+}
+
 int main(void)
 {
     // mblock_test();
 
     // pktbuf_test();
 
-    netif_test();
+    // netif_test();
+
+    timer_test();
 
     return 0;
 

@@ -41,4 +41,7 @@
 // 网络接口设备数量
 #define NETIF_DEV_CNT 10
 
+// 定时器名称最大长度
+#define TIMER_NAME_LEN 16
+
 #endif //TINY_NET_NET_CFG_H

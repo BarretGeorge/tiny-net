@@ -4,7 +4,6 @@
 
 net_err_t netdev_init(void)
 {
-    // netif_pcap_open();
     return NET_ERR_OK;
 }
 

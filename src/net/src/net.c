@@ -3,8 +3,10 @@
 #include "net_plat.h"
 #include "pktbuf.h"
 #include "dbug.h"
+#include "ether.h"
 #include "netif.h"
 #include "loop.h"
+#include "timer.h"
 
 net_err_t net_init()
 {
@@ -18,11 +20,17 @@ net_err_t net_init()
     // 数据包缓冲区初始化
     pktbuf_init();
 
+    // 定时器模块初始化
+    net_timer_init();
+
     // 网卡接口初始化
     netif_init();
 
     // 回环接口初始化
     loop_init();
+
+    // 以太网模块初始化
+    ether_init();
     return NET_ERR_OK;
 }
 
