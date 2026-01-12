@@ -42,6 +42,7 @@ static void display_netif_list()
             break;
         case NETIF_STATE_CLOSED:
             plat_printf(" (CLOSED) ");
+            break;
         default:
             plat_printf(" (UNKNOWN) ");
             break;

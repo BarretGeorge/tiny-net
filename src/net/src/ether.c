@@ -71,6 +71,7 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
     if (err != NET_ERR_OK)
     {
         dbug_warn("ether_input: invalid ether frame, err=%d", err);
+        pktbuf_free(buf);
         return err;
     }
 
@@ -117,7 +118,7 @@ net_err_t ether_raw_out(netif_t* netif, const uint16_t protocol, const uint8_t* 
     if (size < ETHER_PAYLOAD_MIN_LEN)
     {
         // 填充到最小长度
-        if ((err = pktbuf_resize(buf, ETHER_PAYLOAD_MIN_LEN) != NET_ERR_OK))
+        if ((err = pktbuf_resize(buf, ETHER_PAYLOAD_MIN_LEN)) != NET_ERR_OK)
         {
             dbug_error("ether_raw_out: pktbuf_resize failed, err=%d", err);
             return err;

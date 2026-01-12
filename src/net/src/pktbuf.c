@@ -242,7 +242,6 @@ pktbuf_t* pktbuf_alloc(const int size)
         if (block == NULL)
         {
             dbug_error("pktblock alloc list failed");
-            pktblock_free(block);
             mblock_free(&pktbuf_list, buf);
             return NULL;
         }
@@ -699,6 +698,10 @@ net_err_t pktbuf_seek(pktbuf_t* pktbuf, const int offset)
     if (offset < pktbuf->pos) // 回退
     {
         pktbuf->curr_blk = pktbuf_first_blk(pktbuf);
+        if (pktbuf->curr_blk == NULL)
+        {
+            return NET_ERR_SYS;
+        }
         pktbuf->blk_offset = pktbuf->curr_blk->data;
         pktbuf->pos = 0;
         move_bytes = offset;
