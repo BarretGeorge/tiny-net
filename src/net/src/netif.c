@@ -2,7 +2,9 @@
 #include "mblock.h"
 #include "pktbuf.h"
 #include "dbug.h"
+#include "ether.h"
 #include "exmsg.h"
+#include "protocol.h"
 
 // 网卡接口内存块
 static netif_t netif_buffer[NETIF_DEV_CNT];
@@ -361,7 +363,12 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
         return NET_ERR_INVALID_STATE;
     }
 
-    // 写入输出队列
+    if (netif->link_layer)
+    {
+        // 以太网发送数据包
+        return ether_raw_out(netif, PROTOCOL_TYPE_ARP, ether_broadcast_addr(), buf);
+    }
+
     const net_err_t err = netif_put_out(netif, buf, -1);
     if (err != NET_ERR_OK)
     {

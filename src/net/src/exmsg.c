@@ -49,23 +49,28 @@ static net_err_t do_netif_input(const exmsg_t* msg)
     pktbuf_t* buf;
     while ((buf = netif_get_in(netif, -1)) != NULL)
     {
-        // 如果是回环网卡，则直接发送回去
-        // if (netif->type == NETIF_TYPE_LOOPBACK)
-        // {
-        //     dbug_info("回环网卡收到数据包，直接发送回去 size=%d", buf->total_size);
-        // }
-        // else
-        // {
-        //     dbug_info("收到一个数据包 size=%d", buf->total_size);
-        // }
-
-        pktbuf_fill(buf, 0x11, 6);
-
-        if (netif_out(netif, NULL, buf) != NET_ERR_OK)
+        // 是否注册对应链路层协议处理函数
+        if (netif->link_layer == NULL)
         {
-            dbug_error("回环网卡发送数据包失败");
+            dbug_warn("回环网卡未注册链路层协议处理函数，丢弃数据包");
             pktbuf_free(buf);
+            continue;
         }
+
+        net_err_t err = netif->link_layer->input(netif, buf);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error("回环网卡处理输入数据包失败，err=%d", err);
+            pktbuf_free(buf);
+            continue;
+        }
+        // pktbuf_fill(buf, 0x11, 6);
+        //
+        // if (netif_out(netif, NULL, buf) != NET_ERR_OK)
+        // {
+        //     dbug_error("回环网卡发送数据包失败");
+        //     pktbuf_free(buf);
+        // }
     }
     return NET_ERR_OK;
 }

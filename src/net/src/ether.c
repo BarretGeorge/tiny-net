@@ -1,6 +1,44 @@
 #include "ether.h"
+#include "protocol.h"
+#include "dbug.h"
 #include "netif.h"
 #include "tool.h"
+
+static void display_ether_frame(const char* title, const ether_frame_t* frame, const uint32_t frame_len)
+{
+    uint16_t protocol = x_ntohs(frame->header.protocol);
+    plat_printf("%s: 包大小=%u\n", title, frame_len);
+    plat_printf("  目标MAC地址: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                frame->header.dest_mac[0], frame->header.dest_mac[1],
+                frame->header.dest_mac[2], frame->header.dest_mac[3],
+                frame->header.dest_mac[4], frame->header.dest_mac[5]);
+    plat_printf("  源MAC地址:  %02X:%02X:%02X:%02X:%02X:%02X\n",
+                frame->header.src_mac[0], frame->header.src_mac[1],
+                frame->header.src_mac[2], frame->header.src_mac[3],
+                frame->header.src_mac[4], frame->header.src_mac[5]);
+    plat_printf("  协议类型: 0x%04X\n", protocol);
+    switch (protocol)
+    {
+    case PROTOCOL_TYPE_ARP:
+        plat_printf("    协议: ARP\n");
+        break;
+    case PROTOCOL_TYPE_IPv4:
+        plat_printf("    协议: IPv4\n");
+        break;
+    default:
+        plat_printf("    协议: 未知\n");
+        break;
+    }
+}
+
+static net_err_t frame_is_valid(const ether_frame_t* frame, const uint32_t frame_len)
+{
+    if (frame_len < sizeof(ether_header_t) || frame_len > sizeof(ether_frame_t))
+    {
+        return NET_ERR_FRAME;
+    }
+    return NET_ERR_OK;
+}
 
 // 打开函数指针
 static net_err_t ether_open(netif_t* netif)
@@ -16,6 +54,28 @@ static void ether_close(netif_t* netif)
 // 输入函数指针
 static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
 {
+    dbug_info("ether_input: received pktbuf=%p, len=%d", buf, buf->total_size);
+
+    // 设置包的连续性
+    net_err_t err = pktbuf_set_cont(buf, sizeof(ether_header_t));
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("ether_input: pktbuf_set_cont failed, err=%d", err);
+        pktbuf_free(buf);
+        return err;
+    }
+
+    ether_frame_t* frame = (ether_frame_t*)pktbuf_data(buf);
+
+    err = frame_is_valid(frame, buf->total_size);
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("ether_input: invalid ether frame, err=%d", err);
+        return err;
+    }
+
+    display_ether_frame("收到以太网收据包", frame, buf->total_size);
+    pktbuf_free(buf);
     return NET_ERR_OK;
 }
 
@@ -42,4 +102,65 @@ net_err_t ether_init()
     plat_printf("ether_frame_t sizeof=%lu \n", sizeof(ether_frame_t));
 
     return netif_register_link_layer(&ether_link_layer);
+}
+
+const uint8_t* ether_broadcast_addr()
+{
+    static const uint8_t broadcast_addr[ETHER_HWADDR_LEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    return broadcast_addr;
+}
+
+net_err_t ether_raw_out(netif_t* netif, const uint16_t protocol, const uint8_t* dest_mac, pktbuf_t* buf)
+{
+    net_err_t err = NET_ERR_OK;
+    int size = pktbuf_total(buf);
+    if (size < ETHER_PAYLOAD_MIN_LEN)
+    {
+        // 填充到最小长度
+        if ((err = pktbuf_resize(buf, ETHER_PAYLOAD_MIN_LEN) != NET_ERR_OK))
+        {
+            dbug_error("ether_raw_out: pktbuf_resize failed, err=%d", err);
+            return err;
+        }
+        pktbuf_reset_access(buf);
+        if ((err = pktbuf_seek(buf, size) != NET_ERR_OK))
+        {
+            dbug_error("ether_raw_out: pktbuf_seek failed, err=%d", err);
+            return err;
+        }
+        if ((err = pktbuf_fill(buf, 0, ETHER_PAYLOAD_MIN_LEN - size) != NET_ERR_OK))
+        {
+            dbug_error("ether_raw_out: pktbuf_fill failed, err=%d", err);
+            return err;
+        }
+    }
+
+    // 添加以太网头
+    if ((err = pktbuf_add_header(buf, sizeof(ether_header_t), true)) != NET_ERR_OK)
+    {
+        dbug_error("ether_raw_out: pktbuf_add_header failed, err=%d", err);
+        return err;
+    }
+
+    ether_frame_t* frame = (ether_frame_t*)pktbuf_data(buf);
+    plat_memcpy(frame->header.dest_mac, dest_mac, ETHER_HWADDR_LEN);
+    plat_memcpy(frame->header.src_mac, netif->hwaddr.addr, ETHER_HWADDR_LEN);
+    frame->header.protocol = x_htons(protocol);
+
+    display_ether_frame("发送以太网数据包", frame, pktbuf_total(buf));
+
+    // 如果发送给自己的MAC地址，则不需要通过网卡发送，直接放入接收队列
+    if (plat_memcmp(netif->hwaddr.addr, dest_mac, ETHER_HWADDR_LEN) == 0)
+    {
+        return netif_put_in(netif, buf, -1);
+    }
+
+    // 将数据包放入网卡的发送队列
+    if ((err = netif_put_out(netif, buf, -1)) != NET_ERR_OK)
+    {
+        dbug_error("ether_raw_out: netif_put_out failed, err=%d", err);
+        return err;
+    }
+
+    return netif->opts->linkoutput(netif);
 }

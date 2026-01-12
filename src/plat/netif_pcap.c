@@ -34,32 +34,6 @@ void recv_thread(void* arg)
         }
         pktbuf_write(buf, data, (int)header->len);
 
-        {
-            int len = (int)header->caplen; // 捕获到的长度
-
-            // 以太网帧头中，第 12、13 字节代表协议类型 (EtherType)
-            // 0x0800 = IPv4
-            // 0x0806 = ARP
-            uint16_t eth_type = data[12] << 8 | data[13];
-
-            if (len == 98 && eth_type == 0x0800)
-            {
-                uint8_t ip_proto = data[23];
-                if (ip_proto == 0x01)
-                {
-                    plat_printf("[捕获] 98字节 - ICMP (Ping) 包\n");
-                }
-            }
-            else if ((len == 42 || len == 44) && eth_type == 0x0806)
-            {
-                plat_printf("[捕获] %d字节 - ARP 包\n", len);
-            }
-            else
-            {
-                plat_printf("[捕获] %d字节 - 以太网帧, EtherType=0x%04X\n", len, eth_type);
-            }
-        }
-
         // 发送到输入队列
         net_err_t err = netif_put_in(netif, buf, 0);
         if (err != NET_ERR_OK)

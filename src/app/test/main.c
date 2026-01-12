@@ -95,6 +95,12 @@ net_err_t netdev_init(void)
     netif_set_hwaddr(netif, netdev_0.hwaddr, 6);
 
     netif_set_active(netif);
+
+    // todo 测试以太网数据发送
+    pktbuf_t* buf = pktbuf_alloc(32);
+    pktbuf_fill(buf, 0x53, 32);
+
+    netif_out(netif, NULL, buf);
     return NET_ERR_OK;
 }
 
