@@ -297,7 +297,15 @@ void timer_test()
     net_timer_add(&t3, "t3", timer_work_proc, NULL, 4000, TIMER_FLAG_PERIODIC);
     net_timer_add(&t4, "t4", timer_work_proc, NULL, 3000, TIMER_FLAG_PERIODIC);
 
-    net_timer_remove(&t3);
+    // net_timer_remove(&t3);
+
+
+    net_timer_check_mo(100);
+
+    net_timer_check_mo(1200);
+    net_timer_check_mo(2000);
+
+    net_timer_check_mo(4000);
 }
 
 int main(void)

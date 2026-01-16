@@ -90,24 +90,69 @@ net_err_t net_timer_remove(const net_timer_t* timer)
     while (node)
     {
         net_timer_t* data = nlist_entry(node, net_timer_t, node);
-        if (data == timer)
+        if (data != timer)
         {
-            nlist_node_t* next = nlist_node_next(node);
-
-            // 从链表中删除
-            nlist_remove(&timer_list, node);
-
-            // 是否存在下一个节点
-            if (next)
-            {
-                net_timer_t* nextData = nlist_entry(next, net_timer_t, node);
-                nextData->expire += timer->expire;
-            }
-            display_timer();
-            return NET_ERR_OK;
+            node = node->next;
+            continue;
         }
-        node = node->next;
+
+        nlist_node_t* next = nlist_node_next(node);
+
+        // 从链表中删除
+        nlist_remove(&timer_list, node);
+
+        // 是否存在下一个节点
+        if (next)
+        {
+            net_timer_t* nextData = nlist_entry(next, net_timer_t, node);
+            nextData->expire += timer->expire;
+        }
+        display_timer();
+        return NET_ERR_OK;
     }
-    display_timer();
     return NET_ERR_INVALID_PARAM;
+}
+
+uint32_t net_timer_check_mo(uint32_t diff_ms)
+{
+    while (1)
+    {
+        nlist_node_t* node = nlist_first(&timer_list);
+        if (!node)
+        {
+            break;
+        }
+
+        net_timer_t* timer = nlist_entry(node, net_timer_t, node);
+
+        // 所有定时器都还没到期
+        if (timer->expire > diff_ms)
+        {
+            timer->expire -= diff_ms;
+            diff_ms = 0;
+            break;
+        }
+
+        // 当前头部到期了
+        diff_ms -= timer->expire;
+
+        // 先从链表中移除 避免破坏链表结构
+        nlist_remove(&timer_list, node);
+
+        // 执行回调
+        if (timer->proc)
+        {
+            timer->proc(timer, timer->arg);
+        }
+
+        // 处理周期性定时器
+        if (timer->flags & TIMER_FLAG_PERIODIC)
+        {
+            timer->expire = timer->interval;
+            insert_timer_sorted(timer);
+        }
+    }
+
+    display_timer();
+    return diff_ms;
 }
