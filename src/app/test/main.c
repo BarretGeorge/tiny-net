@@ -62,7 +62,7 @@ void threadProduce(void* arg)
 }
 
 // 本地ip地址
-const char local_ip[] = "192.168.100.96";
+const char local_ip[] = "192.168.100.108";
 // 网关地址
 const char gateway_ip[] = "192.168.100.1";
 
@@ -252,6 +252,8 @@ void print_node_callback(void* arg)
     plat_printf("node data=%s\n", (char*)arg);
 }
 
+void timer_test();
+
 void netif_test()
 {
     pktbuf_init();
@@ -263,6 +265,9 @@ void netif_test()
     // 定时器初始化
     net_timer_init();
 
+    // todo 定时器加入测试数据
+    timer_test();
+
     // 回环网卡初始化
     loop_init();
 
@@ -272,6 +277,7 @@ void netif_test()
     // 虚拟网卡初始化
     netdev_init();
 
+    // 工作线程
     exmsg_start();
 
     while (true)
@@ -296,16 +302,6 @@ void timer_test()
     net_timer_add(&t2, "t2", timer_work_proc, NULL, 1000, TIMER_FLAG_PERIODIC);
     net_timer_add(&t3, "t3", timer_work_proc, NULL, 4000, TIMER_FLAG_PERIODIC);
     net_timer_add(&t4, "t4", timer_work_proc, NULL, 3000, TIMER_FLAG_PERIODIC);
-
-    // net_timer_remove(&t3);
-
-
-    net_timer_check_mo(100);
-
-    net_timer_check_mo(1200);
-    net_timer_check_mo(2000);
-
-    net_timer_check_mo(4000);
 }
 
 int main(void)
@@ -314,9 +310,9 @@ int main(void)
 
     // pktbuf_test();
 
-    // netif_test();
+    // timer_test();
 
-    timer_test();
+    netif_test();
 
     return 0;
 

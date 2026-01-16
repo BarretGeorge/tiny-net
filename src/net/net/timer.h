@@ -45,4 +45,6 @@ net_err_t net_timer_remove(const net_timer_t* timer);
 
 uint32_t net_timer_check_mo(uint32_t diff_ms);
 
+uint32_t net_timer_first_mo();
+
 #endif //TINY_NET_TIMER_H

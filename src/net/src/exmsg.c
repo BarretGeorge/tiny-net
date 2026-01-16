@@ -4,6 +4,7 @@
 #include "sys_plat.h"
 #include "fixq.h"
 #include "mblock.h"
+#include "timer.h"
 
 static void* msg_tbl[EXMSG_QUEUE_SIZE];
 
@@ -78,29 +79,32 @@ static net_err_t do_netif_input(const exmsg_t* msg)
 static void work_thread(void* arg)
 {
     dbug_info("exmsg work_thread started");
+    net_time_t plat_start_time;
+    sys_time_curr(&plat_start_time);
+
     while (1)
     {
+        uint32_t waitMo = net_timer_first_mo();
         // 接收消息，阻塞等待
-        exmsg_t* msg = fixq_recv(&msg_queue, 0);
-        if (msg == NULL)
+        exmsg_t* msg = fixq_recv(&msg_queue, (int32_t)waitMo);
+        if (msg != NULL)
         {
-            continue;
-        }
-        dbug_info("exmsg work_thread: received msg type=%d", msg->type);
-
-        switch (msg->type)
-        {
-        case NET_EXMSG_TYPE_NETIF_IN:
+            dbug_info("exmsg work_thread: received msg type=%d", msg->type);
+            switch (msg->type)
             {
-                do_netif_input(msg);
+            case NET_EXMSG_TYPE_NETIF_IN:
+                {
+                    do_netif_input(msg);
+                    break;
+                }
+            default:
                 break;
             }
-        default:
-            break;
-        }
 
-        // 释放消息内存块
-        mblock_free(&msg_mblock, msg);
+            // 释放消息内存块
+            mblock_free(&msg_mblock, msg);
+        }
+        net_timer_check_mo(sys_time_goes(&plat_start_time));
     }
 }
 

@@ -72,6 +72,10 @@ net_err_t net_timer_add(net_timer_t* timer,
                         const int flags
 )
 {
+    if (timer == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
     plat_strncpy(timer->name, name, TIMER_NAME_LEN);
     timer->name[TIMER_NAME_LEN - 1] = '\0';
     timer->interval = ms;
@@ -155,4 +159,15 @@ uint32_t net_timer_check_mo(uint32_t diff_ms)
 
     display_timer();
     return diff_ms;
+}
+
+uint32_t net_timer_first_mo()
+{
+    nlist_node_t* node = nlist_first(&timer_list);
+    if (node == NULL)
+    {
+        return 0;
+    }
+    net_timer_t* timer = nlist_entry(node, net_timer_t, node);
+    return timer->expire;
 }
