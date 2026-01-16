@@ -41,4 +41,6 @@ net_err_t net_timer_add(net_timer_t* timer,
                         int flags
 );
 
+net_err_t net_timer_remove(const net_timer_t* timer);
+
 #endif //TINY_NET_TIMER_H
