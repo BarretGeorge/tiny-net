@@ -1,9 +1,9 @@
 #ifndef TINY_NET_IPADDR_H
 #define TINY_NET_IPADDR_H
 
+#include <stdint.h>
 #include "net_err.h"
 #include "sys.h"
-#include <stdint.h>
 
 #define IPV4_ADDR_LEN 4
 
@@ -17,8 +17,8 @@ typedef struct ipaddr_t
 
     union
     {
-        uint8_t q_addr[IPV4_ADDR_LEN];
-        uint32_t a_addr;
+        uint8_t a_addr[IPV4_ADDR_LEN];
+        uint32_t q_addr;
     };
 } ipaddr_t;
 
@@ -39,10 +39,10 @@ typedef struct ipaddr_t
         if ((ip)->type == IPADDR_TYPE_V4) \
         {                               \
             plat_printf("%d.%d.%d.%d\n", \
-                (ip)->q_addr[0],        \
-                (ip)->q_addr[1],        \
-                (ip)->q_addr[2],        \
-                (ip)->q_addr[3]);       \
+                (ip)->a_addr[0],        \
+                (ip)->a_addr[1],        \
+                (ip)->a_addr[2],        \
+                (ip)->a_addr[3]);       \
         }                               \
         else                            \
         {                               \
@@ -57,5 +57,7 @@ net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str);
 const ipaddr_t* get_addr_any();
 
 void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src);
+
+void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf);
 
 #endif //TINY_NET_IPADDR_H

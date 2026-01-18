@@ -44,4 +44,7 @@
 // 定时器名称最大长度
 #define TIMER_NAME_LEN 16
 
+// ARP 缓存大小
+#define ARP_CACHE_SIZE 50
+
 #endif //TINY_NET_NET_CFG_H

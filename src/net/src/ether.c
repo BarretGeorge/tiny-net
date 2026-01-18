@@ -1,3 +1,4 @@
+#include "arp.h"
 #include "ether.h"
 #include "protocol.h"
 #include "dbug.h"
@@ -83,9 +84,15 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
 // 输出函数指针
 static net_err_t ether_output(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
 {
+    // 是否回环
+    if (netif->ipaddr.q_addr == ipaddr->q_addr)
+    {
+        return ether_raw_out(netif, PROTOCOL_TYPE_IPv4, netif->hwaddr.addr, buf);
+    }
+
+    arp_make_request(netif, ipaddr);
     return NET_ERR_OK;
 }
-
 
 net_err_t ether_init()
 {
@@ -96,8 +103,6 @@ net_err_t ether_init()
         .input = ether_input,
         .output = ether_output,
     };
-
-    uint32_t addr = 0x12345678;
 
     plat_printf("ether_header_t sizeof=%lu \n", sizeof(ether_header_t));
     plat_printf("ether_frame_t sizeof=%lu \n", sizeof(ether_frame_t));

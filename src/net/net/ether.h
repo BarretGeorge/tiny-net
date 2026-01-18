@@ -1,9 +1,8 @@
 #ifndef TINY_NET_ETHER_H
 #define TINY_NET_ETHER_H
 
-#include "net_err.h"
 #include <stdint.h>
-
+#include "net_err.h"
 #include "netif.h"
 #include "pktbuf.h"
 

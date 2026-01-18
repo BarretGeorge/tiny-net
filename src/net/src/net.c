@@ -7,6 +7,7 @@
 #include "netif.h"
 #include "loop.h"
 #include "timer.h"
+#include "arp.h"
 
 net_err_t net_init()
 {
@@ -31,6 +32,9 @@ net_err_t net_init()
 
     // 以太网模块初始化
     ether_init();
+
+    // ARP模块初始化
+    arp_init();
     return NET_ERR_OK;
 }
 

@@ -69,6 +69,10 @@ const char gateway_ip[] = "192.168.100.1";
 // 分配给虚拟网卡的虚拟地址
 const char virtual_ip[] = "192.168.100.95";
 
+// 客户端ip地址
+const char friend_ip[] = "192.168.100.104";
+
+
 pcap_data_t netdev_0 = {
     .ipaddr = local_ip,
     .hwaddr = (uint8_t[]){0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC},
@@ -101,7 +105,9 @@ net_err_t netdev_init(void)
     pktbuf_t* buf = pktbuf_alloc(32);
     pktbuf_fill(buf, 0x53, 32);
 
-    netif_out(netif, NULL, buf);
+    ipaddr_t addr;
+    ipaddr4_form_str(&addr, friend_ip);
+    netif_out(netif, &addr, buf);
     return NET_ERR_OK;
 }
 

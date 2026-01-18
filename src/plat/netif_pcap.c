@@ -71,7 +71,6 @@ void send_thread(void* arg)
         if (pcap_inject(pcap, rw_buffer, total_size) == -1)
         {
             dbug_error("pcap send_thread: pcap_inject failed, err:%s", pcap_geterr(pcap));
-            continue;
         }
         else
         {

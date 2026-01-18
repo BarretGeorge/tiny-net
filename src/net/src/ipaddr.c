@@ -1,5 +1,6 @@
 #include "ipaddr.h"
 #include "sys.h"
+#include "dbug.h"
 #include <ctype.h>
 
 void ipaddr_set_any(ipaddr_t* ip)
@@ -9,7 +10,7 @@ void ipaddr_set_any(ipaddr_t* ip)
         return;
     }
     ip->type = IPADDR_TYPE_V4;
-    ip->a_addr = 0;
+    ip->q_addr = 0;
 }
 
 
@@ -27,7 +28,7 @@ net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str)
     char c;
 
     ip->type = IPADDR_TYPE_V4;
-    ip->a_addr = 0; // 清零
+    ip->q_addr = 0; // 清零
 
     while ((c = *str++) != '\0')
     {
@@ -76,4 +77,16 @@ const ipaddr_t* get_addr_any()
 void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src)
 {
     plat_memcpy(dest, src, sizeof(ipaddr_t));
+}
+
+void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf)
+{
+    if (ip->type == IPADDR_TYPE_V4)
+    {
+        *(uint32_t*)buf = ip->q_addr;
+    }
+    else
+    {
+        dbug_error("IPv6 not supported");
+    }
 }

@@ -367,7 +367,8 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
     if (netif->link_layer)
     {
         // 以太网发送数据包
-        return ether_raw_out(netif, PROTOCOL_TYPE_ARP, ether_broadcast_addr(), buf);
+        // return ether_raw_out(netif, PROTOCOL_TYPE_ARP, ether_broadcast_addr(), buf);
+        return netif->link_layer->output(netif, ipaddr, buf);
     }
 
     const net_err_t err = netif_put_out(netif, buf, -1);
