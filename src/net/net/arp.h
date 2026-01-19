@@ -4,8 +4,11 @@
 #include "ether.h"
 #include "ipaddr.h"
 
+// 硬件类型：以太网
 #define ARP_HW_ETHER 1
+// 操作码：ARP请求
 #define ARP_REQUEST 1
+// 操作码：ARP应答
 #define ARP_REPLY 2
 
 #pragma pack(1)
@@ -57,5 +60,11 @@ net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr);
 
 // 发送无回报ARP请求
 net_err_t arp_make_gratuitous_request(netif_t* netif);
+
+// 处理收到的ARP数据包
+net_err_t arp_in(netif_t* netif, pktbuf_t* buf);
+
+// 发送ARP应答
+net_err_t arp_make_reply(netif_t* netif, pktbuf_t* buf);
 
 #endif //TINY_NET_ARP_H

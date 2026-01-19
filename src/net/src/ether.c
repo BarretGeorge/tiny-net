@@ -76,7 +76,27 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
         return err;
     }
 
-    display_ether_frame("收到以太网收据包", frame, buf->total_size);
+    uint16_t protocol = x_ntohs(frame->header.protocol);
+    switch (protocol)
+    {
+    case PROTOCOL_TYPE_ARP:
+        dbug_info("收到ARP数据包");
+        // 移除以太网头
+        if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t)) != NET_ERR_OK))
+        {
+            dbug_warn("ether_input: pktbuf_remove_header failed, err=%d", err);
+            pktbuf_free(buf);
+            return err;
+        }
+        return arp_in(netif, buf);
+    case PROTOCOL_TYPE_IPv4:
+        dbug_info("收到IPv4数据包");
+        break;
+    default:
+        dbug_warn("不支持的协议 protocol 0x%04X", protocol);
+        break;
+    }
+
     pktbuf_free(buf);
     return NET_ERR_OK;
 }

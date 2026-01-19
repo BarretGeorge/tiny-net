@@ -272,7 +272,7 @@ void netif_test()
     net_timer_init();
 
     // todo 定时器加入测试数据
-    timer_test();
+    // timer_test();
 
     // 回环网卡初始化
     loop_init();

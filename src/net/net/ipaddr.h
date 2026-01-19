@@ -5,6 +5,7 @@
 #include "net_err.h"
 #include "sys.h"
 
+// IPv4地址长度
 #define IPV4_ADDR_LEN 4
 
 typedef struct ipaddr_t
