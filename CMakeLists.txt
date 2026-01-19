@@ -1,20 +1,20 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 3.10)
 project(tiny-net)
 
 set(CMAKE_C_STANDARD 99)
 
 find_path(PCAP_INCLUDE_DIR pcap.h
         PATHS
-        /usr/include                # macOS 系统默认路径
-        /usr/local/include          # Intel Mac Homebrew 路径
-        /opt/homebrew/include       # Apple Silicon (M1/M2/M3) Homebrew 路径
+        /usr/include
+        /usr/local/include
+        /opt/homebrew/include
 )
 
 find_library(PCAP_LIBRARY pcap
         PATHS
-        /usr/lib                    # macOS 系统默认路径
-        /usr/local/lib              # Intel Mac Homebrew 路径
-        /opt/homebrew/lib           # Apple Silicon (M1/M2/M3) Homebrew 路径
+        /usr/lib
+        /usr/local/lib
+        /opt/homebrew/lib
 )
 
 if (NOT PCAP_INCLUDE_DIR OR NOT PCAP_LIBRARY)
@@ -38,6 +38,12 @@ add_executable(${PROJECT_NAME} src/app/cmd/main.c ${SOURCE_LIST})
 
 add_executable(${PROJECT_NAME}_test src/app/test/main.c ${SOURCE_LIST})
 
+add_executable(ping src/app/examples/ping.c ${SOURCE_LIST})
+
+add_executable(socket src/app/examples/socket.c ${SOURCE_LIST})
+
+add_executable(epoll src/app/examples/epoll.c ${SOURCE_LIST})
+
 target_include_directories(tiny-net PRIVATE ${PCAP_INCLUDE_DIR})
 
 add_definitions(-DNET_DRIVER_PCAP)
@@ -47,10 +53,16 @@ if (CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
     add_definitions(-DSYS_PLAT_WINDOWS)
     target_link_libraries(${PROJECT_NAME} wpcap packet Ws2_32)
     target_link_libraries(${PROJECT_NAME}_test wpcap packet Ws2_32)
+    target_link_libraries(ping wpcap packet Ws2_32)
+    target_link_libraries(socket wpcap packet Ws2_32)
+    target_link_libraries(epoll wpcap packet Ws2_32)
 else ()
     # Linux和Mac上的特定配置
     add_definitions(-DSYS_PLAT_LINUX)
     target_link_libraries(${PROJECT_NAME} pthread pcap)
     target_link_libraries(${PROJECT_NAME}_test pthread pcap)
+    target_link_libraries(ping pthread pcap)
+    target_link_libraries(socket pthread pcap)
+    target_link_libraries(epoll pthread pcap)
 endif ()
 

@@ -33,7 +33,7 @@ net_err_t arp_init()
     return NET_ERR_OK;
 }
 
-net_err_t arp_make_request(netif_t* netif, ipaddr_t* addr)
+net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr)
 {
     pktbuf_t* buf = pktbuf_alloc(sizeof(arp_pkt_t));
     if (buf == NULL)

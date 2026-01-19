@@ -51,6 +51,6 @@ typedef struct arp_entity_t
 
 net_err_t arp_init();
 
-net_err_t arp_make_request(netif_t* netif, ipaddr_t* addr);
+net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr);
 
 #endif //TINY_NET_ARP_H
