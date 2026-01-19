@@ -21,7 +21,7 @@ static netif_t* netif_default;
 // 链路层指针数组
 static const link_layer_t* link_layers[NETIF_TYPE_SIZE];
 
-#if DBG_DISPLAY_ENABLE(DBG_BUG)
+#if DBG_DISPLAY_ENABLE(DBG_NETIF)
 static void display_netif_list()
 {
     plat_printf("netif list:\n");

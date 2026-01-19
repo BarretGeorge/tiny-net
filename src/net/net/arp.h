@@ -47,6 +47,10 @@ typedef struct arp_entity_t
         NET_ARP_RESOLVE
     } state;
 
+    // 超时毫秒数
+    int timeout;
+    // 重试计数
+    int retry_cnt;
     nlist_node_t node;
     nlist_t buf_list;
     netif_t* netif;

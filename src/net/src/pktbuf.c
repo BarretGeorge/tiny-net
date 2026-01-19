@@ -93,6 +93,7 @@ static void display_check_buf(const pktbuf_t* pktbuf)
 }
 #else
 #define display_pktbuf(buf)
+#define display_check_buf(buf)
 #endif
 
 net_err_t pktbuf_init()

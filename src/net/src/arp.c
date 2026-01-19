@@ -10,6 +10,62 @@ static mblock_t cache_block;
 
 static nlist_t cache_list;
 
+#if DBG_DISPLAY_ENABLE(DBG_ARP)
+static void display_arp_entity(const arp_entity_t* entity)
+{
+    plat_printf("ARP Entity:\n");
+    plat_printf("  IP:");
+    dbug_dump_ipaddr((ipaddr_t*)&entity->p_addr);
+    plat_printf("  MAC:");
+    dbug_dump_hwaddr(entity->hwaddr, ETHER_HWADDR_LEN);
+    plat_printf("  Netif:%s\n", entity->netif ? entity->netif->name : "NULL");
+    plat_printf("  Timeout:%d ms\n", entity->timeout);
+    plat_printf("  Retry Count:%d\n", entity->retry_cnt);
+    plat_printf("  State:%s\n", entity->state == NET_ARP_RESOLVE ? "stable" : "pending");
+    plat_printf("  buf:%d\n", nlist_count(&entity->buf_list));
+}
+
+static void display_arp_tbl()
+{
+    plat_printf("ARP table:\n");
+    arp_entity_t* entity = cache_tbl;
+    for (int i = 0; i < ARP_CACHE_SIZE; i++)
+    {
+        if (entity->state != NET_ARP_FREE)
+        {
+            display_arp_entity(entity);
+        }
+        entity++;
+    }
+}
+
+static void display_arp_pkt(const arp_pkt_t* pkt)
+{
+    plat_printf("ARP Packet:\n");
+    plat_printf("  Hardware Type: %u\n", x_ntohs(pkt->h_type));
+    plat_printf("  Protocol Type: 0x%04X\n", x_ntohs(pkt->p_type));
+    plat_printf("  Hardware Address Length: %u\n", pkt->hw_len);
+    plat_printf("  Protocol Address Length: %u\n", pkt->p_len);
+    plat_printf("  Opcode: %u\n", x_ntohs(pkt->opcode));
+    plat_printf("  Sender MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                pkt->sender_hwaddr[0], pkt->sender_hwaddr[1], pkt->sender_hwaddr[2],
+                pkt->sender_hwaddr[3], pkt->sender_hwaddr[4], pkt->sender_hwaddr[5]);
+    plat_printf("  Sender IP Address: %d.%d.%d.%d\n",
+                pkt->sender_addr[0], pkt->sender_addr[1],
+                pkt->sender_addr[2], pkt->sender_addr[3]);
+    plat_printf("  Target MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                pkt->target_hwaddr[0], pkt->target_hwaddr[1], pkt->target_hwaddr[2],
+                pkt->target_hwaddr[3], pkt->target_hwaddr[4], pkt->target_hwaddr[5]);
+    plat_printf("  Target IP Address: %d.%d.%d.%d\n",
+                pkt->target_addr[0], pkt->target_addr[1],
+                pkt->target_addr[2], pkt->target_addr[3]);
+}
+#else
+#define  display_arp_entity(entity)
+#define  display_arp_tbl()
+#define  display_arp_pkt(pkt)
+#endif
+
 static net_err_t cache_init()
 {
     nlist_init(&cache_list);
@@ -55,6 +111,8 @@ net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr)
     plat_memset(arp_pkt->target_hwaddr, 0, ETHER_HWADDR_LEN);
     ipaddr_to_buf(addr, arp_pkt->target_addr);
 
+    display_arp_pkt(arp_pkt);
+
     net_err_t err = ether_raw_out(netif, PROTOCOL_TYPE_ARP, ether_broadcast_addr(), buf);
     if (err != NET_ERR_OK)
     {
@@ -71,7 +129,7 @@ net_err_t arp_make_gratuitous_request(netif_t* netif)
     return arp_make_request(netif, &netif->ipaddr);
 }
 
-net_err_t arp_pkt_is_valid(netif_t* netif, const arp_pkt_t* arp_pkt, const int size)
+net_err_t arp_pkt_is_valid(const netif_t* netif, const arp_pkt_t* arp_pkt, const int size)
 {
     // 包大小检查
     if (size < (int)sizeof(arp_pkt_t))
@@ -158,5 +216,8 @@ net_err_t arp_make_reply(netif_t* netif, pktbuf_t* buf)
     plat_memcpy(arp_pkt->target_addr, arp_pkt->sender_addr, IPV4_ADDR_LEN);
     // 本机IP地址变为发送方IP地址
     ipaddr_to_buf(&netif->ipaddr, arp_pkt->sender_addr);
+
+    display_arp_pkt(arp_pkt);
+
     return ether_raw_out(netif, PROTOCOL_TYPE_ARP, arp_pkt->target_hwaddr, buf);
 }
