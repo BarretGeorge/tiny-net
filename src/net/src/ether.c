@@ -44,7 +44,7 @@ static net_err_t frame_is_valid(const ether_frame_t* frame, const uint32_t frame
 // 打开函数指针
 static net_err_t ether_open(netif_t* netif)
 {
-    return NET_ERR_OK;
+    return arp_make_gratuitous_request(netif);
 }
 
 // 关闭函数指针

@@ -65,3 +65,8 @@ net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr)
 
     return NET_ERR_OK;
 }
+
+net_err_t arp_make_gratuitous_request(netif_t* netif)
+{
+    return arp_make_request(netif, &netif->ipaddr);
+}

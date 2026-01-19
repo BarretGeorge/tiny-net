@@ -35,14 +35,19 @@ include_directories(
 file(GLOB_RECURSE SOURCE_LIST "src/net/*.c" "src/net/*.h" "src/plat/*.c" "src/plat/*.h")
 
 add_executable(${PROJECT_NAME} src/app/cmd/main.c ${SOURCE_LIST})
-
 add_executable(${PROJECT_NAME}_test src/app/test/main.c ${SOURCE_LIST})
 
-add_executable(ping src/app/examples/ping.c ${SOURCE_LIST})
+file(GLOB EXAMPLE_SOURCES "src/app/examples/*.c")
+foreach (EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
+    get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
+    add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE} ${SOURCE_LIST})
 
-add_executable(socket src/app/examples/socket.c ${SOURCE_LIST})
-
-add_executable(epoll src/app/examples/epoll.c ${SOURCE_LIST})
+    if (CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
+        target_link_libraries(${EXAMPLE_NAME} wpcap packet Ws2_32)
+    else ()
+        target_link_libraries(${EXAMPLE_NAME} pthread pcap)
+    endif ()
+endforeach ()
 
 target_include_directories(tiny-net PRIVATE ${PCAP_INCLUDE_DIR})
 
@@ -53,16 +58,10 @@ if (CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
     add_definitions(-DSYS_PLAT_WINDOWS)
     target_link_libraries(${PROJECT_NAME} wpcap packet Ws2_32)
     target_link_libraries(${PROJECT_NAME}_test wpcap packet Ws2_32)
-    target_link_libraries(ping wpcap packet Ws2_32)
-    target_link_libraries(socket wpcap packet Ws2_32)
-    target_link_libraries(epoll wpcap packet Ws2_32)
 else ()
     # Linux和Mac上的特定配置
     add_definitions(-DSYS_PLAT_LINUX)
     target_link_libraries(${PROJECT_NAME} pthread pcap)
     target_link_libraries(${PROJECT_NAME}_test pthread pcap)
-    target_link_libraries(ping pthread pcap)
-    target_link_libraries(socket pthread pcap)
-    target_link_libraries(epoll pthread pcap)
 endif ()
 

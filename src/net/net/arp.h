@@ -49,8 +49,13 @@ typedef struct arp_entity_t
     netif_t* netif;
 } arp_entity_t;
 
+// ARP缓存初始化
 net_err_t arp_init();
 
+// 发送ARP请求
 net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr);
+
+// 发送无回报ARP请求
+net_err_t arp_make_gratuitous_request(netif_t* netif);
 
 #endif //TINY_NET_ARP_H
