@@ -47,4 +47,7 @@
 // ARP 缓存大小
 #define ARP_CACHE_SIZE 50
 
+// ARP 最大等待发送的数据包数量
+#define ARP_MAX_PKT_WAITING 5
+
 #endif //TINY_NET_NET_CFG_H

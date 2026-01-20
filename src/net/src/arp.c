@@ -10,6 +10,32 @@ static mblock_t cache_block;
 
 static nlist_t cache_list;
 
+// 用于初始化缓存项时的空MAC地址
+static const uint8_t empty_hwaddr[ETHER_HWADDR_LEN] = {0};
+
+static net_err_t cache_init()
+{
+    nlist_init(&cache_list);
+
+    net_err_t err = mblock_init(&cache_block, &cache_tbl, sizeof(arp_entity_t), ARP_CACHE_SIZE, NLOCKER_TYPE_NONE);
+    if (err != NET_ERR_OK)
+    {
+        return err;
+    }
+    return NET_ERR_OK;
+}
+
+net_err_t arp_init()
+{
+    net_err_t err = cache_init();
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("");
+        return err;
+    }
+    return NET_ERR_OK;
+}
+
 #if DBG_DISPLAY_ENABLE(DBG_ARP)
 static void display_arp_entity(const arp_entity_t* entity)
 {
@@ -18,25 +44,26 @@ static void display_arp_entity(const arp_entity_t* entity)
     dbug_dump_ipaddr((ipaddr_t*)&entity->p_addr);
     plat_printf("  MAC:");
     dbug_dump_hwaddr(entity->hwaddr, ETHER_HWADDR_LEN);
-    plat_printf("  Netif:%s\n", entity->netif ? entity->netif->name : "NULL");
-    plat_printf("  Timeout:%d ms\n", entity->timeout);
-    plat_printf("  Retry Count:%d\n", entity->retry_cnt);
-    plat_printf("  State:%s\n", entity->state == NET_ARP_RESOLVE ? "stable" : "pending");
+    plat_printf("  Netif:%s ", entity->netif ? entity->netif->name : "NULL");
+    plat_printf("  Timeout:%d ms ", entity->timeout);
+    plat_printf("  Retry Count:%d ", entity->retry_cnt);
+    plat_printf("  State:%s ", entity->state == NET_ARP_RESOLVE ? "stable" : "pending");
     plat_printf("  buf:%d\n", nlist_count(&entity->buf_list));
 }
 
 static void display_arp_tbl()
 {
-    plat_printf("ARP table:\n");
+    plat_printf("ARP table start=======================:\n");
     arp_entity_t* entity = cache_tbl;
-    for (int i = 0; i < ARP_CACHE_SIZE; i++)
+    for (int i = 0; i < ARP_CACHE_SIZE; i++, entity++)
     {
-        if (entity->state != NET_ARP_FREE)
+        if (entity->state != NET_ARP_RESOLVE)
         {
-            display_arp_entity(entity);
+            continue;
         }
-        entity++;
+        display_arp_entity(entity);
     }
+    plat_printf("ARP table end=======================:\n");
 }
 
 static void display_arp_pkt(const arp_pkt_t* pkt)
@@ -76,6 +103,24 @@ static void cache_cleanup(arp_entity_t* entity)
         pktbuf_t* buf = nlist_entry(node, pktbuf_t, node);
         pktbuf_free(buf);
     }
+}
+
+// 发送缓存项中等待发送的所有包
+static net_err_t cache_entity_send_all(arp_entity_t* entity)
+{
+    nlist_node_t* node;
+    while ((node = nlist_remove_first(&entity->buf_list)) != NULL)
+    {
+        pktbuf_t* buf = nlist_entry(node, pktbuf_t, node);
+        net_err_t err = ether_raw_out(entity->netif, PROTOCOL_TYPE_IPv4, entity->hwaddr, buf);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error("cache_entity_send_all: ether_raw_out fail, err=%d", err);
+            pktbuf_free(buf);
+            return err;
+        }
+    }
+    return NET_ERR_OK;
 }
 
 // 分配一个ARP缓存项，force为1时，强制分配（释放最旧的缓存项）
@@ -120,26 +165,69 @@ static void cache_free(arp_entity_t* entity)
     mblock_free(&cache_block, entity);
 }
 
-static net_err_t cache_init()
+static arp_entity_t* cache_find(const uint8_t* ip)
 {
-    nlist_init(&cache_list);
-
-    net_err_t err = mblock_init(&cache_block, &cache_tbl, sizeof(arp_entity_t), ARP_CACHE_SIZE, NLOCKER_TYPE_NONE);
-    if (err != NET_ERR_OK)
+    nlist_node_t* node;
+    nlist_for_each(node, &cache_list)
     {
-        return err;
+        arp_entity_t* entity = nlist_entry(node, arp_entity_t, node);
+        if (plat_memcmp(entity->p_addr, ip, IPV4_ADDR_LEN) == 0)
+        {
+            return entity;
+        }
     }
-    return NET_ERR_OK;
+    return NULL;
 }
 
-net_err_t arp_init()
+static void cache_entity_set(arp_entity_t* entity, const uint8_t* hwaddr, const uint8_t* ip, netif_t* netif,
+                             const int state)
 {
-    net_err_t err = cache_init();
-    if (err != NET_ERR_OK)
+    plat_memcpy(entity->hwaddr, hwaddr, ETHER_HWADDR_LEN);
+    plat_memcpy(entity->p_addr, ip, IPV4_ADDR_LEN);
+    entity->netif = netif;
+    entity->state = state;
+    entity->timeout = 0;
+    entity->retry_cnt = 0;
+}
+
+static net_err_t cache_insert(netif_t* netif, const uint8_t* ip, const uint8_t* hwaddr, const int force)
+{
+    if (*(uint32_t*)ip == 0)
     {
-        dbug_error("");
-        return err;
+        return NET_ERR_INVALID_PARAM;
     }
+    arp_entity_t* entity = cache_find(ip);
+    if (entity == NULL)
+    {
+        entity = cache_alloc(force);
+        if (entity == NULL)
+        {
+            dbug_error("cache_insert: cache_alloc fail,ip:%s", ip);
+            return NET_ERR_MEM;
+        }
+        cache_entity_set(entity, hwaddr, ip, netif, NET_ARP_RESOLVE);
+        nlist_insert_first(&cache_list, &entity->node);
+    }
+    else
+    {
+        cache_entity_set(entity, hwaddr, ip, netif, NET_ARP_RESOLVE);
+
+        // 挪到链表头部，表示最近使用过
+        if (nlist_first(&cache_list) != &entity->node)
+        {
+            nlist_remove(&cache_list, &entity->node);
+            nlist_insert_first(&cache_list, &entity->node);
+        }
+
+        net_err_t err = cache_entity_send_all(entity);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error("cache_insert: cache_entity_send_all fail, ip:%s", ip);
+            return err;
+        }
+    }
+
+    display_arp_tbl();
     return NET_ERR_OK;
 }
 
@@ -210,11 +298,11 @@ net_err_t arp_pkt_is_valid(const netif_t* netif, const arp_pkt_t* arp_pkt, const
     }
 
     // 目标IP地址检查，必须是发给本机的ARP请求或应答
-    if (plat_memcmp(arp_pkt->target_addr, netif->ipaddr.a_addr, IPV4_ADDR_LEN) != 0)
-    {
-        dbug_warn("ARP 目标地址不匹配");
-        return NET_ERR_TARGET_ADDR_MATCH;
-    }
+    // if (plat_memcmp(arp_pkt->target_addr, netif->ipaddr.a_addr, IPV4_ADDR_LEN) != 0)
+    // {
+    //     dbug_warn("ARP 目标地址不匹配");
+    //     return NET_ERR_TARGET_ADDR_MATCH;
+    // }
     return NET_ERR_OK;
 }
 
@@ -230,11 +318,6 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf)
 
     arp_pkt_t* arp_pkt = (arp_pkt_t*)pktbuf_data(buf);
     err = arp_pkt_is_valid(netif, arp_pkt, pktbuf_total(buf));
-    if (err == NET_ERR_TARGET_ADDR_MATCH) // 目标地址不匹配，直接丢弃
-    {
-        pktbuf_free(buf);
-        return NET_ERR_OK;
-    }
     if (err != NET_ERR_OK)
     {
         dbug_error("arp_in: invalid arp packet, err=%d", err);
@@ -246,8 +329,28 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf)
     switch (opcode)
     {
     case ARP_REQUEST:
-        return arp_make_reply(netif, buf);
     case ARP_REPLY:
+        display_arp_pkt(arp_pkt);
+
+        ipaddr_t target_ip;
+        ipaddr_set_any(&target_ip);
+        ipaddr_from_buf(&target_ip, arp_pkt->target_addr);
+        if (ipaddr_is_equal(&netif->ipaddr, &target_ip))
+        {
+            // 更新ARP缓存
+            cache_insert(netif, arp_pkt->sender_addr, arp_pkt->sender_hwaddr, 1);
+
+            // 如果是ARP请求，发送ARP应答
+            if (opcode == ARP_REQUEST)
+            {
+                return arp_make_reply(netif, buf);
+            }
+        }
+        else
+        {
+            // 更新ARP缓存
+            cache_insert(netif, arp_pkt->sender_addr, arp_pkt->sender_hwaddr, 0);
+        }
         break;
     default:
         dbug_warn("arp_in: unknown arp opcode %d", opcode);
@@ -274,4 +377,51 @@ net_err_t arp_make_reply(netif_t* netif, pktbuf_t* buf)
     display_arp_pkt(arp_pkt);
 
     return ether_raw_out(netif, PROTOCOL_TYPE_ARP, arp_pkt->target_hwaddr, buf);
+}
+
+net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf)
+{
+    uint8_t ip_buffer[IPV4_ADDR_LEN];
+    ipaddr_to_buf(addr, ip_buffer);
+
+    arp_entity_t* entity = cache_find(ip_buffer);
+    if (entity != NULL)
+    {
+        if (entity->state == NET_ARP_RESOLVE) // 已解析，直接发送
+        {
+            return ether_raw_out(netif, PROTOCOL_TYPE_IPv4, entity->hwaddr, buf);
+        }
+
+        // 未解析，加入等待发送队列
+
+        // 等待队列是否已满
+        if (nlist_count(&entity->buf_list) >= ARP_MAX_PKT_WAITING)
+        {
+            dbug_warn("arp_resolve: waiting queue full");
+            pktbuf_free(buf);
+            return NET_ERR_FULL;
+        }
+        // 加入等待发送队列
+        nlist_insert_last(&entity->buf_list, &buf->node);
+        return NET_ERR_OK;
+    }
+
+
+    // 分配一个新的缓存项
+    entity = cache_alloc(1);
+    if (entity == NULL)
+    {
+        dbug_error("arp_resolve: cache_alloc fail");
+        return NET_ERR_MEM;
+    }
+
+    cache_entity_set(entity, empty_hwaddr, ip_buffer, netif, NET_ARP_WAITING);
+
+    // 加入等待发送队列
+    nlist_init(&entity->buf_list);
+    nlist_insert_last(&entity->buf_list, &buf->node);
+    nlist_insert_first(&cache_list, &entity->node);
+
+    // 发送ARP请求
+    return arp_make_request(netif, addr);
 }

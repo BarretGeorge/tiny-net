@@ -109,9 +109,8 @@ static net_err_t ether_output(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
     {
         return ether_raw_out(netif, PROTOCOL_TYPE_IPv4, netif->hwaddr.addr, buf);
     }
-
-    arp_make_request(netif, ipaddr);
-    return NET_ERR_OK;
+    // 通过ARP解析MAC地址并发送
+    return arp_resolve(netif, ipaddr, buf);
 }
 
 net_err_t ether_init()

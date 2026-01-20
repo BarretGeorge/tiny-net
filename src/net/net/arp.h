@@ -71,4 +71,7 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf);
 // 发送ARP应答
 net_err_t arp_make_reply(netif_t* netif, pktbuf_t* buf);
 
+// 通过ARP解析MAC地址并发送数据包
+net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf);
+
 #endif //TINY_NET_ARP_H

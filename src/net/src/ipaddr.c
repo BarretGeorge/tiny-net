@@ -90,3 +90,23 @@ void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf)
         dbug_error("IPv6 not supported");
     }
 }
+
+void ipaddr_from_buf(ipaddr_t* ip, const uint8_t* buf)
+{
+    ip->type = IPADDR_TYPE_V4;
+    ip->q_addr = *(uint32_t*)buf;
+}
+
+int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2)
+{
+    if (ip1->type != ip2->type)
+    {
+        return 0;
+    }
+    if (ip1->type == IPADDR_TYPE_V4)
+    {
+        return ip1->q_addr == ip2->q_addr;
+    }
+    dbug_error("IPv6 not supported");
+    return 0;
+}

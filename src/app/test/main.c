@@ -1,15 +1,13 @@
-﻿#include <stdio.h>
-#include "sys_plat.h"
-#include "net.h"
+﻿#include "sys_plat.h"
 #include "netif_pcap.h"
 #include "dbug.h"
-#include "mblock.h"
 #include "pktbuf.h"
 #include "netif.h"
 #include "loop.h"
 #include "exmsg.h"
 #include "ether.h"
 #include "timer.h"
+#include "arp.h"
 
 // 本地ip地址
 const char local_ip[] = "192.168.100.108";
@@ -79,6 +77,9 @@ void netif_test()
     // 回环网卡初始化
     loop_init();
 
+    // ARP模块初始化
+    arp_init();
+
     // 以太网卡初始化
     ether_init();
 
@@ -96,13 +97,6 @@ void netif_test()
 
 int main(void)
 {
-    // mblock_test();
-
-    // pktbuf_test();
-
-    // timer_test();
-
     netif_test();
-
     return 0;
 }
