@@ -66,6 +66,60 @@ static void display_arp_pkt(const arp_pkt_t* pkt)
 #define  display_arp_pkt(pkt)
 #endif
 
+// 释放缓存项中的等待发送的包
+static void cache_cleanup(arp_entity_t* entity)
+{
+    // 释放等待发送的包
+    nlist_node_t* node;
+    while ((node = nlist_remove_first(&entity->buf_list)) != NULL)
+    {
+        pktbuf_t* buf = nlist_entry(node, pktbuf_t, node);
+        pktbuf_free(buf);
+    }
+}
+
+// 分配一个ARP缓存项，force为1时，强制分配（释放最旧的缓存项）
+static arp_entity_t* cache_alloc(const int force)
+{
+    arp_entity_t* entity = (arp_entity_t*)mblock_alloc(&cache_block, -1);
+    if (entity == NULL && force)
+    {
+        // 强制分配时，释放掉最旧的缓存项
+        nlist_node_t* node = nlist_remove_last(&cache_list);
+        if (node == NULL)
+        {
+            dbug_error("cache_alloc: no free arp entity");
+            return NULL;
+        }
+        entity = nlist_entry(node, arp_entity_t, node);
+        cache_cleanup(entity);
+    }
+
+    if (entity != NULL)
+    {
+        // 重置缓存项
+        plat_memset(entity, 0, sizeof(arp_entity_t));
+        entity->state = NET_ARP_FREE;
+
+        // 初始化链表结点
+        nlist_node_init(&entity->node);
+        nlist_init(&entity->buf_list);
+    }
+    return entity;
+}
+
+// 释放ARP缓存项
+static void cache_free(arp_entity_t* entity)
+{
+    if (entity == NULL)
+    {
+        return;
+    }
+    cache_cleanup(entity);
+    nlist_remove(&cache_list, &entity->node);
+    mblock_free(&cache_block, entity);
+}
+
 static net_err_t cache_init()
 {
     nlist_init(&cache_list);
