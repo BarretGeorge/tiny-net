@@ -482,6 +482,7 @@ net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf)
     if (entity == NULL)
     {
         dbug_error("arp_resolve: cache_alloc fail");
+        pktbuf_free(buf);
         return NET_ERR_MEM;
     }
 

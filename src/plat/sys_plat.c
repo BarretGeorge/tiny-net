@@ -388,12 +388,15 @@ sys_sem_t sys_sem_create(int init_count)
     int err = pthread_cond_init(&(sem->cond), NULL);
     if (err)
     {
+        free(sem);
         return (sys_sem_t)0;
     }
 
     err = pthread_mutex_init(&(sem->locker), NULL);
     if (err)
     {
+        pthread_cond_destroy(&(sem->cond));
+        free(sem);
         return (sys_sem_t)0;
     }
 
@@ -513,10 +516,15 @@ void sys_sleep(const int ms)
 sys_mutex_t sys_mutex_create(void)
 {
     sys_mutex_t mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
+    if (!mutex)
+    {
+        return (sys_mutex_t)0;
+    }
 
     int err = pthread_mutex_init(mutex, NULL);
     if (err < 0)
     {
+        free(mutex);
         return (sys_mutex_t)0;
     }
     return mutex;
