@@ -81,7 +81,7 @@ void send_thread(void* arg)
 
 net_err_t netif_pcap_open(netif_t* netif, void* data)
 {
-    pcap_data_t* pcap_data = (pcap_data_t*)data;
+    pcap_data_t* pcap_data = data;
     pcap_t* pcap = pcap_device_open(pcap_data->ipaddr, pcap_data->hwaddr);
     if (!pcap)
     {
