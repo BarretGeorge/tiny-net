@@ -380,7 +380,7 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf)
 {
     net_err_t err = NET_ERR_OK;
     // 确保包是连续的
-    if ((err = pktbuf_set_cont(buf, sizeof(arp_pkt_t)) != NET_ERR_OK))
+    if ((err = pktbuf_set_cont(buf, sizeof(arp_pkt_t))) != NET_ERR_OK)
     {
         dbug_error("arp_in: pktbuf_set_cont failed, err=%d", err);
         return err;

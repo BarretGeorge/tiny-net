@@ -82,7 +82,7 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
     case PROTOCOL_TYPE_ARP:
         dbug_info("收到ARP数据包");
         // 移除以太网头
-        if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t)) != NET_ERR_OK))
+        if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t))) != NET_ERR_OK)
         {
             dbug_warn("ether_input: pktbuf_remove_header failed, err=%d", err);
             pktbuf_free(buf);
@@ -148,12 +148,12 @@ net_err_t ether_raw_out(netif_t* netif, const uint16_t protocol, const uint8_t* 
             return err;
         }
         pktbuf_reset_access(buf);
-        if ((err = pktbuf_seek(buf, size) != NET_ERR_OK))
+        if ((err = pktbuf_seek(buf, size)) != NET_ERR_OK)
         {
             dbug_error("ether_raw_out: pktbuf_seek failed, err=%d", err);
             return err;
         }
-        if ((err = pktbuf_fill(buf, 0, ETHER_PAYLOAD_MIN_LEN - size) != NET_ERR_OK))
+        if ((err = pktbuf_fill(buf, 0, ETHER_PAYLOAD_MIN_LEN - size)) != NET_ERR_OK)
         {
             dbug_error("ether_raw_out: pktbuf_fill failed, err=%d", err);
             return err;
