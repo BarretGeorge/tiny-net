@@ -157,7 +157,7 @@ uint32_t net_timer_check_mo(uint32_t diff_ms)
         }
     }
 
-    display_timer();
+    // display_timer();
     return diff_ms;
 }
 

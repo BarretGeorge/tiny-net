@@ -50,4 +50,16 @@
 // ARP 最大等待发送的数据包数量
 #define ARP_MAX_PKT_WAITING 5
 
+// ARP 定时器超时时间，单位：秒
+#define ARP_TIMER_TMO 1
+
+// ARP 缓存项稳定状态超时时间，单位：秒
+#define ARP_ENTRY_STABLE_TMO 10
+
+// ARP 缓存项等待解析超时时间，单位：秒
+#define ARP_ENTRY_PENDING_TMO 5
+
+// ARP 最大重试次数
+#define ARP_MAX_RETRY_COUNT 5
+
 #endif //TINY_NET_NET_CFG_H

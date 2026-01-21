@@ -3,6 +3,11 @@
 #include "mblock.h"
 #include "tool.h"
 #include "protocol.h"
+#include "timer.h"
+
+#define to_scan_cnt(tmo_sec) ((tmo_sec) / ARP_TIMER_TMO)
+
+static net_timer_t cache_timer;
 
 static arp_entity_t cache_tbl[ARP_CACHE_SIZE];
 
@@ -12,29 +17,6 @@ static nlist_t cache_list;
 
 // 用于初始化缓存项时的空MAC地址
 static const uint8_t empty_hwaddr[ETHER_HWADDR_LEN] = {0};
-
-static net_err_t cache_init()
-{
-    nlist_init(&cache_list);
-
-    net_err_t err = mblock_init(&cache_block, &cache_tbl, sizeof(arp_entity_t), ARP_CACHE_SIZE, NLOCKER_TYPE_NONE);
-    if (err != NET_ERR_OK)
-    {
-        return err;
-    }
-    return NET_ERR_OK;
-}
-
-net_err_t arp_init()
-{
-    net_err_t err = cache_init();
-    if (err != NET_ERR_OK)
-    {
-        dbug_error("");
-        return err;
-    }
-    return NET_ERR_OK;
-}
 
 #if DBG_DISPLAY_ENABLE(DBG_ARP)
 static void display_arp_entity(const arp_entity_t* entity)
@@ -186,8 +168,15 @@ static void cache_entity_set(arp_entity_t* entity, const uint8_t* hwaddr, const 
     plat_memcpy(entity->p_addr, ip, IPV4_ADDR_LEN);
     entity->netif = netif;
     entity->state = state;
-    entity->timeout = 0;
-    entity->retry_cnt = 0;
+    if (state == NET_ARP_RESOLVE)
+    {
+        entity->timeout = to_scan_cnt(ARP_ENTRY_STABLE_TMO);
+    }
+    else if (state == NET_ARP_WAITING)
+    {
+        entity->timeout = to_scan_cnt(ARP_ENTRY_PENDING_TMO);
+    }
+    entity->retry_cnt = ARP_MAX_RETRY_COUNT;
 }
 
 static net_err_t cache_insert(netif_t* netif, const uint8_t* ip, const uint8_t* hwaddr, const int force)
@@ -228,6 +217,87 @@ static net_err_t cache_insert(netif_t* netif, const uint8_t* ip, const uint8_t* 
     }
 
     display_arp_tbl();
+    return NET_ERR_OK;
+}
+
+static void arp_cache_tmo(net_timer_t* timer, void* arg)
+{
+    int change_cnt = 0;
+    nlist_node_t* next;
+    for (nlist_node_t* curr = cache_list.first; curr != NULL; curr = next)
+    {
+        next = nlist_node_next(curr);
+
+        arp_entity_t* entity = nlist_entry(curr, arp_entity_t, node);
+
+        if (--entity->timeout > 0) // 未超时
+        {
+            continue;
+        }
+        change_cnt++;
+        ipaddr_t addr;
+        ipaddr_from_buf(&addr, entity->p_addr);
+        switch (entity->state)
+        {
+        case NET_ARP_WAITING:
+            dbug_info("state NET_ARP_WAITING");
+            if (--entity->retry_cnt <= 0)
+            {
+                dbug_info("ARP解析超时，释放缓存项");
+                cache_free(entity);
+                break;
+            }
+            // 重试发送ARP请求
+            entity->timeout = to_scan_cnt(ARP_ENTRY_PENDING_TMO);
+            arp_make_request(entity->netif, &addr);
+            break;
+        case NET_ARP_RESOLVE:
+            dbug_info("state NET_ARP_RESOLVE");
+            entity->state = NET_ARP_WAITING;
+            entity->timeout = to_scan_cnt(ARP_ENTRY_PENDING_TMO);
+            entity->retry_cnt = ARP_MAX_RETRY_COUNT;
+            arp_make_request(entity->netif, &addr);
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (change_cnt > 0)
+    {
+        dbug_info("%d arp entity change_cnt", change_cnt);
+        display_arp_tbl();
+    }
+}
+
+static net_err_t cache_init()
+{
+    nlist_init(&cache_list);
+
+    net_err_t err = mblock_init(&cache_block, &cache_tbl, sizeof(arp_entity_t), ARP_CACHE_SIZE, NLOCKER_TYPE_NONE);
+    if (err != NET_ERR_OK)
+    {
+        return err;
+    }
+
+    // 启动ARP缓存定时器
+    err = net_timer_add(&cache_timer, "arp timer", arp_cache_tmo, NULL, ARP_TIMER_TMO * 1000, TIMER_FLAG_PERIODIC);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("cache_init: net_timer_add fail, err=%d", err);
+        return err;
+    }
+    return NET_ERR_OK;
+}
+
+net_err_t arp_init()
+{
+    net_err_t err = cache_init();
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("");
+        return err;
+    }
     return NET_ERR_OK;
 }
 
