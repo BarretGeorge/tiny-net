@@ -50,6 +50,7 @@ static net_err_t ether_open(netif_t* netif)
 // 关闭函数指针
 static void ether_close(netif_t* netif)
 {
+    arp_clear(netif);
 }
 
 // 输入函数指针

@@ -496,3 +496,19 @@ net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf)
     // 发送ARP请求
     return arp_make_request(netif, addr);
 }
+
+void arp_clear(const netif_t* netif)
+{
+    nlist_node_t* next;
+    for (nlist_node_t* curr = cache_list.first; curr != NULL; curr = next)
+    {
+        next = nlist_node_next(curr);
+
+        arp_entity_t* entity = nlist_entry(curr, arp_entity_t, node);
+        if (entity->netif == netif)
+        {
+            cache_free(entity);
+            // nlist_remove(&cache_list, curr);
+        }
+    }
+}
