@@ -110,3 +110,34 @@ int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2)
     dbug_error("IPv6 not supported");
     return 0;
 }
+
+bool is_local_broadcast_ip(const ipaddr_t* ip)
+{
+    if (ip->type != IPADDR_TYPE_V4)
+    {
+        return false;
+    }
+    return ip->q_addr == 0xFFFFFFFF;
+}
+
+static ipaddr_t ipaddr_get_host(const ipaddr_t* netmask, const ipaddr_t* ip)
+{
+    ipaddr_t host;
+    host.type = IPADDR_TYPE_V4;
+    host.q_addr = ip->q_addr & (~netmask->q_addr);
+    return host;
+}
+
+bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip)
+{
+    if (ip->type != IPADDR_TYPE_V4 || netmask->type != IPADDR_TYPE_V4)
+    {
+        return false;
+    }
+    ipaddr_t host = ipaddr_get_host(netmask, ip);
+    ipaddr_t max_host;
+    max_host.type = IPADDR_TYPE_V4;
+    max_host.q_addr = ~netmask->q_addr;
+    return host.q_addr == max_host.q_addr;
+
+}

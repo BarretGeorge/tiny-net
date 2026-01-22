@@ -1,6 +1,7 @@
 #ifndef TINY_NET_IPADDR_H
 #define TINY_NET_IPADDR_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "net_err.h"
 #include "sys.h"
@@ -64,5 +65,9 @@ void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf);
 void ipaddr_from_buf(ipaddr_t* ip, const uint8_t* buf);
 
 int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2);
+
+bool is_local_broadcast_ip(const ipaddr_t* ip);
+
+bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip);
 
 #endif //TINY_NET_IPADDR_H

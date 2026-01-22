@@ -105,11 +105,13 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
 // 输出函数指针
 static net_err_t ether_output(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
 {
-    // 是否回环
-    if (netif->ipaddr.q_addr == ipaddr->q_addr)
+    const uint8_t* hwaddr = arp_find(netif, ipaddr);
+    if (hwaddr != NULL)
     {
-        return ether_raw_out(netif, PROTOCOL_TYPE_IPv4, netif->hwaddr.addr, buf);
+        // 已缓存，直接发送
+        return ether_raw_out(netif, PROTOCOL_TYPE_IPv4, hwaddr, buf);
     }
+
     // 通过ARP解析MAC地址并发送
     return arp_resolve(netif, ipaddr, buf);
 }

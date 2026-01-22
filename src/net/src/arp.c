@@ -161,6 +161,33 @@ static arp_entity_t* cache_find(const uint8_t* ip)
     return NULL;
 }
 
+const uint8_t* arp_find(netif_t* netif, const ipaddr_t* addr)
+{
+    // 是否是本机IP地址
+    if (addr->q_addr == netif->ipaddr.q_addr)
+    {
+        return netif->hwaddr.addr;
+    }
+
+    // 是否是广播地址
+    if (is_local_broadcast_ip(addr) || is_directed_broadcast_ip(&netif->netmask, addr))
+    {
+        return ether_broadcast_addr();
+    }
+
+    // 查找ARP缓存
+    uint8_t ip_buffer[IPV4_ADDR_LEN];
+    ipaddr_to_buf(addr, ip_buffer);
+
+    arp_entity_t* entity = cache_find(ip_buffer);
+    if (entity != NULL && entity->state == NET_ARP_RESOLVE)
+    {
+        return entity->hwaddr;
+    }
+
+    return NULL;
+}
+
 static void cache_entity_set(arp_entity_t* entity, const uint8_t* hwaddr, const uint8_t* ip, netif_t* netif,
                              const int state)
 {
@@ -168,13 +195,16 @@ static void cache_entity_set(arp_entity_t* entity, const uint8_t* hwaddr, const 
     plat_memcpy(entity->p_addr, ip, IPV4_ADDR_LEN);
     entity->netif = netif;
     entity->state = state;
-    if (state == NET_ARP_RESOLVE)
+    switch (state)
     {
+    case NET_ARP_RESOLVE:
         entity->timeout = to_scan_cnt(ARP_ENTRY_STABLE_TMO);
-    }
-    else if (state == NET_ARP_WAITING)
-    {
+        break;
+    case NET_ARP_WAITING:
         entity->timeout = to_scan_cnt(ARP_ENTRY_PENDING_TMO);
+        break;
+    default:
+        break;
     }
     entity->retry_cnt = ARP_MAX_RETRY_COUNT;
 }

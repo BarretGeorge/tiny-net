@@ -19,6 +19,12 @@ const char virtual_ip[] = "192.168.100.95";
 // 客户端ip地址
 const char friend_ip[] = "192.168.100.104";
 
+// 广播地址
+const char broadcast_ip[] = "255.255.255.255";
+
+// 区域广播地址
+const char directed_broadcast_ip[] = "192.168.100.255";
+
 // 虚拟网卡操作函数
 pcap_data_t netdev_0 = {
     .ipaddr = local_ip,
@@ -53,7 +59,7 @@ net_err_t netdev_init(void)
     pktbuf_fill(buf, 0x53, 32);
 
     ipaddr_t addr;
-    ipaddr4_form_str(&addr, friend_ip);
+    ipaddr4_form_str(&addr, directed_broadcast_ip);
     netif_out(netif, &addr, buf);
     return NET_ERR_OK;
 }
