@@ -4,6 +4,7 @@
 #include "dbug.h"
 #include "netif.h"
 #include "tool.h"
+#include "ipv4.h"
 
 static void display_ether_frame(const char* title, const ether_frame_t* frame, const uint32_t frame_len)
 {
@@ -92,7 +93,14 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
         return arp_in(netif, buf);
     case PROTOCOL_TYPE_IPv4:
         dbug_info("收到IPv4数据包");
-        break;
+        // 移除以太网头
+        if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t))) != NET_ERR_OK)
+        {
+            dbug_warn("ether_input: pktbuf_remove_header failed, err=%d", err);
+            pktbuf_free(buf);
+            return err;
+        }
+        return ipv4_input(netif, buf);
     default:
         dbug_warn("不支持的协议 protocol 0x%04X", protocol);
         break;

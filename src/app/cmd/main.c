@@ -31,6 +31,30 @@ pcap_data_t netdev_0 = {
     .hwaddr = (uint8_t[]){0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC},
 };
 
+void test_ethernet_send(netif_t* netif)
+{
+    pktbuf_t* buf = pktbuf_alloc(32);
+    pktbuf_fill(buf, 0x53, 32);
+
+    ipaddr_t addr;
+    ipaddr4_form_str(&addr, friend_ip);
+    netif_out(netif, &addr, buf);
+    dbug_info("test_ethernet_send: sent 32 bytes to %s", friend_ip);
+
+    /**
+     * buf 不需要 free
+     *
+     * 因为 netif_out 已经将 buf 的所有权转移给了发送队列，由发送队列负责释放
+     */
+
+    buf = pktbuf_alloc(64);
+    pktbuf_set_cont(buf, 64);
+    pktbuf_fill(buf, 0xAA, 64);
+    ipaddr4_form_str(&addr, broadcast_ip);
+    netif_out(netif, &addr, buf);
+    dbug_info("test_ethernet_send: sent 64 bytes to %s", broadcast_ip);
+}
+
 net_err_t netdev_init(void)
 {
     netif_t* netif = netif_open("vnet0", &netdev_ops, &netdev_0);
@@ -54,13 +78,8 @@ net_err_t netdev_init(void)
 
     netif_set_active(netif);
 
-    // todo 测试以太网数据发送
-    pktbuf_t* buf = pktbuf_alloc(32);
-    pktbuf_fill(buf, 0x53, 32);
-
-    ipaddr_t addr;
-    ipaddr4_form_str(&addr, directed_broadcast_ip);
-    netif_out(netif, &addr, buf);
+    // 测试发送以太网帧
+    test_ethernet_send(netif);
     return NET_ERR_OK;
 }
 

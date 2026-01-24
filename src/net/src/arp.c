@@ -161,7 +161,7 @@ static arp_entity_t* cache_find(const uint8_t* ip)
     return NULL;
 }
 
-const uint8_t* arp_find(netif_t* netif, const ipaddr_t* addr)
+const uint8_t* arp_find(const netif_t* netif, const ipaddr_t* addr)
 {
     // 是否是本机IP地址
     if (addr->q_addr == netif->ipaddr.q_addr)

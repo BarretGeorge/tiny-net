@@ -5,6 +5,7 @@
 #include "fixq.h"
 #include "mblock.h"
 #include "timer.h"
+#include "ipv4.h"
 
 static void* msg_tbl[EXMSG_QUEUE_SIZE];
 
@@ -50,28 +51,22 @@ static net_err_t do_netif_input(const exmsg_t* msg)
     pktbuf_t* buf;
     while ((buf = netif_get_in(netif, -1)) != NULL)
     {
+        net_err_t err = NET_ERR_OK;
         // 是否注册对应链路层协议处理函数
-        if (netif->link_layer == NULL)
+        if (netif->link_layer != NULL)
         {
-            dbug_warn("回环网卡未注册链路层协议处理函数，丢弃数据包");
-            pktbuf_free(buf);
-            continue;
+            err = netif->link_layer->input(netif, buf);
+        }
+        else
+        {
+            err = ipv4_input(netif, buf);
         }
 
-        net_err_t err = netif->link_layer->input(netif, buf);
         if (err != NET_ERR_OK)
         {
-            dbug_error("回环网卡处理输入数据包失败，err=%d", err);
+            dbug_error("处理输入数据包失败，err=%d", err);
             pktbuf_free(buf);
-            continue;
         }
-        // pktbuf_fill(buf, 0x11, 6);
-        //
-        // if (netif_out(netif, NULL, buf) != NET_ERR_OK)
-        // {
-        //     dbug_error("回环网卡发送数据包失败");
-        //     pktbuf_free(buf);
-        // }
     }
     return NET_ERR_OK;
 }

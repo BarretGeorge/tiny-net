@@ -78,6 +78,6 @@ net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf);
 void arp_clear(const netif_t* netif);
 
 // 查找对应IP地址的MAC地址
-const uint8_t* arp_find(netif_t* netif, const ipaddr_t* addr);
+const uint8_t* arp_find(const netif_t* netif, const ipaddr_t* addr);
 
 #endif //TINY_NET_ARP_H
