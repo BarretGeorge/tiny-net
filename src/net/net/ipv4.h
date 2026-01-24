@@ -2,7 +2,6 @@
 #define TINY_NET_IPV4_H
 
 #include <stdint.h>
-
 #include "ipaddr.h"
 #include "net_err.h"
 #include "netif.h"
@@ -15,13 +14,20 @@ typedef struct ipv4_header_t
     {
         struct
         {
+#if NET_ENDIAN_LITTLE
             uint16_t shdr : 4; // 头部长度
             uint16_t version : 4; // 版本号
-            uint16_t tos; // 服务类型
+#else
+            uint16_t version : 4; // 版本号
+            uint16_t shdr : 4; // 头部长度
+#endif
+            uint16_t tos : 8; // 服务类型
         };
+
         // 版本和头部长度
         uint16_t shar_all;
     };
+
     // 总长度
     uint16_t total_len;
     // 标识
@@ -43,7 +49,7 @@ typedef struct ipv4_header_t
 typedef struct ipv4_pkt_t
 {
     ipv4_header_t header;
-    uint8_t payload[1];
+    uint8_t payload[0];
 } ipv4_pkt_t;
 #pragma pack()
 

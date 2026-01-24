@@ -62,4 +62,7 @@
 // ARP 最大重试次数
 #define ARP_MAX_RETRY_COUNT 5
 
+// IP协议版本
+#define NET_VERSION_IPV4 4
+
 #endif //TINY_NET_NET_CFG_H

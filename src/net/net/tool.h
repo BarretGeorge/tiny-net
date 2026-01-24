@@ -1,6 +1,8 @@
 #ifndef TINY_NET_TOOL_H
 #define TINY_NET_TOOL_H
 
+#include <stdbool.h>
+
 #include "net_cfg.h"
 #include <stdint.h>
 
@@ -57,5 +59,8 @@ static inline uint16_t net_to_host_u16(const uint16_t val)
 #define x_ntohs net_to_host_u16
 #define x_htonl host_to_net_u32
 #define x_ntohl net_to_host_u32
+
+// 计算16位校验和
+uint16_t checksum16(const void* data, uint16_t size,uint32_t pre_sum, bool complement);
 
 #endif //TINY_NET_TOOL_H

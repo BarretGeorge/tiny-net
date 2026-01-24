@@ -13,7 +13,7 @@ static void ipv4_header_ntohs(ipv4_header_t* hdr)
 static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, netif_t* netif)
 {
     // 检查版本号
-    if (pkt->header.version != IPADDR_TYPE_V4)
+    if (pkt->header.version != NET_VERSION_IPV4)
     {
         dbug_warn("ipv4_pkt_is_valid: invalid version %d", pkt->header.version);
         return NET_ERR_FRAME;
@@ -31,6 +31,18 @@ static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, n
     {
         dbug_warn("ipv4_pkt_is_valid: invalid total length %d", total_len);
         return NET_ERR_FRAME;
+    }
+
+
+    // 检查校验和
+    if (pkt->header.header_checksum)
+    {
+        uint16_t checksum = checksum16(&pkt->header, hdr_len, 0, true);
+        if (checksum != 0)
+        {
+            dbug_warn("ipv4_pkt_is_valid: invalid header checksum 0x%04X", checksum);
+            return NET_ERR_CHECKSUM;
+        }
     }
 
     return NET_ERR_OK;
@@ -54,8 +66,9 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     // 设置包的连续性
     pktbuf_set_cont(buf, sizeof(ipv4_header_t));
 
-
     ipv4_pkt_t* pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+
+    // 验证ipv4包是否合法
     net_err_t err = ipv4_pkt_is_valid(pkt, buf->total_size, netif);
     if (err != NET_ERR_OK)
     {

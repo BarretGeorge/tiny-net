@@ -13,6 +13,7 @@ typedef enum net_err_t
     NET_ERR_TIMEOUT = -7, // 超时
     NET_ERR_TARGET_ADDR_MATCH = -8, // 目标地址不匹配
     NET_ERR_FULL = -9, // 资源已满
+    NET_ERR_CHECKSUM = -10,
 } net_err_t;
 
 #endif //TINY_NET_NET_ERR_H
