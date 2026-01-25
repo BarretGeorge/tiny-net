@@ -58,9 +58,11 @@ void test_ethernet_send(netif_t* netif)
 
 void test_ipv4_send(netif_t* netif)
 {
-    pktbuf_t* buf = pktbuf_alloc(100);
-    pktbuf_set_cont(buf, 100);
-    pktbuf_fill(buf, 0x77, 100);
+    const int size = 32;
+    pktbuf_t* buf = pktbuf_alloc(size);
+    pktbuf_set_cont(buf, size);
+    pktbuf_fill(buf, 0x53, size);
+    pktbuf_seek(buf, 0);
 
     ipaddr_t addr;
     ipaddr4_form_str(&addr, friend_ip);

@@ -556,10 +556,10 @@ void pktbuf_reset_access(pktbuf_t* pktbuf)
     }
 }
 
-// static int total_blk_remain(pktbuf_t* pktbuf)
-// {
-//     return pktbuf->total_size - pktbuf->pos;
-// }
+static int total_blk_remain(const pktbuf_t* pktbuf)
+{
+    return (int)pktbuf->total_size - pktbuf->pos;
+}
 
 static int curr_blk_remain(const pktbuf_t* pktbuf)
 {
@@ -803,68 +803,28 @@ void pktbuf_incr_ref(pktbuf_t* pktbuf)
     nlocker_unlock(&locker);
 }
 
-uint16_t pktbuf_checksum16(const pktbuf_t* buf, const int size, const uint32_t pre_sum, bool complement)
+uint16_t pktbuf_checksum16(pktbuf_t* buf, int size, const uint32_t pre_sum, bool complement)
 {
-    if (buf == NULL || size <= 0)
+    // 从当前位置开始计算校验和
+    // 大小检查
+    int remain_size = total_blk_remain(buf);
+    if (remain_size < size)
     {
         return 0;
     }
 
+    // 不断简单16位累加数据区
     uint32_t sum = pre_sum;
-    int remain_size = size;
-
-    bool odd_start = false;
-
-    pktblk_t* curr_blk = pktbuf_first_blk(buf);
-    uint8_t* curr_offset = curr_blk ? curr_blk->data : NULL;
-    int curr_blk_remain = curr_blk ? (int)curr_blk->size : 0;
-
-    while (remain_size > 0 && curr_blk)
+    while (size > 0)
     {
-        if (curr_offset == NULL)
-        {
-            return 0;
-        }
-        int curr_copy = remain_size > curr_blk_remain ? curr_blk_remain : remain_size;
+        int blk_size = curr_blk_remain(buf);
 
-        uint16_t blk_sum = checksum16(curr_offset, curr_copy, 0, false);
+        int curr_size = (blk_size > size ? size : blk_size);
+        sum = checksum16(buf->blk_offset, curr_size, sum, 0);
 
-        if (odd_start)
-        {
-            blk_sum = (blk_sum << 8) | (blk_sum >> 8);
-        }
-
-        sum += blk_sum;
-
-        if (curr_copy % 2 != 0)
-        {
-            odd_start = !odd_start;
-        }
-
-        remain_size -= curr_copy;
-        curr_offset += curr_copy;
-        curr_blk_remain -= curr_copy;
-
-        if (curr_blk_remain == 0)
-        {
-            curr_blk = pktblock_get_next(curr_blk);
-            if (curr_blk)
-            {
-                curr_offset = curr_blk->data;
-                curr_blk_remain = (int)curr_blk->size;
-            }
-        }
+        move_forward(buf, curr_size);
+        size -= curr_size;
     }
 
-    while (sum >> 16)
-    {
-        sum = (sum & 0xFFFF) + (sum >> 16);
-    }
-
-    if (complement)
-    {
-        sum = ~sum;
-    }
-
-    return (uint16_t)sum;
+    return complement ? (uint16_t)~sum : (uint16_t)sum;
 }

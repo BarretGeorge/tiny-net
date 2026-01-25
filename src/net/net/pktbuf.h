@@ -109,6 +109,6 @@ net_err_t pktbuf_fill(pktbuf_t* pktbuf, uint8_t value, int size);
 void pktbuf_incr_ref(pktbuf_t* pktbuf);
 
 // 计算pktbuf的16位校验和
-uint16_t pktbuf_checksum16(const pktbuf_t* buf, int size, uint32_t pre_sum, bool complement);
+uint16_t pktbuf_checksum16(pktbuf_t* buf, int size, uint32_t pre_sum, bool complement);
 
 #endif // TINY_NET_PKTBUF_H

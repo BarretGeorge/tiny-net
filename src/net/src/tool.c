@@ -2,33 +2,25 @@
 
 uint16_t checksum16(const void* data, uint16_t size, const uint32_t pre_sum, bool complement)
 {
-    const uint8_t* bytes = data;
-    uint32_t sum = pre_sum;
+    uint16_t* curr_buf = (uint16_t*)data;
+    uint32_t checksum = pre_sum;
 
-    // 处理16位数据
-    while (size >= 2)
+    while (size > 1)
     {
-        sum += (bytes[0] << 8) | bytes[1];
-        bytes += 2;
+        checksum += *curr_buf++;
         size -= 2;
     }
 
-    // 处理剩余的字节（如果有的话）
     if (size > 0)
     {
-        sum += (bytes[0] << 8);
+        checksum += *(uint8_t*)curr_buf;
     }
 
-    // 折叠32位和为16位
-    while (sum >> 16)
+    uint16_t high;
+    while ((high = checksum >> 16) != 0)
     {
-        sum = (sum & 0xFFFF) + (sum >> 16);
+        checksum = high + (checksum & 0xffff);
     }
 
-    uint16_t result = (uint16_t)sum;
-    if (complement)
-    {
-        result = ~result;
-    }
-    return result;
+    return complement ? (uint16_t)~checksum : (uint16_t)checksum;
 }
