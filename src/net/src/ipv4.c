@@ -187,9 +187,15 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     ipaddr_to_buf(src_ip, pkt->header.src_addr);
     ipaddr_to_buf(dest_ip, pkt->header.dest_addr);
 
+    // 转换为网络字节序
+    ipv4_header_htonl(&pkt->header);
+
+    // 重置访问位置
+    pktbuf_reset_access(buf);
+
     // 计算校验和
     pkt->header.header_checksum = pktbuf_checksum16(buf, ipv4_hdr_size(pkt), 0, true);
-    ipv4_header_htonl(&pkt->header);
+
 
     display_ipv4_header(pkt);
 
