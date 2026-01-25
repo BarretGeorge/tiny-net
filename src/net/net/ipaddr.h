@@ -56,6 +56,8 @@ void ipaddr_set_any(ipaddr_t* ip);
 
 net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str);
 
+net_err_t ipaddr4_form_buf(ipaddr_t* ip, const uint8_t* buf);
+
 const ipaddr_t* get_addr_any();
 
 void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src);
@@ -69,5 +71,7 @@ int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2);
 bool is_local_broadcast_ip(const ipaddr_t* ip);
 
 bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip);
+
+bool ipaddr_is_match(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const ipaddr_t* netmask);
 
 #endif //TINY_NET_IPADDR_H

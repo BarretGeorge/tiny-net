@@ -128,6 +128,14 @@ static ipaddr_t ipaddr_get_host(const ipaddr_t* netmask, const ipaddr_t* ip)
     return host;
 }
 
+static ipaddr_t ipaddr_get_network(const ipaddr_t* netmask, const ipaddr_t* ip)
+{
+    ipaddr_t network;
+    network.type = IPADDR_TYPE_V4;
+    network.q_addr = ip->q_addr & netmask->q_addr;
+    return network;
+}
+
 bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip)
 {
     if (ip->type != IPADDR_TYPE_V4 || netmask->type != IPADDR_TYPE_V4)
@@ -139,5 +147,37 @@ bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip)
     max_host.type = IPADDR_TYPE_V4;
     max_host.q_addr = ~netmask->q_addr;
     return host.q_addr == max_host.q_addr;
+}
 
+net_err_t ipaddr4_form_buf(ipaddr_t* ip, const uint8_t* buf)
+{
+    if (!ip || !buf)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    ip->type = IPADDR_TYPE_V4;
+    ip->q_addr = *(uint32_t*)buf;
+    return NET_ERR_OK;
+}
+
+bool ipaddr_is_match(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const ipaddr_t* netmask)
+{
+    if (is_local_broadcast_ip(dest_ip))
+    {
+        return true;
+    }
+
+    ipaddr_t dest_net = ipaddr_get_network(netmask, dest_ip);
+    ipaddr_t src_net = ipaddr_get_network(netmask, src_ip);
+
+    if (is_directed_broadcast_ip(netmask, dest_ip) && ipaddr_is_equal(&dest_net, &src_net))
+    {
+        return true;
+    }
+
+    if (ipaddr_is_equal(&dest_net, &src_net))
+    {
+        return true;
+    }
+    return false;
 }

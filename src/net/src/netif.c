@@ -397,3 +397,8 @@ net_err_t netif_register_link_layer(const link_layer_t* ll)
     link_layers[ll->type - 1] = ll;
     return NET_ERR_OK;
 }
+
+netif_t* netif_get_default()
+{
+    return netif_default;
+}

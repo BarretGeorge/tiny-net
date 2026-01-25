@@ -6,6 +6,7 @@
 #include "loop.h"
 #include "sys.h"
 #include "timer.h"
+#include "ipv4.h"
 
 // 本地ip地址
 const char local_ip[] = "192.168.100.108";
@@ -55,6 +56,22 @@ void test_ethernet_send(netif_t* netif)
     dbug_info("test_ethernet_send: sent 64 bytes to %s", broadcast_ip);
 }
 
+void test_ipv4_send(netif_t* netif)
+{
+    pktbuf_t* buf = pktbuf_alloc(100);
+    pktbuf_set_cont(buf, 100);
+    pktbuf_fill(buf, 0x77, 100);
+
+    ipaddr_t addr;
+    ipaddr4_form_str(&addr, friend_ip);
+
+    ipaddr_t src;
+    ipaddr4_form_str(&src, virtual_ip);
+
+    ipv4_output(0, &addr, &src, buf);
+    dbug_info("test_ipv4_send: sent 100 bytes to %s", friend_ip);
+}
+
 net_err_t netdev_init(void)
 {
     netif_t* netif = netif_open("vnet0", &netdev_ops, &netdev_0);
@@ -79,7 +96,10 @@ net_err_t netdev_init(void)
     netif_set_active(netif);
 
     // 测试发送以太网帧
-    test_ethernet_send(netif);
+    // test_ethernet_send(netif);
+
+    // 测试IPv4发送
+    test_ipv4_send(netif);
     return NET_ERR_OK;
 }
 

@@ -6,6 +6,7 @@
 #include "dbug.h"
 #include "mblock.h"
 #include "nlocker.h"
+#include "tool.h"
 
 static nlocker_t locker;
 
@@ -800,4 +801,70 @@ void pktbuf_incr_ref(pktbuf_t* pktbuf)
     nlocker_lock(&locker);
     ++pktbuf->ref_count;
     nlocker_unlock(&locker);
+}
+
+uint16_t pktbuf_checksum16(const pktbuf_t* buf, const int size, const uint32_t pre_sum, bool complement)
+{
+    if (buf == NULL || size <= 0)
+    {
+        return 0;
+    }
+
+    uint32_t sum = pre_sum;
+    int remain_size = size;
+
+    bool odd_start = false;
+
+    pktblk_t* curr_blk = pktbuf_first_blk(buf);
+    uint8_t* curr_offset = curr_blk ? curr_blk->data : NULL;
+    int curr_blk_remain = curr_blk ? (int)curr_blk->size : 0;
+
+    while (remain_size > 0 && curr_blk)
+    {
+        if (curr_offset == NULL)
+        {
+            return 0;
+        }
+        int curr_copy = remain_size > curr_blk_remain ? curr_blk_remain : remain_size;
+
+        uint16_t blk_sum = checksum16(curr_offset, curr_copy, 0, false);
+
+        if (odd_start)
+        {
+            blk_sum = (blk_sum << 8) | (blk_sum >> 8);
+        }
+
+        sum += blk_sum;
+
+        if (curr_copy % 2 != 0)
+        {
+            odd_start = !odd_start;
+        }
+
+        remain_size -= curr_copy;
+        curr_offset += curr_copy;
+        curr_blk_remain -= curr_copy;
+
+        if (curr_blk_remain == 0)
+        {
+            curr_blk = pktblock_get_next(curr_blk);
+            if (curr_blk)
+            {
+                curr_offset = curr_blk->data;
+                curr_blk_remain = (int)curr_blk->size;
+            }
+        }
+    }
+
+    while (sum >> 16)
+    {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+
+    if (complement)
+    {
+        sum = ~sum;
+    }
+
+    return (uint16_t)sum;
 }

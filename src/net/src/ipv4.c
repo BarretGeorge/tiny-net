@@ -1,6 +1,32 @@
 #include "ipv4.h"
 #include "dbug.h"
+#include "protocol.h"
 #include "tool.h"
+
+static uint16_t packet_id = 0;
+
+#if DBG_DISPLAY_ENABLE(DBG_IPV4)
+static void display_ipv4_header(const ipv4_pkt_t* pkt)
+{
+    const ipv4_header_t* hdr = &pkt->header;
+    plat_printf("IPv4 Header:\n");
+    plat_printf("  Version: %u\n", hdr->version);
+    plat_printf("  Header Length: %u bytes\n", hdr->shdr * 4);
+    plat_printf("  Type of Service: 0x%02X\n", hdr->tos);
+    plat_printf("  Total Length: %u bytes\n", x_ntohs(hdr->total_len));
+    plat_printf("  Identification: 0x%04X\n", x_ntohs(hdr->id));
+    plat_printf("  Flags and Fragment Offset: 0x%04X\n", x_ntohs(hdr->frag_all));
+    plat_printf("  Time to Live: %u\n", hdr->ttl);
+    plat_printf("  Protocol: %u\n", hdr->protocol);
+    plat_printf("  Header Checksum: 0x%04X\n", x_ntohs(hdr->header_checksum));
+    plat_printf("  Source Address: %u.%u.%u.%u\n",
+                hdr->src_addr[0], hdr->src_addr[1], hdr->src_addr[2], hdr->src_addr[3]);
+    plat_printf("  Destination Address: %u.%u.%u.%u\n",
+                hdr->dest_addr[0], hdr->dest_addr[1], hdr->dest_addr[2], hdr->dest_addr[3]);
+}
+#else
+#define  display_ipv4_header(header)
+#endif
 
 static void ipv4_header_ntohs(ipv4_header_t* hdr)
 {
@@ -8,6 +34,14 @@ static void ipv4_header_ntohs(ipv4_header_t* hdr)
     hdr->id = x_ntohs(hdr->id);
     hdr->frag_all = x_ntohs(hdr->frag_all);
     hdr->header_checksum = x_ntohs(hdr->header_checksum);
+}
+
+static void ipv4_header_htonl(ipv4_header_t* hdr)
+{
+    hdr->total_len = x_htons(hdr->total_len);
+    hdr->id = x_htons(hdr->id);
+    hdr->frag_all = x_htons(hdr->frag_all);
+    hdr->header_checksum = x_htons(hdr->header_checksum);
 }
 
 static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, netif_t* netif)
@@ -48,9 +82,33 @@ static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, n
     return NET_ERR_OK;
 }
 
+static net_err_t ip_normal_input(netif_t* netif, const pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
+{
+    ipv4_pkt_t* ipv4_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+    display_ipv4_header(ipv4_pkt);
+    switch (ipv4_pkt->header.protocol)
+    {
+    case PROTOCOL_TYPE_ICMP_V4: // ICMP
+        break;
+    case PROTOCOL_TYPE_UDP: // UDP
+        break;
+    case PROTOCOL_TYPE_TCP: // TCP
+        break;
+    default:
+        dbug_warn("ip_normal_input: unsupported protocol %d", ipv4_pkt->header.protocol);
+        return NET_ERR_FRAME;
+    }
+    return NET_ERR_OK;
+}
+
 int ipv4_hdr_size(const ipv4_pkt_t* pkt)
 {
     return pkt->header.shdr * 4;
+}
+
+void ipv4_set_hdr_size(ipv4_pkt_t* pkt, const int size)
+{
+    pkt->header.shdr = size / 4;
 }
 
 net_err_t ipv4_init()
@@ -73,7 +131,6 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     if (err != NET_ERR_OK)
     {
         dbug_warn("ipv4_input: invalid ipv4 packet, err=%d", err);
-        pktbuf_free(buf);
         return err;
     }
 
@@ -83,10 +140,65 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     if ((err = pktbuf_resize(buf, ipv4_hdr_size(pkt))) != NET_ERR_OK)
     {
         dbug_warn("ipv4_input: pktbuf_set_cont failed, err=%d", err);
-        pktbuf_free(buf);
+        return err;
+    }
+
+    ipaddr_t src_ip, dest_ip;
+    ipaddr4_form_buf(&src_ip, pkt->header.src_addr);
+    ipaddr4_form_buf(&dest_ip, pkt->header.dest_addr);
+
+    if (!ipaddr_is_match(&dest_ip, &netif->ipaddr, &netif->netmask))
+    {
+        dbug_warn("ipv4_input: packet not for us,dest ip %s", dest_ip.a_addr);
+        return NET_ERR_TARGET_ADDR_MATCH;
+    }
+
+    err = ip_normal_input(netif, buf, &src_ip, &dest_ip);
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("ipv4_input: ip_normal_input failed, err=%d", err);
         return err;
     }
 
     pktbuf_free(buf);
+    return NET_ERR_OK;
+}
+
+net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf)
+{
+    // 添加IPv4头
+    net_err_t err = pktbuf_add_header(buf, sizeof(ipv4_header_t), true);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("ipv4_output: pktbuf_add_header failed, err=%d", err);
+        return err;
+    }
+
+    ipv4_pkt_t* pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+    pkt->header.shar_all = 0;
+    pkt->header.version = NET_VERSION_IPV4;
+    ipv4_set_hdr_size(pkt, sizeof(ipv4_header_t));
+    pkt->header.total_len = (uint16_t)buf->total_size;
+    pkt->header.id = ++packet_id;
+    pkt->header.frag_all = 0;
+    pkt->header.ttl = 64;
+    pkt->header.header_checksum = 0;
+    pkt->header.protocol = protocol;
+    ipaddr_to_buf(src_ip, pkt->header.src_addr);
+    ipaddr_to_buf(dest_ip, pkt->header.dest_addr);
+
+    ipv4_header_htonl(&pkt->header);
+
+    // 计算校验和
+    pkt->header.header_checksum = pktbuf_checksum16(buf, ipv4_hdr_size(pkt), 0, true);
+
+    display_ipv4_header(pkt);
+
+    err = netif_out(netif_get_default(), (ipaddr_t*)dest_ip, buf);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("ipv4_output: netif_out failed, err=%d", err);
+        return err;
+    }
     return NET_ERR_OK;
 }

@@ -57,6 +57,10 @@ net_err_t ipv4_init();
 
 int ipv4_hdr_size(const ipv4_pkt_t* pkt);
 
+void ipv4_set_hdr_size(ipv4_pkt_t* pkt, const int size);
+
 net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf);
+
+net_err_t ipv4_output(uint8_t protocol, const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf);
 
 #endif //TINY_NET_IPV4_H

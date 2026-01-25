@@ -144,4 +144,7 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf);
 // 注册链路层
 net_err_t netif_register_link_layer(const link_layer_t* ll);
 
+// 获取默认网卡
+netif_t* netif_get_default();
+
 #endif //TINY_NET_NETIF_H
