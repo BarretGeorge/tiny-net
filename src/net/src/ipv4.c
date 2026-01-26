@@ -165,10 +165,10 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     if (err != NET_ERR_OK)
     {
         dbug_warn("ipv4_input: ip_normal_input failed, err=%d", err);
+        pktbuf_free(buf);
         return err;
     }
 
-    pktbuf_free(buf);
     return NET_ERR_OK;
 }
 
