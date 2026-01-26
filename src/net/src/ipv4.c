@@ -2,6 +2,7 @@
 #include "dbug.h"
 #include "protocol.h"
 #include "tool.h"
+#include "icmp_v4.h"
 
 static uint16_t packet_id = 0;
 
@@ -86,9 +87,11 @@ static net_err_t ip_normal_input(netif_t* netif, const pktbuf_t* buf, const ipad
 {
     ipv4_pkt_t* ipv4_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
     display_ipv4_header(ipv4_pkt);
+    net_err_t err = NET_ERR_OK;
     switch (ipv4_pkt->header.protocol)
     {
     case PROTOCOL_TYPE_ICMP_V4: // ICMP
+        err = icmp_v4_input(src_ip, &netif->ipaddr, (pktbuf_t*)buf);
         break;
     case PROTOCOL_TYPE_UDP: // UDP
         break;
@@ -98,7 +101,12 @@ static net_err_t ip_normal_input(netif_t* netif, const pktbuf_t* buf, const ipad
         dbug_warn("ip_normal_input: unsupported protocol %d", ipv4_pkt->header.protocol);
         return NET_ERR_FRAME;
     }
-    return NET_ERR_OK;
+
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("ip_normal_input: protocol %d input failed, err=%d", ipv4_pkt->header.protocol, err);
+    }
+    return err;
 }
 
 int ipv4_hdr_size(const ipv4_pkt_t* pkt)
@@ -136,10 +144,10 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
 
     ipv4_header_ntohs(&pkt->header);
 
-    // 调整包的长度，删除填充部分
-    if ((err = pktbuf_resize(buf, ipv4_hdr_size(pkt))) != NET_ERR_OK)
+    // 调整包的长度 为实际长度
+    if ((err = pktbuf_resize(buf, pkt->header.total_len)) < 0)
     {
-        dbug_warn("ipv4_input: pktbuf_set_cont failed, err=%d", err);
+        dbug_warn("ipv4_input: pktbuf_resize failed, err=%d", err);
         return err;
     }
 
