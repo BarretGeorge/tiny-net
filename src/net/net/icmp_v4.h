@@ -5,6 +5,12 @@
 #include "ipaddr.h"
 #include "pktbuf.h"
 
+typedef enum icmp_v4_type_t
+{
+    ICMP_V4_TYPE_ECHO_REPLY = 0, // 回显应答
+    ICMP_V4_TYPE_ECHO_REQUEST = 8, // 回显请求
+} icmp_v4_type_t;
+
 #pragma pack(1)
 typedef struct icmp_v4_header_t
 {

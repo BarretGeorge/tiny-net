@@ -1,7 +1,17 @@
 #include "icmp_v4.h"
-
 #include "dbug.h"
 #include "ipv4.h"
+#include "protocol.h"
+
+static net_err_t icmp_v4_output(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf)
+{
+    icmp_v4_pkt_t* icmp_pkt = (icmp_v4_pkt_t*)pktbuf_data(buf);
+    // 重置访问位置
+    pktbuf_reset_access(buf);
+    // 计算校验和
+    icmp_pkt->header.checksum = pktbuf_checksum16(buf, (int)buf->total_size, 0, true);
+    return ipv4_output(PROTOCOL_TYPE_ICMP_V4, dest_ip, src_ip, buf);
+}
 
 static net_err_t is_icmp_v4_pkt_valid(const icmp_v4_pkt_t* pkt, const uint32_t size, pktbuf_t* buf)
 {
@@ -22,6 +32,16 @@ static net_err_t is_icmp_v4_pkt_valid(const icmp_v4_pkt_t* pkt, const uint32_t s
     }
 
     return NET_ERR_OK;
+}
+
+static net_err_t icmp_v4_echo_reply(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf_t* buf)
+{
+    icmp_v4_pkt_t* icmp_pkt = (icmp_v4_pkt_t*)pktbuf_data(buf);
+    // 修改类型为回显应答
+    icmp_pkt->header.type = ICMP_V4_TYPE_ECHO_REPLY;
+    // 重新计算校验和
+    icmp_pkt->header.checksum = 0;
+    return icmp_v4_output(src_ip, netif_ip, buf);
 }
 
 net_err_t icmp_v4_init(void)
@@ -56,7 +76,20 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     if ((err = is_icmp_v4_pkt_valid(icmp_pkt, buf->total_size, buf)) != NET_ERR_OK)
     {
         dbug_warn("icmp_v4_input: invalid icmpv4 packet");
-        return NET_ERR_FRAME;
+        return err;
+    }
+
+    switch (icmp_pkt->header.type)
+    {
+    case ICMP_V4_TYPE_ECHO_REQUEST: // 回显请求
+        err = icmp_v4_echo_reply(src_ip, netif_ip, buf);
+        break;
+    default:
+        break;
+    }
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("icmp_v4_input: icmp type %d input failed, err=%d", icmp_pkt->header.type, err);
     }
     return NET_ERR_OK;
 }

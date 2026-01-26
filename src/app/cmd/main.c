@@ -101,7 +101,7 @@ net_err_t netdev_init(void)
     // test_ethernet_send(netif);
 
     // 测试IPv4发送
-    test_ipv4_send(netif);
+    // test_ipv4_send(netif);
     return NET_ERR_OK;
 }
 

@@ -67,7 +67,6 @@ void send_thread(void* arg)
         int total_size = (int)buf->total_size;
         plat_memset(rw_buffer, 0, sizeof(rw_buffer));
         pktbuf_read(buf, rw_buffer, total_size);
-        pktbuf_free(buf);
         if (pcap_inject(pcap, rw_buffer, total_size) == -1)
         {
             dbug_error("pcap send_thread: pcap_inject failed, err:%s", pcap_geterr(pcap));
@@ -76,6 +75,7 @@ void send_thread(void* arg)
         {
             dbug_info("发送一个数据包完成 size=%d", total_size);
         }
+        pktbuf_free(buf);
     }
 }
 
