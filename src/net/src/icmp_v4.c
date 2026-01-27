@@ -96,7 +96,7 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
 
 net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const uint8_t code, pktbuf_t* ip_buf)
 {
-    int copy_size = ipv4_hdr_size((ipv4_pkt_t*)pktbuf_data(ip_buf) + 576);
+    int copy_size = ipv4_hdr_size((ipv4_pkt_t*)pktbuf_data(ip_buf));
     if (copy_size > ip_buf->total_size)
     {
         copy_size = (int)ip_buf->total_size;
@@ -123,6 +123,7 @@ net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip
     {
         dbug_error("icmp_v4_output_unreach: pktbuf_copy failed, err=%d", err);
         pktbuf_free(new_buf);
+        return err;
     }
 
     err = icmp_v4_output(dest_ip, src_ip, new_buf);
@@ -130,6 +131,7 @@ net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip
     {
         dbug_error("icmp_v4_output_unreach: icmp_v4_output failed, err=%d", err);
         pktbuf_free(new_buf);
+        return err;
     }
     return NET_ERR_OK;
 }

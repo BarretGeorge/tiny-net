@@ -207,7 +207,6 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     // 计算校验和
     pkt->header.header_checksum = pktbuf_checksum16(buf, ipv4_hdr_size(pkt), 0, true);
 
-
     display_ipv4_header(pkt);
 
     err = netif_out(netif_get_default(), (ipaddr_t*)dest_ip, buf);
