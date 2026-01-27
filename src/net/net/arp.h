@@ -80,4 +80,7 @@ void arp_clear(const netif_t* netif);
 // 查找对应IP地址的MAC地址
 const uint8_t* arp_find(const netif_t* netif, const ipaddr_t* addr);
 
+// 根据收到的IP数据包更新ARP缓存
+void arp_update_from_ip_buf(netif_t* netif, pktbuf_t* buf);
+
 #endif //TINY_NET_ARP_H

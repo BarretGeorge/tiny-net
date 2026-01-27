@@ -93,6 +93,8 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
         return arp_in(netif, buf);
     case PROTOCOL_TYPE_IPv4:
         dbug_info("收到IPv4数据包");
+        arp_update_from_ip_buf(netif, buf);
+
         // 移除以太网头
         if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t))) != NET_ERR_OK)
         {

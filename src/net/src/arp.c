@@ -1,5 +1,6 @@
 #include "arp.h"
 #include "dbug.h"
+#include "ipv4.h"
 #include "mblock.h"
 #include "tool.h"
 #include "protocol.h"
@@ -541,4 +542,30 @@ void arp_clear(const netif_t* netif)
             // nlist_remove(&cache_list, curr);
         }
     }
+}
+
+void arp_update_from_ip_buf(netif_t* netif,  pktbuf_t* buf)
+{
+    // 确保包是连续的
+    net_err_t err = pktbuf_set_cont(buf, sizeof(ipv4_header_t));
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("arp_update_from_ip_buf: pktbuf_set_cont failed, err=%d", err);
+        return;
+    }
+
+    ether_header_t* eth_hdr = (ether_header_t*)pktbuf_data(buf);
+    ipv4_header_t* ip_hdr = (ipv4_header_t*)((uint8_t*)eth_hdr + sizeof(ether_header_t));
+
+    if (ip_hdr->version != NET_VERSION_IPV4)
+    {
+        dbug_warn("arp_update_from_ip_buf: not ipv4 packet");
+        return;
+    }
+
+
+    uint8_t src_ip[IPV4_ADDR_LEN];
+    plat_memcpy(src_ip, &ip_hdr->src_addr, IPV4_ADDR_LEN);
+
+    cache_insert(netif, src_ip, eth_hdr->src_mac, 0);
 }
