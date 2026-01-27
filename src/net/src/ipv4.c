@@ -83,7 +83,7 @@ static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, n
     return NET_ERR_OK;
 }
 
-static net_err_t ip_normal_input(netif_t* netif, const pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
+static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
 {
     ipv4_pkt_t* ipv4_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
     display_ipv4_header(ipv4_pkt);
@@ -91,9 +91,12 @@ static net_err_t ip_normal_input(netif_t* netif, const pktbuf_t* buf, const ipad
     switch (ipv4_pkt->header.protocol)
     {
     case PROTOCOL_TYPE_ICMP_V4: // ICMP
-        err = icmp_v4_input(src_ip, &netif->ipaddr, (pktbuf_t*)buf);
+        err = icmp_v4_input(src_ip, &netif->ipaddr, buf);
         break;
     case PROTOCOL_TYPE_UDP: // UDP
+        // 测试端口不可达
+        ipv4_header_ntohs(&ipv4_pkt->header);
+        err = icmp_v4_output_unreach(src_ip, &netif->ipaddr, ICMP_V4_CODE_UNREACH_PORT, buf);
         break;
     case PROTOCOL_TYPE_TCP: // TCP
         break;

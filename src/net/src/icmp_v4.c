@@ -93,3 +93,43 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     }
     return NET_ERR_OK;
 }
+
+net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const uint8_t code, pktbuf_t* ip_buf)
+{
+    int copy_size = ipv4_hdr_size((ipv4_pkt_t*)pktbuf_data(ip_buf) + 576);
+    if (copy_size > ip_buf->total_size)
+    {
+        copy_size = (int)ip_buf->total_size;
+    }
+
+    pktbuf_t* new_buf = pktbuf_alloc((int)sizeof(icmp_v4_header_t) + copy_size + 4);
+    if (new_buf == NULL)
+    {
+        dbug_error("icmp_v4_output_unreach: no free pktbuf");
+        return NET_ERR_MEM;
+    }
+
+    icmp_v4_pkt_t* pkt = (icmp_v4_pkt_t*)pktbuf_data(new_buf);
+    pkt->header.type = ICMP_V4_TYPE_UNREACH; // 目的不可达
+    pkt->header.code = code;
+    pkt->header.checksum = 0;
+    pkt->reverse = 0;
+
+    pktbuf_reset_access(ip_buf);
+    pktbuf_seek(new_buf, sizeof(icmp_v4_header_t) + 4);
+
+    net_err_t err = pktbuf_copy(new_buf, ip_buf, copy_size);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("icmp_v4_output_unreach: pktbuf_copy failed, err=%d", err);
+        pktbuf_free(new_buf);
+    }
+
+    err = icmp_v4_output(dest_ip, src_ip, new_buf);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("icmp_v4_output_unreach: icmp_v4_output failed, err=%d", err);
+        pktbuf_free(new_buf);
+    }
+    return NET_ERR_OK;
+}
