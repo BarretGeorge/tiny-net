@@ -68,4 +68,7 @@
 // 分片最大数量
 #define IPV4_FRAGS_MAX_NR 5
 
+// 分片缓冲区最大数量
+#define IPV4_FRAGS_BUFFER_MAX_NR 20
+
 #endif //TINY_NET_NET_CFG_H

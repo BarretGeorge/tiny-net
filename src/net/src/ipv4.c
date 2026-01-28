@@ -26,6 +26,83 @@ static net_err_t fragment_init()
     return NET_ERR_OK;
 }
 
+static void fragment_free_buf_list(ip_fragment_t* frag)
+{
+    nlist_node_t* node;
+    while ((node = nlist_remove_first(&frag->buf_list)) != NULL)
+    {
+        pktbuf_t* buf = nlist_entry(node, pktbuf_t, node);
+        pktbuf_free(buf);
+    }
+}
+
+static ip_fragment_t* fragment_alloc()
+{
+    ip_fragment_t* frag = mblock_alloc(&fragment_mblock, -1);
+    if (frag == NULL)
+    {
+        // 移除最旧的分片
+        nlist_node_t* node = nlist_remove_first(&fragment_list);
+        frag = nlist_entry(node, ip_fragment_t, node);
+        if (frag != NULL)
+        {
+            fragment_free_buf_list(frag);
+        }
+    }
+    return frag;
+}
+
+static void fragment_free(ip_fragment_t* frag)
+{
+    if (frag != NULL)
+    {
+        fragment_free_buf_list(frag);
+        nlist_remove(&fragment_list, &frag->node);
+        mblock_free(&fragment_mblock, frag);
+    }
+}
+
+static void fragment_add(ip_fragment_t* frag, const ipaddr_t* ip, const uint16_t id)
+{
+    frag->id = id;
+    frag->tmo = 0;
+    ipaddr_copy(&frag->ip, ip);
+    nlist_node_init(&frag->node);
+    nlist_init(&frag->buf_list);
+    nlist_insert_first(&fragment_list, &frag->node);
+}
+
+static ip_fragment_t* fragment_find(const ipaddr_t* ip, const uint16_t id)
+{
+    nlist_node_t* node;
+    nlist_for_each(node, &fragment_list)
+    {
+        ip_fragment_t* frag = nlist_entry(node, ip_fragment_t, node);
+        if (frag->id == id && ipaddr_is_equal(&frag->ip, ip))
+        {
+            nlist_remove(&fragment_list, &frag->node);
+            nlist_insert_last(&fragment_list, &frag->node);
+            return frag;
+        }
+    }
+    return NULL;
+}
+
+static uint16_t get_fragment_data_size(const ipv4_pkt_t* pkt)
+{
+    return pkt->header.total_len - ipv4_hdr_size(pkt);
+}
+
+static uint16_t get_fragment_start(const ipv4_pkt_t* pkt)
+{
+    return pkt->header.frag_offset * 8;
+}
+
+static uint16_t get_fragment_end(const ipv4_pkt_t* pkt)
+{
+    return get_fragment_start(pkt) + get_fragment_data_size(pkt);
+}
+
 #if DBG_DISPLAY_ENABLE(DBG_IPV4)
 static void display_ipv4_header(const ipv4_pkt_t* pkt)
 {
@@ -46,8 +123,36 @@ static void display_ipv4_header(const ipv4_pkt_t* pkt)
     plat_printf("  Destination Address: %u.%u.%u.%u\n",
                 hdr->dest_addr[0], hdr->dest_addr[1], hdr->dest_addr[2], hdr->dest_addr[3]);
 }
+
+static void display_ipv4_fragment()
+{
+    nlist_node_t* node;
+    int index = 0;
+    nlist_for_each(node, &fragment_list)
+    {
+        ip_fragment_t* frag = nlist_entry(node, ip_fragment_t, node);
+
+        plat_printf("IPv4 Fragment: index: %d\n", index++);
+        plat_printf("  ID: 0x%04X\n", frag->id);
+        plat_printf("  Ip: \n");
+        dbug_dump_ipaddr(&frag->ip);
+        plat_printf("  Timeout: %d\n", frag->tmo);
+        plat_printf("  Buffers:%d\n", nlist_count(&frag->buf_list));
+        nlist_node_t* buf_node;
+        int buf_index = 0;
+        nlist_for_each(buf_node, &frag->buf_list)
+        {
+            pktbuf_t* buf = nlist_entry(buf_node, pktbuf_t, node);
+            ipv4_pkt_t* pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+            plat_printf("    Buffer %d: [%d-%d]\n",
+                        buf_index++, get_fragment_start(pkt), get_fragment_end(pkt) - 1);
+        }
+        plat_printf("\n");
+    }
+}
 #else
 #define  display_ipv4_header(header)
+#define display_ipv4_fragment()
 #endif
 
 static void ipv4_header_ntohs(ipv4_header_t* hdr)
@@ -133,6 +238,75 @@ static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* 
     return err;
 }
 
+static net_err_t ip_fragment_insert(ip_fragment_t* fragment, pktbuf_t* buf, const ipv4_pkt_t* ipv4_pkt)
+{
+    if (nlist_count(&fragment->buf_list) >= IPV4_FRAGS_BUFFER_MAX_NR)
+    {
+        dbug_warn("ip_fragment_insert: fragment buffer list full");
+        fragment_free(fragment);
+        return NET_ERR_MEM;
+    }
+
+    // 插入分片
+    nlist_node_t* node;
+    nlist_for_each(node, &fragment->buf_list)
+    {
+        pktbuf_t* exist_buf = nlist_entry(node, pktbuf_t, node);
+        ipv4_pkt_t* exist_pkt = (ipv4_pkt_t*)pktbuf_data(exist_buf);
+
+        uint16_t exist_start = get_fragment_start(exist_pkt);
+        uint16_t pkt_start = get_fragment_start(ipv4_pkt);
+        uint16_t pkt_end = get_fragment_end(ipv4_pkt);
+
+        if (pkt_start == exist_start)
+        {
+            return NET_ERR_EXIST;
+        }
+
+        if (pkt_end <= exist_start)
+        {
+            nlist_node_t* prev_node = nlist_node_prev(node);
+            if (prev_node == NULL)
+            {
+                nlist_insert_first(&fragment->buf_list, &buf->node);
+            }
+            else
+            {
+                nlist_insert_after(&fragment->buf_list, prev_node, &buf->node);
+            }
+            return NET_ERR_OK;
+        }
+    }
+    nlist_insert_last(&fragment->buf_list, &buf->node);
+    return NET_ERR_OK;
+}
+
+static net_err_t ip_fragment_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
+{
+    ipv4_pkt_t* ipv4_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+    ip_fragment_t* frag = fragment_find(src_ip, ipv4_pkt->header.id);
+    if (frag == NULL)
+    {
+        frag = fragment_alloc();
+        if (frag == NULL)
+        {
+            dbug_error("ip_fragment_input: fragment_alloc failed");
+            return NET_ERR_MEM;
+        }
+        fragment_add(frag, src_ip, ipv4_pkt->header.id);
+    }
+
+    net_err_t err = ip_fragment_insert(frag, buf, ipv4_pkt);
+    if (err != NET_ERR_OK)
+    {
+        dbug_warn("ip_fragment_input: ip_fragment_insert failed, err=%d", err);
+        return err;
+    }
+
+    display_ipv4_fragment();
+    return NET_ERR_OK;
+}
+
 int ipv4_hdr_size(const ipv4_pkt_t* pkt)
 {
     return pkt->header.shdr * 4;
@@ -191,7 +365,16 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
         return NET_ERR_TARGET_ADDR_MATCH;
     }
 
-    err = ip_normal_input(netif, buf, &src_ip, &dest_ip);
+    // 是否为分片包
+    if (pkt->header.frag_offset || pkt->header.more_frags)
+    {
+        err = ip_fragment_input(netif, buf, &src_ip, &dest_ip);
+    }
+    else
+    {
+        err = ip_normal_input(netif, buf, &src_ip, &dest_ip);
+    }
+
     if (err != NET_ERR_OK)
     {
         dbug_warn("ipv4_input: ip_normal_input failed, err=%d", err);
