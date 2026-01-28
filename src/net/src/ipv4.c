@@ -3,8 +3,28 @@
 #include "protocol.h"
 #include "tool.h"
 #include "icmp_v4.h"
+#include "mblock.h"
 
 static uint16_t packet_id = 0;
+
+static ip_fragment_t fragments[IPV4_FRAGS_MAX_NR];
+
+static mblock_t fragment_mblock;
+
+static nlist_t fragment_list;
+
+static net_err_t fragment_init()
+{
+    nlist_init(&fragment_list);
+    net_err_t err = mblock_init(&fragment_mblock, fragments, sizeof(ip_fragment_t), IPV4_FRAGS_MAX_NR,
+                                NLOCKER_TYPE_NONE);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("fragment_init: mblock_init failed, err=%d", err);
+        return err;
+    }
+    return NET_ERR_OK;
+}
 
 #if DBG_DISPLAY_ENABLE(DBG_IPV4)
 static void display_ipv4_header(const ipv4_pkt_t* pkt)
@@ -16,7 +36,8 @@ static void display_ipv4_header(const ipv4_pkt_t* pkt)
     plat_printf("  Type of Service: 0x%02X\n", hdr->tos);
     plat_printf("  Total Length: %u bytes\n", x_ntohs(hdr->total_len));
     plat_printf("  Identification: 0x%04X\n", x_ntohs(hdr->id));
-    plat_printf("  Flags and Fragment Offset: 0x%04X\n", x_ntohs(hdr->frag_all));
+    plat_printf("  Flags and Fragment Offset: 0x%04X\n", x_ntohs(hdr->frag_offset));
+    plat_printf("  More Fragments: %s\n", hdr->more_frags ? "Yes" : "No");
     plat_printf("  Time to Live: %u\n", hdr->ttl);
     plat_printf("  Protocol: %u\n", hdr->protocol);
     plat_printf("  Header Checksum: 0x%04X\n", x_ntohs(hdr->header_checksum));
@@ -125,6 +146,12 @@ void ipv4_set_hdr_size(ipv4_pkt_t* pkt, const int size)
 net_err_t ipv4_init()
 {
     dbug_info("ipv4_init");
+    net_err_t err = fragment_init();
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("ipv4_init: fragment_init failed, err=%d", err);
+        return err;
+    }
     return NET_ERR_OK;
 }
 

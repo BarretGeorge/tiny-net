@@ -122,6 +122,9 @@ int main(void)
     // ARP模块初始化
     arp_init();
 
+    // IPv4协议初始化
+    ipv4_init();
+
     // 以太网卡初始化
     ether_init();
 

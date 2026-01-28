@@ -36,23 +36,21 @@ typedef struct ipv4_header_t
     // 标志位和片偏移
     union
     {
+        struct
+        {
 #if NET_ENDIAN_LITTLE
-        struct
-        {
-            uint16_t offset : 13; // 片偏移
+            uint16_t frag_offset : 13; // 片偏移
             uint16_t more_frags : 1; // 更多分片
             uint16_t dont_frag : 1; // 不分片
             uint16_t reserved : 1; // 保留位
-        };
 #else
-        struct
-        {
             uint16_t reserved : 1; // 保留位
             uint16_t dont_frag : 1; // 不分片
             uint16_t more_frags : 1; // 更多分片
-            uint16_t offset : 13; // 片偏移
-        };
+            uint16_t frag_offset : 13; // 片偏移
 #endif
+        };
+        uint16_t frag_all;
     };
 
     // 生存时间

@@ -65,4 +65,7 @@
 // IP协议版本
 #define NET_VERSION_IPV4 4
 
+// 分片最大数量
+#define IPV4_FRAGS_MAX_NR 5
+
 #endif //TINY_NET_NET_CFG_H
