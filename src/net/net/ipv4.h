@@ -32,8 +32,29 @@ typedef struct ipv4_header_t
     uint16_t total_len;
     // 标识
     uint16_t id;
+
     // 标志位和片偏移
-    uint16_t frag_all;
+    union
+    {
+#if NET_ENDIAN_LITTLE
+        struct
+        {
+            uint16_t offset : 13; // 片偏移
+            uint16_t more_frags : 1; // 更多分片
+            uint16_t dont_frag : 1; // 不分片
+            uint16_t reserved : 1; // 保留位
+        };
+#else
+        struct
+        {
+            uint16_t reserved : 1; // 保留位
+            uint16_t dont_frag : 1; // 不分片
+            uint16_t more_frags : 1; // 更多分片
+            uint16_t offset : 13; // 片偏移
+        };
+#endif
+    };
+
     // 生存时间
     uint8_t ttl;
     // 协议类型
@@ -53,11 +74,20 @@ typedef struct ipv4_pkt_t
 } ipv4_pkt_t;
 #pragma pack()
 
+typedef struct ip_fragment_t
+{
+    ipaddr_t ip;
+    uint16_t id;
+    int tmo;
+    nlist_t buf_list;
+    nlist_node_t node;
+} ip_fragment_t;
+
 net_err_t ipv4_init();
 
 int ipv4_hdr_size(const ipv4_pkt_t* pkt);
 
-void ipv4_set_hdr_size(ipv4_pkt_t* pkt, const int size);
+void ipv4_set_hdr_size(ipv4_pkt_t* pkt, int size);
 
 net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf);
 

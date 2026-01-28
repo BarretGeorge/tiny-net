@@ -96,7 +96,7 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
 
 net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const uint8_t code, pktbuf_t* ip_buf)
 {
-    int copy_size = ipv4_hdr_size((ipv4_pkt_t*)pktbuf_data(ip_buf));
+    int copy_size = ipv4_hdr_size((ipv4_pkt_t*)pktbuf_data(ip_buf)) + 8;
     if (copy_size > ip_buf->total_size)
     {
         copy_size = (int)ip_buf->total_size;
