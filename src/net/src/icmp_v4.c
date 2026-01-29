@@ -113,7 +113,7 @@ net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip
     pkt->header.type = ICMP_V4_TYPE_UNREACH; // 目的不可达
     pkt->header.code = code;
     pkt->header.checksum = 0;
-    pkt->reverse = 0;
+    pkt->header.reverse = 0;
 
     pktbuf_reset_access(ip_buf);
     pktbuf_seek(new_buf, sizeof(icmp_v4_header_t) + 4);

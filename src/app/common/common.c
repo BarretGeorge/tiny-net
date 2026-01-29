@@ -1,13 +1,12 @@
-﻿#include "sys_plat.h"
-#include "netif_pcap.h"
+#include "common.h"
 #include "dbug.h"
-#include "pktbuf.h"
-#include "netif.h"
-#include "loop.h"
 #include "exmsg.h"
-#include "ether.h"
+#include "netif.h"
 #include "timer.h"
+#include "loop.h"
 #include "arp.h"
+#include "ether.h"
+#include "netif_pcap.h"
 
 // 本地ip地址
 const char local_ip[] = "192.168.100.108";
@@ -27,7 +26,7 @@ pcap_data_t netdev_0 = {
     .hwaddr = (uint8_t[]){0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC},
 };
 
-net_err_t netdev_init(void)
+static net_err_t netdev_init(void)
 {
     netif_t* netif = netif_open("vnet0", &netdev_ops, &netdev_0);
     if (!netif)
@@ -50,29 +49,22 @@ net_err_t netdev_init(void)
 
     netif_set_active(netif);
 
-    // todo 测试以太网数据发送
-    pktbuf_t* buf = pktbuf_alloc(32);
-    pktbuf_fill(buf, 0x53, 32);
-
-    ipaddr_t addr;
-    ipaddr4_form_str(&addr, friend_ip);
-    netif_out(netif, &addr, buf);
     return NET_ERR_OK;
 }
 
-void netif_test()
+net_err_t tiny_net_init(void)
 {
+    // pktbuf初始化
     pktbuf_init();
 
+    // 消息模块初始化
     exmsg_init();
 
+    // 网络接口初始化
     netif_init();
 
     // 定时器初始化
     net_timer_init();
-
-    // todo 定时器加入测试数据
-    // timer_test();
 
     // 回环网卡初始化
     loop_init();
@@ -89,14 +81,5 @@ void netif_test()
     // 工作线程
     exmsg_start();
 
-    while (true)
-    {
-        sys_sleep(100);
-    }
-}
-
-int main(void)
-{
-    netif_test();
-    return 0;
+    return NET_ERR_OK;
 }

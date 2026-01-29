@@ -29,18 +29,20 @@ include_directories(
         ${PROJECT_SOURCE_DIR}/src/net/net
         ${PROJECT_SOURCE_DIR}/src/plat
         ${PROJECT_SOURCE_DIR}/src/app
+        ${PROJECT_SOURCE_DIR}/src/app/common
 )
 
 # 添加源文件
-file(GLOB_RECURSE SOURCE_LIST "src/net/*.c" "src/net/*.h" "src/plat/*.c" "src/plat/*.h")
+file(GLOB_RECURSE SOURCE_LIST "src/net/*.c" "src/net/*.h" "src/plat/*.c" "src/plat/*.h" "src/app/ping/*.h" "src/app/ping/*.c")
 
-add_executable(${PROJECT_NAME} src/app/cmd/main.c ${SOURCE_LIST})
-add_executable(${PROJECT_NAME}_test src/app/test/main.c ${SOURCE_LIST})
+file(GLOB_RECURSE COMMON_SOURCES "src/app/common/*.c" "src/app/common/*.h")
+
+add_executable(${PROJECT_NAME} src/app/cmd/main.c ${SOURCE_LIST} ${COMMON_SOURCES})
 
 file(GLOB EXAMPLE_SOURCES "src/app/examples/*.c")
 foreach (EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
     get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
-    add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE} ${SOURCE_LIST})
+    add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE} ${SOURCE_LIST} ${COMMON_SOURCES})
 
     if (CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
         target_link_libraries(${EXAMPLE_NAME} wpcap packet Ws2_32)
@@ -62,6 +64,5 @@ else ()
     # Linux和Mac上的特定配置
     add_definitions(-DSYS_PLAT_LINUX)
     target_link_libraries(${PROJECT_NAME} pthread pcap)
-    target_link_libraries(${PROJECT_NAME}_test pthread pcap)
 endif ()
 

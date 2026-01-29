@@ -32,17 +32,24 @@ typedef struct icmp_v4_header_t
     uint8_t code;
     // 校验和
     uint16_t checksum;
+
+    union
+    {
+        uint32_t unused;
+
+        struct
+        {
+            uint16_t id; // 标识符
+            uint16_t seq; // 序列号
+        } echo;
+
+        uint32_t reverse;
+    };
 } icmp_v4_header_t;
 
 typedef struct icmp_v4_pkt_t
 {
     icmp_v4_header_t header;
-
-    union
-    {
-        uint32_t reverse;
-    };
-
     uint8_t payload[0];
 } icmp_v4_pkt_t;
 #pragma pack()
