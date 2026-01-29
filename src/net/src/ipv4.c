@@ -171,6 +171,67 @@ static void ipv4_header_htonl(ipv4_header_t* hdr)
     hdr->header_checksum = x_htons(hdr->header_checksum);
 }
 
+
+// 所有分片是否齐全
+static bool fragment_is_all_arrived(const ip_fragment_t* fragment)
+{
+    int offset = 0;
+    nlist_node_t* node;
+    nlist_for_each(node, &fragment->buf_list)
+    {
+        pktbuf_t* buf = nlist_entry(node, pktbuf_t, node);
+        ipv4_pkt_t* pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+        int start = get_fragment_start(pkt);
+        if (start != offset)
+        {
+            return false;
+        }
+        offset += get_fragment_data_size(pkt);
+        if (!pkt->header.more_frags)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static pktbuf_t* fragment_join(ip_fragment_t* fragment)
+{
+    pktbuf_t* joined_buf = NULL;
+    nlist_node_t* node;
+    while ((node = nlist_remove_first(&fragment->buf_list)) != NULL)
+    {
+        pktbuf_t* buf = nlist_entry(node, pktbuf_t, node);
+        if (joined_buf == NULL)
+        {
+            joined_buf = buf;
+            continue;
+        }
+        ipv4_pkt_t* pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+        net_err_t err = pktbuf_remove_header(buf, ipv4_hdr_size(pkt));
+        if (err != NET_ERR_OK)
+        {
+            dbug_error("fragment_join: pktbuf_remove_header failed, err=%d", err);
+            pktbuf_free(buf);
+            goto err_return;
+        }
+        err = join_pktbuf(joined_buf, buf);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error("fragment_join: join_pktbuf failed, err=%d", err);
+            pktbuf_free(buf);
+            goto err_return;
+        }
+    }
+
+    return joined_buf;
+
+err_return:
+    pktbuf_free(joined_buf);
+    fragment_free(fragment);
+    return joined_buf;
+}
+
 static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, netif_t* netif)
 {
     // 检查版本号
@@ -238,6 +299,7 @@ static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* 
     return err;
 }
 
+// 插入分片包
 static net_err_t ip_fragment_insert(ip_fragment_t* fragment, pktbuf_t* buf, const ipv4_pkt_t* ipv4_pkt)
 {
     if (nlist_count(&fragment->buf_list) >= IPV4_FRAGS_BUFFER_MAX_NR)
@@ -281,6 +343,7 @@ static net_err_t ip_fragment_insert(ip_fragment_t* fragment, pktbuf_t* buf, cons
     return NET_ERR_OK;
 }
 
+// 处理分片包输入
 static net_err_t ip_fragment_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
 {
     ipv4_pkt_t* ipv4_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
@@ -301,6 +364,25 @@ static net_err_t ip_fragment_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t
     {
         dbug_warn("ip_fragment_input: ip_fragment_insert failed, err=%d", err);
         return err;
+    }
+
+    // 是否所有分片到达
+    if (fragment_is_all_arrived(frag))
+    {
+        pktbuf_t* joined_buf = fragment_join(frag);
+        if (joined_buf == NULL)
+        {
+            dbug_error("ip_fragment_input: fragment_join failed");
+            return NET_ERR_MEM;
+        }
+        fragment_free(frag);
+        err = ip_normal_input(netif, joined_buf, src_ip, dest_ip);
+        if (err != NET_ERR_OK)
+        {
+            dbug_warn("ip_fragment_input: ip_normal_input failed, err=%d", err);
+            pktbuf_free(joined_buf);
+            return err;
+        }
     }
 
     display_ipv4_fragment();
