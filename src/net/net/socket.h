@@ -1,0 +1,64 @@
+#ifndef TINY_NET_SOCKET_H
+#define TINY_NET_SOCKET_H
+
+#include <stdint.h>
+#include "ipv4.h"
+
+#undef  INADDR_ANY
+#define INADDR_ANY         ((uint32_t)0x00000000)
+
+#undef AF_INET
+#define AF_INET            2
+
+#undef SOCK_STREAM
+#define SOCK_STREAM        1
+
+#undef SOCK_DGRAM
+#define SOCK_DGRAM         2
+
+#undef SOCK_RAW
+#define SOCK_RAW           3
+
+#undef IPPROTO_ICMP
+#define IPPROTO_ICMP       1
+
+struct x_in_addr
+{
+    union
+    {
+        struct
+        {
+            uint8_t addr0;
+            uint8_t addr1;
+            uint8_t addr2;
+            uint8_t addr3;
+        } S_un_b;
+    };
+};
+
+struct x_socketaddr
+{
+    uint8_t sa_len;
+    uint8_t sa_family;
+    char sa_data[14];
+};
+
+struct x_socketaddr_in
+{
+    uint8_t sin_len;
+    uint8_t sin_family;
+    unsigned short sin_port;
+    unsigned int sin_addr;
+    char sin_zero[8];
+};
+
+int x_socket(int domain, int type, int protocol);
+int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
+int x_listen(int fd, int backlog);
+int x_accept(int fd, struct x_socketaddr* addr, unsigned int* addrlen);
+int x_connect(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
+int x_send(int fd, const void* buf, unsigned int len, int flags);
+int x_recv(int fd, void* buf, unsigned int len, int flags);
+int x_close(int fd);
+
+#endif //TINY_NET_SOCKET_H

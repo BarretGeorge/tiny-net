@@ -9,13 +9,13 @@ int main(const int argc, char** argv)
 
     bool show_help;
     int count = 0, interval = 0, timeout = 0, size = 0;
-    const char* host = "192.168.100.108";
+    const char* host = "127.0.0.1";
 
     args_register_bool(&parser, "help", 'h', &show_help, false, "Show this help message");
     args_register_int(&parser, "count", 'c', &count, 4, "Number of pings to send");
     args_register_int(&parser, "interval", 'i', &interval, 1000, "Interval between pings in milliseconds");
     args_register_int(&parser, "timeout", 't', &timeout, 1000, "Timeout for each ping in milliseconds");
-    args_register_int(&parser, "size", 's', &size, 500, "Packet size in bytes");
+    args_register_int(&parser, "size", 's', &size, 56, "Packet size in bytes");
 
     // 解析参数
     args_parser_parse(&parser);
@@ -35,12 +35,6 @@ int main(const int argc, char** argv)
     {
         host = parser.argv[parser.argc - 1];
     }
-
-    // 验证参数
-    if (count <= 0) count = 4;
-    if (interval <= 0) interval = 1000;
-    if (timeout <= 0) timeout = 1000;
-    if (size <= 0) size = 500;
 
     ping_t ping;
     ping_run(&ping, host, count, size, interval, timeout);

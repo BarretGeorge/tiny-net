@@ -71,6 +71,18 @@ static net_err_t do_netif_input(const exmsg_t* msg)
     return NET_ERR_OK;
 }
 
+static net_err_t do_func(func_msg_t* func_msg)
+{
+    if (func_msg == NULL || func_msg->func == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    func_msg->err = func_msg->func(func_msg);
+
+    sys_sem_notify(func_msg->wait_sem);
+    return NET_ERR_OK;
+}
+
 static void work_thread(void* arg)
 {
     dbug_info("exmsg work_thread started");
@@ -90,6 +102,11 @@ static void work_thread(void* arg)
             case NET_EXMSG_TYPE_NETIF_IN:
                 {
                     do_netif_input(msg);
+                    break;
+                }
+            case NET_EXMSG_TYPE_FUNC:
+                {
+                    do_func(msg->func);
                     break;
                 }
             default:
@@ -130,4 +147,39 @@ net_err_t exmsg_netif_in(netif_t* netif)
         return NET_ERR_MEM;
     }
     return NET_ERR_OK;
+}
+
+net_err_t exmsg_func_exec(const exmsg_func_t func, void* arg)
+{
+    func_msg_t func_msg;
+    func_msg.thread = sys_thread_self();
+    func_msg.func = func;
+    func_msg.arg = arg;
+    func_msg.err = NET_ERR_OK;
+    func_msg.wait_sem = sys_sem_create(0);
+
+    if (func_msg.wait_sem == SYS_SEM_INVALID)
+    {
+        dbug_error("create func_msg wait_sem failed");
+        return NET_ERR_SYS;
+    }
+
+    exmsg_t* msg = mblock_alloc(&msg_mblock, 0);
+    if (msg == NULL)
+    {
+        dbug_warn("no free exmsg block");
+        sys_sem_free(func_msg.wait_sem);
+        return NET_ERR_MEM;
+    }
+    msg->type = NET_EXMSG_TYPE_FUNC;
+    msg->func = &func_msg;
+    if (fixq_send(&msg_queue, msg, 0) != NET_ERR_OK)
+    {
+        dbug_error("fixq full");
+        mblock_free(&msg_mblock, msg);
+        return NET_ERR_MEM;
+    }
+
+    sys_sem_wait(func_msg.wait_sem, 0);
+    return func_msg.err;
 }

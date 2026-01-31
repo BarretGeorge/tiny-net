@@ -1,6 +1,8 @@
 #include "ping.h"
 #include "tool.h"
-#include <sys/socket.h>
+#include "socket.h"
+#include "net_api.h"
+#include <sys/time.h>
 
 #define ECHO_ID 0x1234
 
@@ -22,6 +24,13 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
     dest_addr.sin_port = 0;
     dest_addr.sin_addr.s_addr = inet_addr(dest_ip);
 
+    if (connect(fd, (struct sockaddr*)&dest_addr, sizeof(dest_addr)) < 0)
+    {
+        plat_printf("connect failed\n");
+        close(fd);
+        return;
+    }
+
     // 填充数据部分
     int fill_size = size < PING_BUFFER_SIZE ? size : PING_BUFFER_SIZE;
     for (int i = 0; i < fill_size; ++i)
@@ -33,8 +42,13 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
 
     int loss = 0;
 
+    plat_printf("PING %s (%s): %d data bytes\n", dest_ip, dest_ip, fill_size);
+
     for (int i = 0; i < count; ++i)
     {
+        struct timeval start_tv, end_tv;
+        gettimeofday(&start_tv, NULL);
+
         // 构建ICMP请求报文
         ping->request.icmp_header.type = ICMP_V4_TYPE_ECHO_REQUEST;
         ping->request.icmp_header.code = 0;
@@ -46,7 +60,8 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
                                                         sizeof(icmp_v4_header_t) + fill_size,
                                                         0, true);
 
-        ssize_t n = sendto(fd, &ping->request, total_size, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+        // 发送请求报文
+        ssize_t n = send(fd, &ping->request, total_size, 0);
         if (n < 0)
         {
             plat_printf("sendto failed\n");
@@ -56,11 +71,8 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
 
         while (true)
         {
-            struct sockaddr_in recv_addr;
-            socklen_t addr_len = sizeof(recv_addr);
-
-            ssize_t recv_size = recvfrom(fd, &ping->reply, sizeof(ping->reply), 0,
-                                         (struct sockaddr*)&recv_addr, &addr_len);
+            // 接收响应报文
+            ssize_t recv_size = recv(fd, &ping->reply, sizeof(ping->reply), 0);
             if (recv_size < 0)
             {
                 plat_printf("Request timed out for icmp_seq %d\n", i);
@@ -74,15 +86,17 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
                 ntohs(icmp_header->echo.id) == seq_id &&
                 ntohs(icmp_header->echo.seq) == i)
             {
-                plat_printf("%d bytes from %s: icmp_seq=%d ttl=%d\n",
+                gettimeofday(&end_tv, NULL);
+                double rtt = (double)(end_tv.tv_sec - start_tv.tv_sec) * 1000.0 + (end_tv.tv_usec - start_tv.tv_usec) /
+                    1000.0;
+                plat_printf("%d bytes from %s: icmp_seq=%d ttl=%d time:%.3f ms\n",
                             (int)(recv_size - sizeof(ipv4_header_t)),
                             dest_ip,
                             ntohs(icmp_header->echo.seq),
-                            ping->reply.ip_header.ttl);
+                            ping->reply.ip_header.ttl, rtt);
                 break;
             }
         }
-
 
         // 等待指定间隔
         sys_sleep(interval);
