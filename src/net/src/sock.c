@@ -54,7 +54,7 @@ net_err_t socket_init(void)
 
 net_err_t socket_create_req_in(const func_msg_t* msg)
 {
-    sock_req_t* req = (sock_req_t*)msg;
+    sock_req_t* req = msg->arg;
     x_socket_t* sock = socket_alloc();
     if (sock == NULL)
     {

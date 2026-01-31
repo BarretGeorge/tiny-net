@@ -39,7 +39,7 @@ int x_connect(int fd, const struct x_socketaddr* addr, unsigned int addrlen)
 
 int x_send(int fd, const void* buf, unsigned int len, int flags)
 {
-    return len;
+    return 0;
 }
 
 int x_recv(int fd, void* buf, unsigned int len, int flags)
