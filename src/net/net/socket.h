@@ -33,6 +33,7 @@ struct x_in_addr
             uint8_t addr2;
             uint8_t addr3;
         } S_un_b;
+        uint32_t s_addr;
     };
 };
 
@@ -48,9 +49,13 @@ struct x_socketaddr_in
     uint8_t sin_len;
     uint8_t sin_family;
     unsigned short sin_port;
-    unsigned int sin_addr;
+    struct x_in_addr sin_addr;
     char sin_zero[8];
 };
+
+#define in_addr x_in_addr
+#define sockaddr x_socketaddr
+#define sockaddr_in x_socketaddr_in
 
 int x_socket(int domain, int type, int protocol);
 int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
@@ -60,5 +65,6 @@ int x_connect(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
 int x_send(int fd, const void* buf, unsigned int len, int flags);
 int x_recv(int fd, void* buf, unsigned int len, int flags);
 int x_close(int fd);
+int x_setsockopt(int fd, int level, int optname, const void* optval, unsigned int optlen);
 
 #endif //TINY_NET_SOCKET_H

@@ -48,8 +48,10 @@ const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 
 #define send(fd, buf, len, flags) x_send(fd, buf, len, flags)
 
-#define recv(fd, buf, len, flags) x_recv(fd, buf, len, flags
+#define recv(fd, buf, len, flags) x_recv(fd, buf, len, flags)
 
 #define close(fd) x_close(fd)
+
+#define setsockopt(fd, level, optname, optval, optlen) x_setsockopt(fd, level, optname, optval, optlen)
 
 #endif //TINY_NET_NET_API_H
