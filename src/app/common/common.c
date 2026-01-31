@@ -7,6 +7,8 @@
 #include "arp.h"
 #include "ether.h"
 #include "netif_pcap.h"
+#include "sock.h"
+#include "raw.h"
 
 // 本地ip地址
 const char local_ip[] = "192.168.100.108";
@@ -80,6 +82,12 @@ net_err_t tiny_net_init(void)
 
     // 工作线程
     exmsg_start();
+
+    // Socket模块初始化
+    socket_init();
+
+    // 原始套接字模块初始化
+    raw_init();
 
     return NET_ERR_OK;
 }

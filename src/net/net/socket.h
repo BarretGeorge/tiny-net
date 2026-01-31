@@ -1,7 +1,6 @@
 #ifndef TINY_NET_SOCKET_H
 #define TINY_NET_SOCKET_H
 
-#include <stdint.h>
 #include "ipv4.h"
 
 #undef  INADDR_ANY
@@ -33,6 +32,7 @@ struct x_in_addr
             uint8_t addr2;
             uint8_t addr3;
         } S_un_b;
+
         uint32_t s_addr;
     };
 };
@@ -57,7 +57,7 @@ struct x_socketaddr_in
 #define sockaddr x_socketaddr
 #define sockaddr_in x_socketaddr_in
 
-int x_socket(int domain, int type, int protocol);
+int x_socket(int family, int type, int protocol);
 int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
 int x_listen(int fd, int backlog);
 int x_accept(int fd, struct x_socketaddr* addr, unsigned int* addrlen);

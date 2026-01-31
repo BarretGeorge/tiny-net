@@ -2,11 +2,11 @@
 #include "exmsg.h"
 #include "sock.h"
 
-int x_socket(const int domain, const int type, const int protocol)
+int x_socket(const int family, const int type, const int protocol)
 {
     sock_req_t req;
     req.fd = -1;
-    req.create.domain = domain;
+    req.create.family = family;
     req.create.type = type;
     req.create.protocol = protocol;
     net_err_t err = exmsg_func_exec(socket_create_req_in, &req);

@@ -1,7 +1,6 @@
+#include <stdbool.h>
 #include "common.h"
 #include "sys_plat.h"
-#include <stdbool.h>
-
 #include "dbug.h"
 #include "exmsg.h"
 

@@ -2,7 +2,6 @@
 #define TINY_NET_IPADDR_H
 
 #include <stdbool.h>
-#include <stdint.h>
 #include "net_err.h"
 #include "sys.h"
 

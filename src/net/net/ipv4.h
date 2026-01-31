@@ -1,7 +1,6 @@
 #ifndef TINY_NET_IPV4_H
 #define TINY_NET_IPV4_H
 
-#include <stdint.h>
 #include "ipaddr.h"
 #include "net_err.h"
 #include "netif.h"
@@ -50,6 +49,7 @@ typedef struct ipv4_header_t
             uint16_t frag_offset : 13; // 片偏移
 #endif
         };
+
         uint16_t frag_all;
     };
 

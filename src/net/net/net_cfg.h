@@ -71,4 +71,10 @@
 // 分片缓冲区最大数量
 #define IPV4_FRAGS_BUFFER_MAX_NR 20
 
+// 原始套接字最大数量
+#define RAW_MAX_NR 64
+
+// 套接字最大文件描述符数量
+#define SOCKET_MAX_FD RAW_MAX_NR
+
 #endif //TINY_NET_NET_CFG_H
