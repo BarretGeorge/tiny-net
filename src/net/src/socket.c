@@ -1,8 +1,20 @@
 #include "socket.h"
+#include "exmsg.h"
+#include "sock.h"
 
-int x_socket(int domain, int type, int protocol)
+int x_socket(const int domain, const int type, const int protocol)
 {
-    return 0;
+    sock_req_t req;
+    req.fd = -1;
+    req.create.domain = domain;
+    req.create.type = type;
+    req.create.protocol = protocol;
+    net_err_t err = exmsg_func_exec(socket_create_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        return -1;
+    }
+    return req.fd;
 }
 
 int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen)

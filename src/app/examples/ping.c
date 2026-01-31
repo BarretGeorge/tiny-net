@@ -1,9 +1,11 @@
 #include "ping/ping.h"
 #include "args.h"
+#include "common.h"
 #include <stdio.h>
 
 int main(const int argc, char** argv)
 {
+    tiny_net_init();
     args_parser_t parser;
     args_parser_init(&parser, argc, argv);
 

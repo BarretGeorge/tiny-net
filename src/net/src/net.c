@@ -8,6 +8,7 @@
 #include "loop.h"
 #include "timer.h"
 #include "arp.h"
+#include "sock.h"
 
 net_err_t net_init()
 {
@@ -35,6 +36,9 @@ net_err_t net_init()
 
     // 以太网模块初始化
     ether_init();
+
+    // Socket模块初始化
+    socket_init();
     return NET_ERR_OK;
 }
 
