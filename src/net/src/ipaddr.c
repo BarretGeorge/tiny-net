@@ -93,20 +93,21 @@ void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src)
 
 void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf)
 {
-    if (ip->type == IPADDR_TYPE_V4)
-    {
-        *(uint32_t*)buf = ip->q_addr;
-    }
-    else
-    {
-        dbug_error("IPv6 not supported");
-    }
+    buf[0] = ip->a_addr[0];
+    buf[1] = ip->a_addr[1];
+    buf[2] = ip->a_addr[2];
+    buf[3] = ip->a_addr[3];
 }
 
 void ipaddr_from_buf(ipaddr_t* ip, const uint8_t* buf)
 {
     ip->type = IPADDR_TYPE_V4;
-    ip->q_addr = *(uint32_t*)buf;
+    ip->a_addr[0] = buf[0];
+    ip->a_addr[1] = buf[1];
+    ip->a_addr[2] = buf[2];
+    ip->a_addr[3] = buf[3];
+    // 同时更新 q_addr 字段，确保与 a_addr 同步
+    ip->q_addr = (uint32_t)buf[0] << 24 | (uint32_t)buf[1] << 16 | (uint32_t)buf[2] << 8 | (uint32_t)buf[3];
 }
 
 int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2)
@@ -168,7 +169,8 @@ net_err_t ipaddr4_form_buf(ipaddr_t* ip, const uint8_t* buf)
         return NET_ERR_INVALID_PARAM;
     }
     ip->type = IPADDR_TYPE_V4;
-    ip->q_addr = *(uint32_t*)buf;
+    // 将网络字节序转换为主机字节序
+    ip->q_addr = ntohl(*(uint32_t*)buf);
     return NET_ERR_OK;
 }
 
