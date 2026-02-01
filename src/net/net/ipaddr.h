@@ -63,9 +63,9 @@ const ipaddr_t* get_addr_any();
 
 void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src);
 
-void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf);
+void ipaddr_to_buf(const ipaddr_t* src, uint8_t* buf);
 
-void ipaddr_from_buf(ipaddr_t* ip, const uint8_t* buf);
+void ipaddr_from_buf(ipaddr_t* dest, const uint8_t* buf);
 
 int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2);
 

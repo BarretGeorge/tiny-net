@@ -91,23 +91,20 @@ void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src)
     plat_memcpy(dest, src, sizeof(ipaddr_t));
 }
 
-void ipaddr_to_buf(const ipaddr_t* ip, uint8_t* buf)
+void ipaddr_to_buf(const ipaddr_t* src, uint8_t* buf)
 {
-    buf[0] = ip->a_addr[0];
-    buf[1] = ip->a_addr[1];
-    buf[2] = ip->a_addr[2];
-    buf[3] = ip->a_addr[3];
+    buf[0] = src->a_addr[0];
+    buf[1] = src->a_addr[1];
+    buf[2] = src->a_addr[2];
+    buf[3] = src->a_addr[3];
 }
 
-void ipaddr_from_buf(ipaddr_t* ip, const uint8_t* buf)
+void ipaddr_from_buf(ipaddr_t* dest, const uint8_t* buf)
 {
-    ip->type = IPADDR_TYPE_V4;
-    ip->a_addr[0] = buf[0];
-    ip->a_addr[1] = buf[1];
-    ip->a_addr[2] = buf[2];
-    ip->a_addr[3] = buf[3];
-    // 同时更新 q_addr 字段，确保与 a_addr 同步
-    ip->q_addr = (uint32_t)buf[0] << 24 | (uint32_t)buf[1] << 16 | (uint32_t)buf[2] << 8 | (uint32_t)buf[3];
+    dest->a_addr[0] = buf[0];
+    dest->a_addr[1] = buf[1];
+    dest->a_addr[2] = buf[2];
+    dest->a_addr[3] = buf[3];
 }
 
 int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2)
