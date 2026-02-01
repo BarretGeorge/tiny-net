@@ -43,7 +43,8 @@ uint32_t x_inet_addr(const char* cp)
     }
 
     addr = (addr << 8) | val;
-    return addr;
+
+    return x_htonl(addr);
 }
 
 int x_inet_pton(int family, const char* src, void* dst)
