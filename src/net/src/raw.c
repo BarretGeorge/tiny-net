@@ -49,6 +49,11 @@ static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
         return err;
     }
 
+    if (ipaddr_is_any(&sock->local_ip))
+    {
+        sock->local_ip = netif_get_default()->ipaddr;
+    }
+
     err = ipv4_output(sock->protocol, &dest_ip, &sock->local_ip, pktbuf);
     if (err != NET_ERR_OK)
     {

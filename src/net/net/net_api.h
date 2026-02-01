@@ -4,6 +4,9 @@
 #include "socket.h"
 #include "tool.h"
 
+#undef INADDR_NONE
+#define INADDR_NONE             0xffffffff
+
 #undef htons
 #define htons x_htons
 
