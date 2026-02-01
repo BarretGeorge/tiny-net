@@ -22,6 +22,7 @@
 #undef IPPROTO_ICMP
 #define IPPROTO_ICMP       1
 
+#pragma pack(1)
 struct x_in_addr
 {
     union
@@ -41,9 +42,18 @@ struct x_in_addr
 
 struct x_sockaddr
 {
-    uint8_t sa_len;
-    uint8_t sa_family;
-    char sa_data[14];
+    uint8_t sa_len; // 整个结构的长度，值固定为16
+    uint8_t sa_family; // 地址簇：NET_AF_INET
+    uint8_t sa_data[14]; // 数据空间
+};
+
+struct x_sockaddr_in
+{
+    uint8_t sin_len; // 整个结构的长度，值固定为16
+    uint8_t sin_family; // 地址簇：AF_INET
+    uint16_t sin_port; // 端口号
+    struct x_in_addr sin_addr; // IP地址
+    char sin_zero[8]; // 填充字节
 };
 
 struct x_socketaddr
@@ -52,19 +62,11 @@ struct x_socketaddr
     uint8_t sa_family;
     char sa_data[14];
 };
-
-struct x_socketaddr_in
-{
-    uint8_t sin_len;
-    uint8_t sin_family;
-    unsigned short sin_port;
-    struct x_in_addr sin_addr;
-    char sin_zero[8];
-};
+#pragma pack()
 
 #define in_addr x_in_addr
 #define sockaddr x_socketaddr
-#define sockaddr_in x_socketaddr_in
+#define sockaddr_in x_sockaddr_in
 
 int x_socket(int family, int type, int protocol);
 

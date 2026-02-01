@@ -37,7 +37,8 @@ const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 
 #define socketaddr_in  x_socketaddr_in
 
-#define socketaddr  x_socketaddr
+#undef sockaddr
+#define sockaddr            x_sockaddr
 
 #define socket(domain, type, protocol) x_socket(domain, type, protocol)
 

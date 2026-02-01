@@ -26,7 +26,7 @@ ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, str
         return -1;
     }
 
-    if (addr->sa_family != AF_INET || addrlen != sizeof(struct x_socketaddr_in))
+    if (addr->sa_family != AF_INET || addrlen != sizeof(struct sockaddr))
     {
         return -1;
     }

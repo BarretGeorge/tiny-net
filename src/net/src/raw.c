@@ -25,8 +25,8 @@ static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
 {
     ipaddr_t dest_ip;
 
-    struct x_socketaddr_in* addr_in = (struct x_socketaddr_in*)dest;
-    ipaddr_from_buf(&dest_ip, (uint8_t*)&addr_in->sin_addr.addr_array);
+    struct x_sockaddr_in* addr = (struct x_sockaddr_in*)dest;
+    ipaddr_from_buf(&dest_ip, addr->sin_addr.addr_array);
 
     if (!ipaddr_is_any(&sock->remote_ip) && !ipaddr_is_equal(&dest_ip, &sock->remote_ip))
     {
