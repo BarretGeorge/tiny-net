@@ -100,7 +100,7 @@ net_err_t socket_create_req_in(const func_msg_t* msg)
 net_err_t socket_sendto_req_in(const func_msg_t* msg)
 {
     sock_req_t* req = msg->arg;
-    sock_data_t data = req->data;
+    sock_data_t* data = &req->data;
     x_socket_t* s = socket_get(req->fd);
     if (s == NULL)
     {
@@ -110,8 +110,8 @@ net_err_t socket_sendto_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_STATE;
     }
-    net_err_t err = s->sock->ops->sendto(s->sock, data.buf, data.len, data.flags, data.addr, data.addrlen,
-                                         &data.transferred_len);
+    net_err_t err = s->sock->ops->sendto(s->sock, data->buf, data->len, data->flags, data->addr, data->addrlen,
+                                         &data->transferred_len);
     if (err != NET_ERR_OK)
     {
         dbug_error("socket sendto failed, err=%d", err);
