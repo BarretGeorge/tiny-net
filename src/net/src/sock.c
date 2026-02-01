@@ -1,4 +1,6 @@
 #include "sock.h"
+
+#include "dbug.h"
 #include "raw.h"
 #include "sys_plat.h"
 #include "socket.h"
@@ -84,9 +86,37 @@ net_err_t socket_create_req_in(const func_msg_t* msg)
     {
         req->create.protocol = info.protocol;
     }
-    sock_t* sock = info.create(req->create.family, req->create.protocol);
+    s->sock = info.create(req->create.family, req->create.protocol);
+    if (s->sock == NULL)
+    {
+        socket_free(s);
+        return NET_ERR_MEM;
+    }
 
     req->fd = socket_get_fd(s);
+    return NET_ERR_OK;
+}
+
+net_err_t socket_sendto_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    sock_data_t data = req->data;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (s->sock->ops->sendto == NULL)
+    {
+        return NET_ERR_INVALID_STATE;
+    }
+    net_err_t err = s->sock->ops->sendto(s->sock, data.buf, data.len, data.flags, data.addr, data.addrlen,
+                                         &data.transferred_len);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("socket sendto failed, err=%d", err);
+        return err;
+    }
     return NET_ERR_OK;
 }
 

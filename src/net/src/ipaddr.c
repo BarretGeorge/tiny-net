@@ -13,6 +13,18 @@ void ipaddr_set_any(ipaddr_t* ip)
     ip->q_addr = 0;
 }
 
+bool ipaddr_is_any(const ipaddr_t* ip)
+{
+    if (!ip)
+    {
+        return false;
+    }
+    if (ip->type != IPADDR_TYPE_V4)
+    {
+        return false;
+    }
+    return ip->q_addr == 0;
+}
 
 net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str)
 {

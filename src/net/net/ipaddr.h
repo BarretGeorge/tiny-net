@@ -53,6 +53,8 @@ typedef struct ipaddr_t
 
 void ipaddr_set_any(ipaddr_t* ip);
 
+bool ipaddr_is_any(const ipaddr_t* ip);
+
 net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str);
 
 net_err_t ipaddr4_form_buf(ipaddr_t* ip, const uint8_t* buf);

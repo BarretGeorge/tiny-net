@@ -1,7 +1,8 @@
 #include "raw.h"
-
 #include "dbug.h"
 #include "mblock.h"
+#include "ipv4.h"
+#include "socket.h"
 
 static raw_t raw_tbl[RAW_MAX_NR];
 
@@ -19,10 +20,51 @@ net_err_t raw_init()
     return NET_ERR_OK;
 }
 
+static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, int flags,
+                            const struct x_socketaddr* dest, x_socklen_t dest_len, ssize_t* sent_size)
+{
+    ipaddr_t dest_ip;
+
+    struct x_socketaddr_in* addr_in = (struct x_socketaddr_in*)dest;
+    ipaddr_from_buf(&dest_ip, (uint8_t*)&addr_in->sin_addr.addr_array);
+
+    if (!ipaddr_is_any(&sock->remote_ip) && !ipaddr_is_equal(&dest_ip, &sock->remote_ip))
+    {
+        dbug_error("raw_sendto: destination address is any");
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    pktbuf_t* pktbuf = pktbuf_alloc((int)len);
+    if (pktbuf == NULL)
+    {
+        dbug_error("raw_sendto: pktbuf_alloc failed");
+        return NET_ERR_MEM;
+    }
+
+    net_err_t err = pktbuf_write(pktbuf, buf, (int)len);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("raw_sendto: pktbuf_write failed, err=%d", err);
+        pktbuf_free(pktbuf);
+        return err;
+    }
+
+    err = ipv4_output(sock->protocol, &dest_ip, &sock->local_ip, pktbuf);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("raw_sendto: ipv4_output failed, err=%d", err);
+        pktbuf_free(pktbuf);
+        return err;
+    }
+    *sent_size = (ssize_t)len;
+    return NET_ERR_OK;
+}
 
 sock_t* raw_create(const int family, const int protocol)
 {
-    static const sock_ops_t raw_ops;
+    static const sock_ops_t raw_ops = {
+        .sendto = raw_sendto,
+    };
     raw_t* raw = mblock_alloc(&raw_mblock, -1);
     if (raw == NULL)
     {

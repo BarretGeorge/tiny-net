@@ -16,20 +16,20 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         return;
     }
 
-    struct timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    // struct timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
+    // setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = 0;
     dest_addr.sin_addr.s_addr = inet_addr(dest_ip);
 
-    if (connect(fd, (struct sockaddr*)&dest_addr, sizeof(dest_addr)) < 0)
-    {
-        plat_printf("connect failed\n");
-        close(fd);
-        return;
-    }
+    // if (connect(fd, (struct sockaddr*)&dest_addr, sizeof(dest_addr)) < 0)
+    // {
+    //     plat_printf("connect failed\n");
+    //     close(fd);
+    //     return;
+    // }
 
     // 填充数据部分
     int fill_size = size < PING_BUFFER_SIZE ? size : PING_BUFFER_SIZE;
@@ -61,13 +61,13 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
                                                         0, true);
 
         // 发送请求报文
-        ssize_t n = send(fd, &ping->request, total_size, 0);
+        // ssize_t n = send(fd, &ping->request, total_size, 0);
+        ssize_t n = sendto(fd, &ping->request, total_size, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
         if (n < 0)
         {
             plat_printf("sendto failed\n");
             continue;
         }
-
 
         while (true)
         {

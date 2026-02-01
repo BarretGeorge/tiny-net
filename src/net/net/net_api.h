@@ -54,4 +54,6 @@ const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 
 #define setsockopt(fd, level, optname, optval, optlen) x_setsockopt(fd, level, optname, optval, optlen)
 
+#define sendto(fd, buf, len, flags, addr, addrlen) x_sendto(fd, buf, len, flags, addr, addrlen)
+
 #endif //TINY_NET_NET_API_H
