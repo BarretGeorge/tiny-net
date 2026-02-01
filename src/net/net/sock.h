@@ -81,6 +81,8 @@ net_err_t socket_create_req_in(const func_msg_t* msg);
 
 net_err_t socket_sendto_req_in(const func_msg_t* msg);
 
+net_err_t socket_recvfrom_req_in(const func_msg_t* msg);
+
 net_err_t sock_init(sock_t* sock, int family, int protocol, const sock_ops_t* ops);
 
 #endif //TINY_NET_SOCK_H

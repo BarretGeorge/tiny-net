@@ -1,4 +1,5 @@
 #include "socket.h"
+#include "dbug.h"
 #include "exmsg.h"
 #include "sock.h"
 
@@ -45,6 +46,7 @@ ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, str
         net_err_t err = exmsg_func_exec(socket_sendto_req_in, &req);
         if (err != NET_ERR_OK)
         {
+            dbug_error("socket_sendto_req_in sendto failed");
             return -1;
         }
         len -= req.data.transferred_len;
@@ -52,6 +54,36 @@ ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, str
         total_sent += req.data.transferred_len;
     }
     return total_sent;
+}
+
+ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, struct x_socketaddr* addr,
+                   x_socklen_t* addrlen)
+{
+    if (buf == NULL || addr == NULL || len == 0 || addrlen == NULL)
+    {
+        return -1;
+    }
+
+    sock_req_t req;
+    req.fd = fd;
+    req.data.addrlen = *addrlen;
+    req.data.addr = addr;
+    req.data.buf = buf;
+    req.data.len = len;
+    req.data.flags = flags;
+    req.data.transferred_len = 0;
+    net_err_t err = exmsg_func_exec(socket_recvfrom_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error("socket_recvfrom_req_in recvfrom failed");
+        return -1;
+    }
+    *addrlen = req.data.addrlen;
+    if (req.data.transferred_len > 0)
+    {
+        return req.data.transferred_len;
+    }
+    return -1;
 }
 
 int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen)

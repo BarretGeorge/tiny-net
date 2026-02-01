@@ -10,7 +10,7 @@ int main(const int argc, char** argv)
     args_parser_init(&parser, argc, argv);
 
     bool show_help;
-    int count = 0, interval = 0, timeout = 0, size = 0;
+    int count, interval, timeout, size;
     const char* host = "192.168.100.104";
 
     args_register_bool(&parser, "help", 'h', &show_help, false, "Show this help message");

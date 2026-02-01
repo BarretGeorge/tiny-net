@@ -72,7 +72,9 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         while (true)
         {
             // 接收响应报文
-            ssize_t recv_size = recv(fd, &ping->reply, sizeof(ping->reply), 0);
+            x_socklen_t addrlen = sizeof(dest_addr);
+            ssize_t recv_size = recvfrom(fd, &ping->reply, sizeof(ping->reply), 0, (struct sockaddr*)&dest_addr,
+                                         &addrlen);
             if (recv_size < 0)
             {
                 plat_printf("Request timed out for icmp_seq %d\n", i);

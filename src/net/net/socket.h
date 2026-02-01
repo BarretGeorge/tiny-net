@@ -39,6 +39,13 @@ struct x_in_addr
     };
 };
 
+struct x_sockaddr
+{
+    uint8_t sa_len;
+    uint8_t sa_family;
+    char sa_data[14];
+};
+
 struct x_socketaddr
 {
     uint8_t sa_len;
@@ -62,6 +69,8 @@ struct x_socketaddr_in
 int x_socket(int family, int type, int protocol);
 
 ssize_t x_sendto(int fd, const void* buf, size_t len, int flags, struct x_socketaddr* addr, x_socklen_t addrlen);
+
+ssize_t x_recvfrom(int fd, void* buf, size_t len, int flags, struct x_socketaddr* addr, x_socklen_t* addrlen);
 
 int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
 int x_listen(int fd, int backlog);
