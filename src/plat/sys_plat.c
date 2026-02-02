@@ -579,6 +579,102 @@ void sys_plat_init(void)
 #include <pcap.h>
 
 /**
+ * 获取第一个可用的网络接口信息
+ * 返回第一个非回环的、有IPv4地址的网络接口的IP、子网掩码和网关
+ */
+int pcap_get_first_netif(netif_info_t* info)
+{
+    if (!info)
+    {
+        return -1;
+    }
+
+    // 获取所有的接口列表
+    char err_buf[PCAP_ERRBUF_SIZE];
+    pcap_if_t* pcap_if_list = NULL;
+    int err = pcap_findalldevs(&pcap_if_list, err_buf);
+    if (err < 0)
+    {
+        fprintf(stderr, "pcap_findalldevs error: %s\n", err_buf);
+        pcap_freealldevs(pcap_if_list);
+        return -1;
+    }
+
+    // 遍历列表，查找第一个有效的网络接口
+    pcap_if_t* item;
+    for (item = pcap_if_list; item != NULL; item = item->next)
+    {
+        if (item->addresses == NULL)
+        {
+            continue;
+        }
+
+        // 查找IPv4地址
+        for (struct pcap_addr* pcap_addr = item->addresses; pcap_addr != NULL; pcap_addr = pcap_addr->next)
+        {
+            struct sockaddr* sock_addr = pcap_addr->addr;
+            if (sock_addr == NULL || sock_addr->sa_family != AF_INET)
+            {
+                continue;
+            }
+
+            struct sockaddr_in* addr_in = (struct sockaddr_in*)sock_addr;
+            uint32_t ip_addr = ntohl(addr_in->sin_addr.s_addr);
+
+            // 跳过回环地址 (127.x.x.x)
+            if ((ip_addr >> 24) == 127)
+            {
+                continue;
+            }
+
+            // 获取IP地址
+            char ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &addr_in->sin_addr, ip_str, sizeof(ip_str));
+            strcpy(info->ip, ip_str);
+
+            // 获取子网掩码
+            if (pcap_addr->netmask && pcap_addr->netmask->sa_family == AF_INET)
+            {
+                struct sockaddr_in* netmask_in = (struct sockaddr_in*)pcap_addr->netmask;
+                char netmask_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &netmask_in->sin_addr, netmask_str, sizeof(netmask_str));
+                strcpy(info->netmask, netmask_str);
+
+                // 计算网关地址（通常是网段的第一个地址）
+                uint32_t netmask_val = ntohl(netmask_in->sin_addr.s_addr);
+                uint32_t network = ip_addr & netmask_val;
+                uint32_t gateway = network + 1; // 网关通常是网段的第一个地址
+
+                struct in_addr gateway_addr;
+                gateway_addr.s_addr = htonl(gateway);
+                inet_ntop(AF_INET, &gateway_addr, info->gateway, sizeof(info->gateway));
+            }
+            else
+            {
+                // 默认子网掩码和网关
+                strcpy(info->netmask, "255.255.255.0");
+                // 简单计算网关（假设C类网络）
+                sprintf(info->gateway, "%d.%d.%d.1",
+                        (ip_addr >> 24) & 0xFF,
+                        (ip_addr >> 16) & 0xFF,
+                        (ip_addr >> 8) & 0xFF);
+            }
+
+            pcap_freealldevs(pcap_if_list);
+            printf("Auto-detected network interface:\n");
+            printf("  IP: %s\n", info->ip);
+            printf("  Netmask: %s\n", info->netmask);
+            printf("  Gateway: %s\n", info->gateway);
+            return 0;
+        }
+    }
+
+    pcap_freealldevs(pcap_if_list);
+    fprintf(stderr, "No valid network interface found\n");
+    return -1;
+}
+
+/**
  * 根据ip地址查找本地网络接口列表，找到相应的名称
  */
 int pcap_find_device(const char* ip, char* name_buf)

@@ -100,6 +100,16 @@ int pcap_find_device(const char* ip, char* name_buf);
 int pcap_show_list(void);
 pcap_t* pcap_device_open(const char* ip, const uint8_t* mac_addr);
 
+// 网络接口信息结构体
+typedef struct _netif_info_t {
+    char ip[16];        // IP地址
+    char netmask[16];   // 子网掩码
+    char gateway[16];   // 网关地址
+} netif_info_t;
+
+// 获取第一个可用的网络接口信息
+int pcap_get_first_netif(netif_info_t* info);
+
 #elif defined(SYS_PLAT_LINUX) || defined(SYS_PLAT_MAC)
 
 #include <semaphore.h>
@@ -143,6 +153,16 @@ typedef pthread_mutex_t* sys_mutex_t; // 互斥信号量
 int pcap_find_device(const char* ip, char* name_buf);
 int pcap_show_list(void);
 pcap_t* pcap_device_open(const char* ip, const uint8_t* mac_addr);
+
+// 网络接口信息结构体
+typedef struct _netif_info_t {
+    char ip[16];        // IP地址
+    char netmask[16];   // 子网掩码
+    char gateway[16];   // 网关地址
+} netif_info_t;
+
+// 获取第一个可用的网络接口信息
+int pcap_get_first_netif(netif_info_t* info);
 
 #else
 #error "Unkonw platform"
