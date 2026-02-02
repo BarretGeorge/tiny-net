@@ -47,15 +47,17 @@ static pktblk_t* pktbuf_last_blk(const pktbuf_t* pktbuf)
     return nlist_entry(last, pktblk_t, node);
 }
 
-#if DBG_DISPLAY_ENABLE(DBG_BUG)
+#if DBG_DISPLAY_ENABLE(DBG_MOD_PKTBUF)
 static void display_check_buf(const pktbuf_t* pktbuf)
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_PKTBUF)) return;
+
     if (!pktbuf)
     {
-        dbug_error("pktbuf is NULL");
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf is NULL");
         return;
     }
-    dbug_info("pktbuf total_size=%d", pktbuf->total_size);
+    dbug_info(DBG_MOD_PKTBUF, "pktbuf total_size=%d", pktbuf->total_size);
     uint32_t total_size = 0;
     const pktblk_t* curr = NULL;
     int idx = 0;
@@ -68,7 +70,7 @@ static void display_check_buf(const pktbuf_t* pktbuf)
         if ((curr->data < curr->payload) ||
             (curr->data > (curr->payload + PKTBUF_PAYLOAD_SIZE)))
         {
-            dbug_error("pktblk data ptr error,addr=%p", curr->data);
+            dbug_error(DBG_MOD_PKTBUF, "pktblk data ptr error,addr=%p", curr->data);
             break;
         }
 
@@ -82,13 +84,13 @@ static void display_check_buf(const pktbuf_t* pktbuf)
         const long total = pre_size + used_size + free_size;
         if (total != PKTBUF_PAYLOAD_SIZE)
         {
-            dbug_error("pktblk size error,total=%ld", total);
+            dbug_error(DBG_MOD_PKTBUF, "pktblk size error,total=%ld", total);
         }
         total_size += curr->size;
     }
     if (total_size != pktbuf->total_size)
     {
-        dbug_error("pktbuf total_size error,calc=%d,buf=%d", total_size,
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf total_size error,calc=%d,buf=%d", total_size,
                    pktbuf->total_size);
     }
 }
@@ -99,7 +101,7 @@ static void display_check_buf(const pktbuf_t* pktbuf)
 
 net_err_t pktbuf_init()
 {
-    dbug_info("pktbuf init...");
+    dbug_info(DBG_MOD_PKTBUF, "pktbuf init...");
 
     // 初始化锁
     nlocker_init(&locker, NLOCKER_TYPE_THREAD);
@@ -112,7 +114,7 @@ net_err_t pktbuf_init()
     mblock_init(&pktbuf_list, pktbuf_buffer, sizeof(pktbuf_t), PKTBUF_BUF_COUNT,
                 NLOCKER_TYPE_NONE);
 
-    dbug_info("pktbuf init ok");
+    dbug_info(DBG_MOD_PKTBUF, "pktbuf init ok");
     return NET_ERR_OK;
 }
 
@@ -139,7 +141,7 @@ static pktblk_t* pktblock_alloc_list(int size, const bool is_head)
         pktblk_t* new_blk = pktblock_alloc();
         if (new_blk == NULL)
         {
-            dbug_error("pktblock alloc(%d) failed", size);
+            dbug_error(DBG_MOD_PKTBUF, "pktblock alloc(%d) failed", size);
             if (first_blk)
             {
                 pktblock_free_list(first_blk);
@@ -222,7 +224,7 @@ pktbuf_t* pktbuf_alloc(const int size)
     pktbuf_t* buf = mblock_alloc(&pktbuf_list, -1);
     if (buf == NULL)
     {
-        dbug_error("pktbuf alloc failed");
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf alloc failed");
         return NULL;
     }
     buf->total_size = 0;
@@ -243,7 +245,7 @@ pktbuf_t* pktbuf_alloc(const int size)
         pktblk_t* block = pktblock_alloc_list(size, is_head);
         if (block == NULL)
         {
-            dbug_error("pktblock alloc list failed");
+            dbug_error(DBG_MOD_PKTBUF, "pktblock alloc list failed");
             mblock_free(&pktbuf_list, buf);
             return NULL;
         }
@@ -306,7 +308,7 @@ net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, const bool is_cont)
     {
         if (size > PKTBUF_PAYLOAD_SIZE)
         {
-            dbug_error("pktbuf add header size too large for cont,size=%d", size);
+            dbug_error(DBG_MOD_PKTBUF, "pktbuf add header size too large for cont,size=%d", size);
             return NET_ERR_INVALID_PARAM;
         }
         // 分配新块
@@ -325,7 +327,7 @@ net_err_t pktbuf_add_header(pktbuf_t* pktbuf, int size, const bool is_cont)
 
     if (new_blk == NULL)
     {
-        dbug_error("pktblock alloc failed");
+        dbug_error(DBG_MOD_PKTBUF, "pktblock alloc failed");
         return NET_ERR_MEM;
     }
 
@@ -343,7 +345,7 @@ net_err_t pktbuf_remove_header(pktbuf_t* pktbuf, int size)
     pktblk_t* block = pktbuf_first_blk(pktbuf);
     if (!block)
     {
-        dbug_error("pktbuf remove header failed,buf is empty");
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf remove header failed,buf is empty");
         return NET_ERR_SYS;
     }
 
@@ -383,7 +385,7 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, const int new_size)
         pktblk_t* blk = pktblock_alloc_list(new_size, false);
         if (blk == NULL)
         {
-            dbug_error("pktblock alloc list failed");
+            dbug_error(DBG_MOD_PKTBUF, "pktblock alloc list failed");
             return NET_ERR_MEM;
         }
         pktbuf_insert_blk_list(pktbuf, blk, false);
@@ -412,7 +414,7 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, const int new_size)
             pktblk_t* new_blk = pktblock_alloc_list(inc_size - remain_size, false);
             if (new_blk == NULL)
             {
-                dbug_error("pktblock alloc list failed");
+                dbug_error(DBG_MOD_PKTBUF, "pktblock alloc list failed");
                 return NET_ERR_MEM;
             }
             last_blk->size += remain_size;
@@ -436,7 +438,7 @@ net_err_t pktbuf_resize(pktbuf_t* pktbuf, const int new_size)
         }
         if (tail == NULL)
         {
-            dbug_error("pktbuf resize failed,calc size less than new size");
+            dbug_error(DBG_MOD_PKTBUF, "pktbuf resize failed,calc size less than new size");
             return NET_ERR_SYS;
         }
         total_size = 0;
@@ -484,19 +486,19 @@ net_err_t pktbuf_set_cont(pktbuf_t* pktbuf, const int size)
 {
     if (size > (int)pktbuf->total_size)
     {
-        dbug_error("pktbuf set cont size too large,size=%d", size);
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf set cont size too large,size=%d", size);
         return NET_ERR_INVALID_PARAM;
     }
     if (size > PKTBUF_PAYLOAD_SIZE)
     {
-        dbug_error("pktbuf set cont size too large for block,size=%d", size);
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf set cont size too large for block,size=%d", size);
         return NET_ERR_INVALID_PARAM;
     }
 
     pktblk_t* first_blk = pktbuf_first_blk(pktbuf);
     if (!first_blk)
     {
-        dbug_error("pktbuf set cont failed,buf is empty");
+        dbug_error(DBG_MOD_PKTBUF, "pktbuf set cont failed,buf is empty");
         return NET_ERR_SYS;
     }
 
@@ -607,7 +609,7 @@ net_err_t pktbuf_write(pktbuf_t* pktbuf, const uint8_t* buf, int size)
     const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
     if (remain_size < size)
     {
-        dbug_error("size too large to write,size=%d,remain=%d", size, remain_size);
+        dbug_error(DBG_MOD_PKTBUF, "size too large to write,size=%d,remain=%d", size, remain_size);
         return NET_ERR_INVALID_PARAM;
     }
 
@@ -634,7 +636,7 @@ net_err_t pktbuf_read(pktbuf_t* pktbuf, uint8_t* buf, int size)
     const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
     if (remain_size < size)
     {
-        dbug_error("size too large to read,size=%d,remain=%d", size, remain_size);
+        dbug_error(DBG_MOD_PKTBUF, "size too large to read,size=%d,remain=%d", size, remain_size);
         return NET_ERR_INVALID_PARAM;
     }
 
@@ -738,7 +740,7 @@ net_err_t pktbuf_copy(pktbuf_t* dst, pktbuf_t* src, int size)
     const int src_remain_size = (int)src->total_size - src->pos;
     if (dst_remain_size < size || src_remain_size < size)
     {
-        dbug_error("size too large to copy,size=%d,dst_remain=%d,src_remain=%d",
+        dbug_error(DBG_MOD_PKTBUF, "size too large to copy,size=%d,dst_remain=%d,src_remain=%d",
                    size, dst_remain_size, src_remain_size);
         return NET_ERR_INVALID_PARAM;
     }
@@ -774,7 +776,7 @@ net_err_t pktbuf_fill(pktbuf_t* pktbuf, const uint8_t value, int size)
     const int remain_size = (int)pktbuf->total_size - pktbuf->pos;
     if (remain_size < size)
     {
-        dbug_error("size too large to fill,size=%d,remain=%d", size, remain_size);
+        dbug_error(DBG_MOD_PKTBUF, "size too large to fill,size=%d,remain=%d", size, remain_size);
         return NET_ERR_INVALID_PARAM;
     }
 

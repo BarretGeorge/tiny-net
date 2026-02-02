@@ -46,7 +46,7 @@ ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, str
         net_err_t err = exmsg_func_exec(socket_sendto_req_in, &req);
         if (err != NET_ERR_OK)
         {
-            dbug_error("socket_sendto_req_in sendto failed");
+            dbug_error(DBG_MOD_SOCKET, "socket_sendto_req_in sendto failed");
             return -1;
         }
         len -= req.data.transferred_len;
@@ -75,7 +75,7 @@ ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, s
     net_err_t err = exmsg_func_exec(socket_recvfrom_req_in, &req);
     if (err != NET_ERR_OK)
     {
-        dbug_error("socket_recvfrom_req_in recvfrom failed");
+        dbug_error(DBG_MOD_SOCKET, "socket_recvfrom_req_in recvfrom failed");
         return -1;
     }
     *addrlen = req.data.addrlen;

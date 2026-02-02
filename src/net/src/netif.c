@@ -21,9 +21,11 @@ static netif_t* netif_default;
 // 链路层指针数组
 static const link_layer_t* link_layers[NETIF_TYPE_SIZE];
 
-#if DBG_DISPLAY_ENABLE(DBG_NETIF)
+#if DBG_DISPLAY_ENABLE(DBG_MOD_NETIF)
 static void display_netif_list()
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_NETIF)) return;
+
     plat_printf("netif list:\n");
 
     nlist_node_t* node;
@@ -83,7 +85,7 @@ static void display_netif_list()
 
 net_err_t netif_init()
 {
-    dbug_info("init netif");
+    dbug_info(DBG_MOD_NETIF, "init netif");
 
     netif_default = NULL;
 
@@ -112,7 +114,7 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
     netif_t* netif = mblock_alloc(&netif_mblock, 0);
     if (!netif)
     {
-        dbug_error("no mem for netif");
+        dbug_error(DBG_MOD_NETIF, "no mem for netif");
         return NULL;
     }
 
@@ -133,14 +135,14 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
     net_err_t err = fixq_init(&netif->in_q, netif->in_q_buf, NETIF_IN_QUEUE_SIZE, NLOCKER_TYPE_THREAD);
     if (err != NET_ERR_OK)
     {
-        dbug_error("init netif in_q failed");
+        dbug_error(DBG_MOD_NETIF, "init netif in_q failed");
         goto open_failed;
     }
 
     err = fixq_init(&netif->out_q, netif->out_q_buf, NETIF_OUT_QUEUE_SIZE, NLOCKER_TYPE_THREAD);
     if (err != NET_ERR_OK)
     {
-        dbug_error("init netif out_q failed");
+        dbug_error(DBG_MOD_NETIF, "init netif out_q failed");
         goto open_failed;
     }
 
@@ -150,14 +152,14 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
     err = opts->open(netif, opts_data);
     if (err != NET_ERR_OK)
     {
-        dbug_error("open netif %s failed", dev_name);
+        dbug_error(DBG_MOD_NETIF, "open netif %s failed", dev_name);
         goto open_failed;
     }
     netif->state = NETIF_STATE_OPENED;
 
     if (netif->type == NETIF_TYPE_NONE)
     {
-        dbug_error("netif %s type invalid after open", dev_name);
+        dbug_error(DBG_MOD_NETIF, "netif %s type invalid after open", dev_name);
         goto open_failed;
     }
 
@@ -165,7 +167,7 @@ netif_t* netif_open(const char* dev_name, const netif_open_options_t* opts, void
     netif->link_layer = netif_get_link_layer(netif->type);
     if (netif->link_layer == NULL && netif->type != NETIF_TYPE_LOOPBACK)
     {
-        dbug_error("netif %s type:%d link layer not registered", dev_name, netif->type);
+        dbug_error(DBG_MOD_NETIF, "netif %s type:%d link layer not registered", dev_name, netif->type);
         goto open_failed;
     }
 
@@ -208,7 +210,7 @@ net_err_t netif_set_active(netif_t* netif)
 {
     if (netif->state != NETIF_STATE_OPENED)
     {
-        dbug_error("netif_set_active: invalid state");
+        dbug_error(DBG_MOD_NETIF, "netif_set_active: invalid state");
         return NET_ERR_INVALID_STATE;
     }
     netif->state = NETIF_STATE_ACTIVE;
@@ -224,7 +226,7 @@ net_err_t netif_set_active(netif_t* netif)
         net_err_t err = netif->link_layer->open(netif);
         if (err != NET_ERR_OK)
         {
-            dbug_error("netif_set_active: link layer open failed");
+            dbug_error(DBG_MOD_NETIF, "netif_set_active: link layer open failed");
             return err;
         }
     }
@@ -237,7 +239,7 @@ net_err_t netif_set_inactive(netif_t* netif)
 {
     if (netif->state != NETIF_STATE_ACTIVE)
     {
-        dbug_error("netif_set_active: invalid state");
+        dbug_error(DBG_MOD_NETIF, "netif_set_active: invalid state");
         return NET_ERR_INVALID_STATE;
     }
     netif->state = NETIF_STATE_OPENED;
@@ -273,7 +275,7 @@ net_err_t netif_close(netif_t* netif)
 {
     if (netif->state == NETIF_STATE_ACTIVE)
     {
-        dbug_error("netif_close: netif is active");
+        dbug_error(DBG_MOD_NETIF, "netif_close: netif is active");
         return NET_ERR_INVALID_STATE;
     }
 
@@ -313,7 +315,7 @@ net_err_t netif_put_in(netif_t* netif, pktbuf_t* buf, const int tmo)
     const net_err_t err = fixq_send(&netif->in_q, buf, tmo);
     if (err != NET_ERR_OK)
     {
-        dbug_warn("netif_put_in: send to in_q failed");
+        dbug_warn(DBG_MOD_NETIF, "netif_put_in: send to in_q failed");
         return err;
     }
 
@@ -329,7 +331,7 @@ pktbuf_t* netif_get_in(netif_t* netif, const int tmo)
         pktbuf_reset_access(buf);
         return buf;
     }
-    dbug_info("netif_get_in: recv from in_q timeout");
+    dbug_info(DBG_MOD_NETIF, "netif_get_in: recv from in_q timeout");
     return NULL;
 }
 
@@ -338,7 +340,7 @@ net_err_t netif_put_out(netif_t* netif, pktbuf_t* buf, const int tmo)
     const net_err_t err = fixq_send(&netif->out_q, buf, tmo);
     if (err != NET_ERR_OK)
     {
-        dbug_warn("netif_put_out: send to out_q failed");
+        dbug_warn(DBG_MOD_NETIF, "netif_put_out: send to out_q failed");
         return err;
     }
     return NET_ERR_OK;
@@ -352,7 +354,7 @@ pktbuf_t* netif_get_out(netif_t* netif, const int tmo)
         pktbuf_reset_access(buf);
         return buf;
     }
-    dbug_info("netif_get_out: recv from out_q timeout");
+    dbug_info(DBG_MOD_NETIF, "netif_get_out: recv from out_q timeout");
     return NULL;
 }
 
@@ -360,7 +362,7 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
 {
     if (netif->state != NETIF_STATE_ACTIVE)
     {
-        dbug_error("netif_out: netif is not active");
+        dbug_error(DBG_MOD_NETIF, "netif_out: netif is not active");
         return NET_ERR_INVALID_STATE;
     }
 
@@ -374,7 +376,7 @@ net_err_t netif_out(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
     const net_err_t err = netif_put_out(netif, buf, -1);
     if (err != NET_ERR_OK)
     {
-        dbug_error("netif_out: put out failed");
+        dbug_error(DBG_MOD_NETIF, "netif_out: put out failed");
         return err;
     }
     return netif->opts->linkoutput(netif);
@@ -384,13 +386,13 @@ net_err_t netif_register_link_layer(const link_layer_t* ll)
 {
     if (ll->type < NETIF_TYPE_NONE || ll->type >= NETIF_TYPE_SIZE)
     {
-        dbug_error("netif_register_link_layer: invalid link layer type");
+        dbug_error(DBG_MOD_NETIF, "netif_register_link_layer: invalid link layer type");
         return NET_ERR_INVALID_PARAM;
     }
 
     if (link_layers[ll->type - 1] != NULL)
     {
-        dbug_error("netif_register_link_layer: link layer type already registered");
+        dbug_error(DBG_MOD_NETIF, "netif_register_link_layer: link layer type already registered");
         return NET_ERR_INVALID_PARAM;
     }
 

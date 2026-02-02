@@ -117,7 +117,7 @@ int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2)
     {
         return ip1->q_addr == ip2->q_addr;
     }
-    dbug_error("IPv6 not supported");
+    dbug_error(DBG_MOD_COMMON, "IPv6 not supported");
     return 0;
 }
 

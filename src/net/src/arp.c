@@ -19,9 +19,11 @@ static nlist_t cache_list;
 // 用于初始化缓存项时的空MAC地址
 static const uint8_t empty_hwaddr[ETHER_HWADDR_LEN] = {0};
 
-#if DBG_DISPLAY_ENABLE(DBG_ARP)
+#if DBG_DISPLAY_ENABLE(DBG_MOD_ARP)
 static void display_arp_entity(const arp_entity_t* entity)
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_ARP)) return;
+
     plat_printf("ARP Entity:\n");
     plat_printf("  IP:");
     dbug_dump_ipaddr((ipaddr_t*)&entity->p_addr);
@@ -36,6 +38,8 @@ static void display_arp_entity(const arp_entity_t* entity)
 
 static void display_arp_tbl()
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_ARP)) return;
+
     plat_printf("ARP table start=======================:\n");
     arp_entity_t* entity = cache_tbl;
     for (int i = 0; i < ARP_CACHE_SIZE; i++, entity++)
@@ -51,6 +55,8 @@ static void display_arp_tbl()
 
 static void display_arp_pkt(const arp_pkt_t* pkt)
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_ARP)) return;
+
     plat_printf("ARP Packet:\n");
     plat_printf("  Hardware Type: %u\n", x_ntohs(pkt->h_type));
     plat_printf("  Protocol Type: 0x%04X\n", x_ntohs(pkt->p_type));
@@ -98,7 +104,7 @@ static net_err_t cache_entity_send_all(arp_entity_t* entity)
         net_err_t err = ether_raw_out(entity->netif, PROTOCOL_TYPE_IPv4, entity->hwaddr, buf);
         if (err != NET_ERR_OK)
         {
-            dbug_error("cache_entity_send_all: ether_raw_out fail, err=%d", err);
+            dbug_error(DBG_MOD_ARP, "cache_entity_send_all: ether_raw_out fail, err=%d", err);
             pktbuf_free(buf);
             return err;
         }
@@ -116,7 +122,7 @@ static arp_entity_t* cache_alloc(const int force)
         nlist_node_t* node = nlist_remove_last(&cache_list);
         if (node == NULL)
         {
-            dbug_error("cache_alloc: no free arp entity");
+            dbug_error(DBG_MOD_ARP, "cache_alloc: no free arp entity");
             return NULL;
         }
         entity = nlist_entry(node, arp_entity_t, node);
@@ -222,7 +228,7 @@ static net_err_t cache_insert(netif_t* netif, const uint8_t* ip, const uint8_t* 
         entity = cache_alloc(force);
         if (entity == NULL)
         {
-            dbug_error("cache_insert: cache_alloc fail,ip:%s", ip);
+            dbug_error(DBG_MOD_ARP, "cache_insert: cache_alloc fail,ip:%s", ip);
             return NET_ERR_MEM;
         }
         cache_entity_set(entity, hwaddr, ip, netif, NET_ARP_RESOLVE);
@@ -242,7 +248,7 @@ static net_err_t cache_insert(netif_t* netif, const uint8_t* ip, const uint8_t* 
         net_err_t err = cache_entity_send_all(entity);
         if (err != NET_ERR_OK)
         {
-            dbug_error("cache_insert: cache_entity_send_all fail, ip:%s", ip);
+            dbug_error(DBG_MOD_ARP, "cache_insert: cache_entity_send_all fail, ip:%s", ip);
             return err;
         }
     }
@@ -271,10 +277,10 @@ static void arp_cache_tmo(net_timer_t* timer, void* arg)
         switch (entity->state)
         {
         case NET_ARP_WAITING:
-            dbug_info("state NET_ARP_WAITING");
+            dbug_info(DBG_MOD_ARP, "state NET_ARP_WAITING");
             if (--entity->retry_cnt <= 0)
             {
-                dbug_info("ARP解析超时，释放缓存项");
+                dbug_info(DBG_MOD_ARP, "ARP解析超时，释放缓存项");
                 cache_free(entity);
                 break;
             }
@@ -283,7 +289,7 @@ static void arp_cache_tmo(net_timer_t* timer, void* arg)
             arp_make_request(entity->netif, &addr);
             break;
         case NET_ARP_RESOLVE:
-            dbug_info("state NET_ARP_RESOLVE");
+            dbug_info(DBG_MOD_ARP, "state NET_ARP_RESOLVE");
             entity->state = NET_ARP_WAITING;
             entity->timeout = to_scan_cnt(ARP_ENTRY_PENDING_TMO);
             entity->retry_cnt = ARP_MAX_RETRY_COUNT;
@@ -296,7 +302,7 @@ static void arp_cache_tmo(net_timer_t* timer, void* arg)
 
     if (change_cnt > 0)
     {
-        dbug_info("%d arp entity change_cnt", change_cnt);
+        dbug_info(DBG_MOD_ARP, "%d arp entity change_cnt", change_cnt);
         display_arp_tbl();
     }
 }
@@ -315,7 +321,7 @@ static net_err_t cache_init()
     err = net_timer_add(&cache_timer, "arp timer", arp_cache_tmo, NULL, ARP_TIMER_TMO * 1000, TIMER_FLAG_PERIODIC);
     if (err != NET_ERR_OK)
     {
-        dbug_error("cache_init: net_timer_add fail, err=%d", err);
+        dbug_error(DBG_MOD_ARP, "cache_init: net_timer_add fail, err=%d", err);
         return err;
     }
     return NET_ERR_OK;
@@ -326,7 +332,7 @@ net_err_t arp_init()
     net_err_t err = cache_init();
     if (err != NET_ERR_OK)
     {
-        dbug_error("");
+        dbug_error(DBG_MOD_ARP, "");
         return err;
     }
     return NET_ERR_OK;
@@ -337,7 +343,7 @@ net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr)
     pktbuf_t* buf = pktbuf_alloc(sizeof(arp_pkt_t));
     if (buf == NULL)
     {
-        dbug_error("pktbuf_alloc fail");
+        dbug_error(DBG_MOD_ARP, "pktbuf_alloc fail");
         return NET_ERR_MEM;
     }
 
@@ -359,7 +365,7 @@ net_err_t arp_make_request(netif_t* netif, const ipaddr_t* addr)
     net_err_t err = ether_raw_out(netif, PROTOCOL_TYPE_ARP, ether_broadcast_addr(), buf);
     if (err != NET_ERR_OK)
     {
-        dbug_error("ether_raw_out fail");
+        dbug_error(DBG_MOD_ARP, "ether_raw_out fail");
         pktbuf_free(buf);
         return err;
     }
@@ -377,7 +383,7 @@ net_err_t arp_pkt_is_valid(const netif_t* netif, const arp_pkt_t* arp_pkt, const
     // 包大小检查
     if (size < (int)sizeof(arp_pkt_t))
     {
-        dbug_warn("arp_pkt_is_valid: invalid arp packet size");
+        dbug_warn(DBG_MOD_ARP, "arp_pkt_is_valid: invalid arp packet size");
         return NET_ERR_FRAME;
     }
     // 硬件类型、协议类型、地址长度检查
@@ -386,7 +392,7 @@ net_err_t arp_pkt_is_valid(const netif_t* netif, const arp_pkt_t* arp_pkt, const
         arp_pkt->hw_len != ETHER_HWADDR_LEN ||
         arp_pkt->p_len != IPV4_ADDR_LEN)
     {
-        dbug_warn("arp_pkt_is_valid: invalid arp packet fields");
+        dbug_warn(DBG_MOD_ARP, "arp_pkt_is_valid: invalid arp packet fields");
         return NET_ERR_FRAME;
     }
 
@@ -394,14 +400,14 @@ net_err_t arp_pkt_is_valid(const netif_t* netif, const arp_pkt_t* arp_pkt, const
     // 操作码检查
     if (opcode != ARP_REQUEST && opcode != ARP_REPLY)
     {
-        dbug_warn("arp_pkt_is_valid: invalid arp opcode");
+        dbug_warn(DBG_MOD_ARP, "arp_pkt_is_valid: invalid arp opcode");
         return NET_ERR_FRAME;
     }
 
     // 目标IP地址检查，必须是发给本机的ARP请求或应答
     // if (plat_memcmp(arp_pkt->target_addr, netif->ipaddr.a_addr, IPV4_ADDR_LEN) != 0)
     // {
-    //     dbug_warn("ARP 目标地址不匹配");
+    //     dbug_warn(DBG_MOD_ARP, "ARP 目标地址不匹配");
     //     return NET_ERR_TARGET_ADDR_MATCH;
     // }
     return NET_ERR_OK;
@@ -413,7 +419,7 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf)
     // 确保包是连续的
     if ((err = pktbuf_set_cont(buf, sizeof(arp_pkt_t))) != NET_ERR_OK)
     {
-        dbug_error("arp_in: pktbuf_set_cont failed, err=%d", err);
+        dbug_error(DBG_MOD_ARP, "arp_in: pktbuf_set_cont failed, err=%d", err);
         return err;
     }
 
@@ -421,7 +427,7 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf)
     err = arp_pkt_is_valid(netif, arp_pkt, pktbuf_total(buf));
     if (err != NET_ERR_OK)
     {
-        dbug_error("arp_in: invalid arp packet, err=%d", err);
+        dbug_error(DBG_MOD_ARP, "arp_in: invalid arp packet, err=%d", err);
         return err;
     }
 
@@ -454,7 +460,7 @@ net_err_t arp_in(netif_t* netif, pktbuf_t* buf)
         }
         break;
     default:
-        dbug_warn("arp_in: unknown arp opcode %d", opcode);
+        dbug_warn(DBG_MOD_ARP, "arp_in: unknown arp opcode %d", opcode);
         return NET_ERR_FRAME;
     }
 
@@ -498,7 +504,7 @@ net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf)
         // 等待队列是否已满
         if (nlist_count(&entity->buf_list) >= ARP_MAX_PKT_WAITING)
         {
-            dbug_warn("arp_resolve: waiting queue full");
+            dbug_warn(DBG_MOD_ARP, "arp_resolve: waiting queue full");
             pktbuf_free(buf);
             return NET_ERR_FULL;
         }
@@ -512,7 +518,7 @@ net_err_t arp_resolve(netif_t* netif, const ipaddr_t* addr, pktbuf_t* buf)
     entity = cache_alloc(1);
     if (entity == NULL)
     {
-        dbug_error("arp_resolve: cache_alloc fail");
+        dbug_error(DBG_MOD_ARP, "arp_resolve: cache_alloc fail");
         pktbuf_free(buf);
         return NET_ERR_MEM;
     }
@@ -550,7 +556,7 @@ void arp_update_from_ip_buf(netif_t* netif,  pktbuf_t* buf)
     net_err_t err = pktbuf_set_cont(buf, sizeof(ipv4_header_t));
     if (err != NET_ERR_OK)
     {
-        dbug_error("arp_update_from_ip_buf: pktbuf_set_cont failed, err=%d", err);
+        dbug_error(DBG_MOD_ARP, "arp_update_from_ip_buf: pktbuf_set_cont failed, err=%d", err);
         return;
     }
 
@@ -559,7 +565,7 @@ void arp_update_from_ip_buf(netif_t* netif,  pktbuf_t* buf)
 
     if (ip_hdr->version != NET_VERSION_IPV4)
     {
-        dbug_warn("arp_update_from_ip_buf: not ipv4 packet");
+        dbug_warn(DBG_MOD_ARP, "arp_update_from_ip_buf: not ipv4 packet");
         return;
     }
 

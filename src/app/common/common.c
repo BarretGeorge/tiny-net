@@ -28,7 +28,7 @@ static net_err_t netdev_init(void)
     // 动态获取本机网络接口信息
     if (pcap_get_first_netif(&netif_info) < 0)
     {
-        dbug_error("netdev_init: failed to get network interface info");
+        dbug_error(DBG_MOD_COMMON, "netdev_init: failed to get network interface info");
         return NET_ERR_SYS;
     }
 
@@ -46,20 +46,20 @@ static net_err_t netdev_init(void)
     }
     else
     {
-        dbug_error("netdev_init: invalid IP address format");
+        dbug_error(DBG_MOD_COMMON, "netdev_init: invalid IP address format");
         return NET_ERR_SYS;
     }
 
-    dbug_info("Network configuration:");
-    dbug_info("  Local IP:   %s", local_ip);
-    dbug_info("  Gateway:    %s", gateway_ip);
-    dbug_info("  Virtual IP: %s", virtual_ip);
-    dbug_info("  Netmask:    %s", netif_info.netmask);
+    dbug_info(DBG_MOD_COMMON, "Network configuration:");
+    dbug_info(DBG_MOD_COMMON, "  Local IP:   %s", local_ip);
+    dbug_info(DBG_MOD_COMMON, "  Gateway:    %s", gateway_ip);
+    dbug_info(DBG_MOD_COMMON, "  Virtual IP: %s", virtual_ip);
+    dbug_info(DBG_MOD_COMMON, "  Netmask:    %s", netif_info.netmask);
 
     netif_t* netif = netif_open("vnet0", &netdev_ops, &netdev_0);
     if (!netif)
     {
-        dbug_error("netdev_init: failed to open network interface");
+        dbug_error(DBG_MOD_COMMON, "netdev_init: failed to open network interface");
         return NET_ERR_SYS;
     }
 

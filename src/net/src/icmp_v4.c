@@ -18,7 +18,7 @@ static net_err_t is_icmp_v4_pkt_valid(const icmp_v4_pkt_t* pkt, const uint32_t s
     // 基本长度检查
     if (size <= sizeof(icmp_v4_header_t))
     {
-        dbug_warn("is_icmp_v4_pkt_valid: packet size too small %d", size);
+        dbug_warn(DBG_MOD_ICMP, "is_icmp_v4_pkt_valid: packet size too small %d", size);
         return NET_ERR_FRAME;
     }
 
@@ -27,7 +27,7 @@ static net_err_t is_icmp_v4_pkt_valid(const icmp_v4_pkt_t* pkt, const uint32_t s
     uint16_t checksum = pktbuf_checksum16(buf, (int)size, 0, true);
     if (checksum != 0)
     {
-        dbug_warn("is_icmp_v4_pkt_valid: invalid checksum 0x%04X", checksum);
+        dbug_warn(DBG_MOD_ICMP, "is_icmp_v4_pkt_valid: invalid checksum 0x%04X", checksum);
         return NET_ERR_CHECKSUM;
     }
 
@@ -46,7 +46,7 @@ static net_err_t icmp_v4_echo_reply(const ipaddr_t* src_ip, const ipaddr_t* neti
 
 net_err_t icmp_v4_init(void)
 {
-    dbug_info(" ICMPv4 module init");
+    dbug_info(DBG_MOD_ICMP, " ICMPv4 module init");
 
     return NET_ERR_OK;
 }
@@ -59,7 +59,7 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     net_err_t err = pktbuf_set_cont(buf, ip_hdr_size + (int)sizeof(icmp_v4_header_t));
     if (err != NET_ERR_OK)
     {
-        dbug_error("icmp_v4_input: pktbuf_set_cont failed, err=%d", err);
+        dbug_error(DBG_MOD_ICMP, "icmp_v4_input: pktbuf_set_cont failed, err=%d", err);
         return err;
     }
 
@@ -68,14 +68,14 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
 
     if ((err = pktbuf_remove_header(buf, ip_hdr_size)) != NET_ERR_OK)
     {
-        dbug_error("icmp_v4_input: pktbuf_remove_header failed, err=%d", err);
+        dbug_error(DBG_MOD_ICMP, "icmp_v4_input: pktbuf_remove_header failed, err=%d", err);
         return err;
     }
 
     icmp_v4_pkt_t* icmp_pkt = (icmp_v4_pkt_t*)pktbuf_data(buf);
     if ((err = is_icmp_v4_pkt_valid(icmp_pkt, buf->total_size, buf)) != NET_ERR_OK)
     {
-        dbug_warn("icmp_v4_input: invalid icmpv4 packet");
+        dbug_warn(DBG_MOD_ICMP, "icmp_v4_input: invalid icmpv4 packet");
         return err;
     }
 
@@ -89,7 +89,7 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     }
     if (err != NET_ERR_OK)
     {
-        dbug_warn("icmp_v4_input: icmp type %d input failed, err=%d", icmp_pkt->header.type, err);
+        dbug_warn(DBG_MOD_ICMP, "icmp_v4_input: icmp type %d input failed, err=%d", icmp_pkt->header.type, err);
     }
     return NET_ERR_OK;
 }
@@ -105,7 +105,7 @@ net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip
     pktbuf_t* new_buf = pktbuf_alloc((int)sizeof(icmp_v4_header_t) + copy_size + 4);
     if (new_buf == NULL)
     {
-        dbug_error("icmp_v4_output_unreach: no free pktbuf");
+        dbug_error(DBG_MOD_ICMP, "icmp_v4_output_unreach: no free pktbuf");
         return NET_ERR_MEM;
     }
 
@@ -121,7 +121,7 @@ net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip
     net_err_t err = pktbuf_copy(new_buf, ip_buf, copy_size);
     if (err != NET_ERR_OK)
     {
-        dbug_error("icmp_v4_output_unreach: pktbuf_copy failed, err=%d", err);
+        dbug_error(DBG_MOD_ICMP, "icmp_v4_output_unreach: pktbuf_copy failed, err=%d", err);
         pktbuf_free(new_buf);
         return err;
     }
@@ -129,7 +129,7 @@ net_err_t icmp_v4_output_unreach(const ipaddr_t* dest_ip, const ipaddr_t* src_ip
     err = icmp_v4_output(dest_ip, src_ip, new_buf);
     if (err != NET_ERR_OK)
     {
-        dbug_error("icmp_v4_output_unreach: icmp_v4_output failed, err=%d", err);
+        dbug_error(DBG_MOD_ICMP, "icmp_v4_output_unreach: icmp_v4_output failed, err=%d", err);
         pktbuf_free(new_buf);
         return err;
     }

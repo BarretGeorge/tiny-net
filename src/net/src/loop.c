@@ -21,7 +21,7 @@ static net_err_t loop_output(netif_t* netif)
     pktbuf_t* buf = netif_get_out(netif, -1);
     if (!buf)
     {
-        dbug_error("loop_output: failed to get pktbuf from out_q");
+        dbug_error(DBG_MOD_LOOP, "loop_output: failed to get pktbuf from out_q");
         return NET_ERR_SYS;
     }
 
@@ -29,7 +29,7 @@ static net_err_t loop_output(netif_t* netif)
     const net_err_t err = netif_put_in(netif, buf, -1);
     if (err != NET_ERR_OK)
     {
-        dbug_error("loop_output: failed to put pktbuf to in_q");
+        dbug_error(DBG_MOD_LOOP, "loop_output: failed to put pktbuf to in_q");
         pktbuf_free(buf);
         return err;
     }
@@ -50,7 +50,7 @@ net_err_t loop_init()
     netif_t* netif = netif_open("loop", &loop_netif_ops, NULL);
     if (!netif)
     {
-        dbug_error("loop_init: failed to open loopback interface");
+        dbug_error(DBG_MOD_LOOP, "loop_init: failed to open loopback interface");
         return NET_ERR_SYS;
     }
 

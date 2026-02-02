@@ -1,4 +1,5 @@
 #include "dbug.h"
+#include "dbug_module.h"
 #include "sys_plat.h"
 #include <stdarg.h>
 
@@ -44,14 +45,33 @@ static const char* dbug_level_to_string(const debug_level_t level)
     }
 }
 
-void dbug_printf(const debug_level_t level, const char* file, const char* func, const int line, const char* fmt, ...)
+/**
+ * 模块化日志输出函数
+ * 输出格式: [LEVEL][MODULE][file:func:line] message
+ */
+void dbug_printf(const debug_level_t level, const dbug_module_t module,
+                const char* file, const char* func, const int line,
+                const char* fmt, ...)
 {
+    // 检查模块是否启用
+    if (!dbug_module_is_enabled(module))
+    {
+        return;
+    }
+
     va_list args;
     va_start(args, fmt);
-    plat_printf("%s[%s:%s:%d] ", dbug_level_to_string(level), dbug_file_name(file), func, line);
+
+    // 输出格式: [LEVEL][MODULE][file:func:line] message
+    plat_printf("%s[%s][%s:%s:%d] ",
+               dbug_level_to_string(level),
+               dbug_module_name(module),
+               dbug_file_name(file),
+               func,
+               line);
+
     char buf[1024];
     plat_vsprintf(buf, fmt, args);
-    // vsnprintf(buf, sizeof(buf), fmt, args);
     plat_printf("%s\n"DBUG_STYLE_RESET, buf);
     va_end(args);
 }

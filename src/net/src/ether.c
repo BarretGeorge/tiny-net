@@ -6,8 +6,11 @@
 #include "tool.h"
 #include "ipv4.h"
 
+#if DBG_DISPLAY_ENABLE(DBG_MOD_ETHER)
 static void display_ether_frame(const char* title, const ether_frame_t* frame, const uint32_t frame_len)
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_ETHER)) return;
+
     uint16_t protocol = x_ntohs(frame->header.protocol);
     plat_printf("%s: 包大小=%u\n", title, frame_len);
     plat_printf("  目标MAC地址: %02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -32,6 +35,7 @@ static void display_ether_frame(const char* title, const ether_frame_t* frame, c
         break;
     }
 }
+#endif
 
 static net_err_t frame_is_valid(const ether_frame_t* frame, const uint32_t frame_len)
 {
@@ -57,13 +61,13 @@ static void ether_close(netif_t* netif)
 // 输入函数指针
 static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
 {
-    dbug_info("ether_input: received pktbuf=%p, len=%d", buf, buf->total_size);
+    dbug_info(DBG_MOD_ETHER, "ether_input: received pktbuf=%p, len=%d", buf, buf->total_size);
 
     // 设置包的连续性
     net_err_t err = pktbuf_set_cont(buf, sizeof(ether_header_t));
     if (err != NET_ERR_OK)
     {
-        dbug_warn("ether_input: pktbuf_set_cont failed, err=%d", err);
+        dbug_warn(DBG_MOD_ETHER, "ether_input: pktbuf_set_cont failed, err=%d", err);
         pktbuf_free(buf);
         return err;
     }
@@ -73,7 +77,7 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
     err = frame_is_valid(frame, buf->total_size);
     if (err != NET_ERR_OK)
     {
-        dbug_warn("ether_input: invalid ether frame, err=%d", err);
+        dbug_warn(DBG_MOD_ETHER, "ether_input: invalid ether frame, err=%d", err);
         pktbuf_free(buf);
         return err;
     }
@@ -82,29 +86,29 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
     switch (protocol)
     {
     case PROTOCOL_TYPE_ARP:
-        dbug_info("收到ARP数据包");
+        dbug_info(DBG_MOD_ETHER, "收到ARP数据包");
         // 移除以太网头
         if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t))) != NET_ERR_OK)
         {
-            dbug_warn("ether_input: pktbuf_remove_header failed, err=%d", err);
+            dbug_warn(DBG_MOD_ETHER, "ether_input: pktbuf_remove_header failed, err=%d", err);
             pktbuf_free(buf);
             return err;
         }
         return arp_in(netif, buf);
     case PROTOCOL_TYPE_IPv4:
-        dbug_info("收到IPv4数据包");
+        dbug_info(DBG_MOD_ETHER, "收到IPv4数据包");
         arp_update_from_ip_buf(netif, buf);
 
         // 移除以太网头
         if ((err = pktbuf_remove_header(buf, sizeof(ether_header_t))) != NET_ERR_OK)
         {
-            dbug_warn("ether_input: pktbuf_remove_header failed, err=%d", err);
+            dbug_warn(DBG_MOD_ETHER, "ether_input: pktbuf_remove_header failed, err=%d", err);
             pktbuf_free(buf);
             return err;
         }
         return ipv4_input(netif, buf);
     default:
-        dbug_warn("不支持的协议 protocol 0x%04X", protocol);
+        dbug_warn(DBG_MOD_ETHER, "不支持的协议 protocol 0x%04X", protocol);
         break;
     }
 
@@ -136,8 +140,11 @@ net_err_t ether_init()
         .output = ether_output,
     };
 
-    plat_printf("ether_header_t sizeof=%lu \n", sizeof(ether_header_t));
-    plat_printf("ether_frame_t sizeof=%lu \n", sizeof(ether_frame_t));
+    if (DBG_DISPLAY_CHECK(DBG_MOD_ETHER))
+    {
+        plat_printf("ether_header_t sizeof=%lu \n", sizeof(ether_header_t));
+        plat_printf("ether_frame_t sizeof=%lu \n", sizeof(ether_frame_t));
+    }
 
     return netif_register_link_layer(&ether_link_layer);
 }
@@ -157,18 +164,18 @@ net_err_t ether_raw_out(netif_t* netif, const uint16_t protocol, const uint8_t* 
         // 填充到最小长度
         if ((err = pktbuf_resize(buf, ETHER_PAYLOAD_MIN_LEN)) != NET_ERR_OK)
         {
-            dbug_error("ether_raw_out: pktbuf_resize failed, err=%d", err);
+            dbug_error(DBG_MOD_ETHER, "ether_raw_out: pktbuf_resize failed, err=%d", err);
             return err;
         }
         pktbuf_reset_access(buf);
         if ((err = pktbuf_seek(buf, size)) != NET_ERR_OK)
         {
-            dbug_error("ether_raw_out: pktbuf_seek failed, err=%d", err);
+            dbug_error(DBG_MOD_ETHER, "ether_raw_out: pktbuf_seek failed, err=%d", err);
             return err;
         }
         if ((err = pktbuf_fill(buf, 0, ETHER_PAYLOAD_MIN_LEN - size)) != NET_ERR_OK)
         {
-            dbug_error("ether_raw_out: pktbuf_fill failed, err=%d", err);
+            dbug_error(DBG_MOD_ETHER, "ether_raw_out: pktbuf_fill failed, err=%d", err);
             return err;
         }
     }
@@ -176,7 +183,7 @@ net_err_t ether_raw_out(netif_t* netif, const uint16_t protocol, const uint8_t* 
     // 添加以太网头
     if ((err = pktbuf_add_header(buf, sizeof(ether_header_t), true)) != NET_ERR_OK)
     {
-        dbug_error("ether_raw_out: pktbuf_add_header failed, err=%d", err);
+        dbug_error(DBG_MOD_ETHER, "ether_raw_out: pktbuf_add_header failed, err=%d", err);
         return err;
     }
 
@@ -196,7 +203,7 @@ net_err_t ether_raw_out(netif_t* netif, const uint16_t protocol, const uint8_t* 
     // 将数据包放入网卡的发送队列
     if ((err = netif_put_out(netif, buf, -1)) != NET_ERR_OK)
     {
-        dbug_error("ether_raw_out: netif_put_out failed, err=%d", err);
+        dbug_error(DBG_MOD_ETHER, "ether_raw_out: netif_put_out failed, err=%d", err);
         return err;
     }
 

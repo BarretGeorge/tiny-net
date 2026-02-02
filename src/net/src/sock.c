@@ -114,7 +114,7 @@ net_err_t socket_sendto_req_in(const func_msg_t* msg)
                                          &data->transferred_len);
     if (err != NET_ERR_OK)
     {
-        dbug_error("socket sendto failed, err=%d", err);
+        dbug_error(DBG_MOD_SOCK, "socket sendto failed, err=%d", err);
         return err;
     }
     return NET_ERR_OK;
@@ -137,7 +137,7 @@ net_err_t socket_recvfrom_req_in(const func_msg_t* msg)
                                            &data->transferred_len);
     if (err != NET_ERR_OK)
     {
-        dbug_error("socket recvfrom failed, err=%d", err);
+        dbug_error(DBG_MOD_SOCK, "socket recvfrom failed, err=%d", err);
         return err;
     }
     return NET_ERR_OK;
