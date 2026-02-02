@@ -9,18 +9,13 @@
 #include "netif_pcap.h"
 #include "sock.h"
 #include "raw.h"
+#include "sys_plat.h"
 
-// 本地ip地址
-const char local_ip[] = "192.168.100.108";
-
-// 网关地址
-const char gateway_ip[] = "192.168.100.1";
-
-// 分配给虚拟网卡的虚拟地址
-const char virtual_ip[] = "192.168.100.95";
-
-// 客户端ip地址
-const char friend_ip[] = "192.168.100.104";
+// 动态获取的网络接口信息
+static netif_info_t netif_info;
+static char local_ip[16];
+static char gateway_ip[16];
+static char virtual_ip[16];
 
 // 虚拟网卡操作函数
 pcap_data_t netdev_0 = {
@@ -30,10 +25,41 @@ pcap_data_t netdev_0 = {
 
 static net_err_t netdev_init(void)
 {
+    // 动态获取本机网络接口信息
+    if (pcap_get_first_netif(&netif_info) < 0)
+    {
+        dbug_error("netdev_init: failed to get network interface info");
+        return NET_ERR_SYS;
+    }
+
+    // 复制本地IP和网关
+    plat_strcpy(local_ip, netif_info.ip);
+    plat_strcpy(gateway_ip, netif_info.gateway);
+
+    // 生成虚拟IP地址
+    unsigned int a, b, c, d;
+    if (sscanf(netif_info.ip, "%u.%u.%u.%u", &a, &b, &c, &d) == 4)
+    {
+        // 将最后一个字节设为95或96
+        unsigned int virtual_d = (d == 95) ? 96 : 95;
+        sprintf(virtual_ip, "%u.%u.%u.%u", a, b, c, virtual_d);
+    }
+    else
+    {
+        dbug_error("netdev_init: invalid IP address format");
+        return NET_ERR_SYS;
+    }
+
+    dbug_info("Network configuration:");
+    dbug_info("  Local IP:   %s", local_ip);
+    dbug_info("  Gateway:    %s", gateway_ip);
+    dbug_info("  Virtual IP: %s", virtual_ip);
+    dbug_info("  Netmask:    %s", netif_info.netmask);
+
     netif_t* netif = netif_open("vnet0", &netdev_ops, &netdev_0);
     if (!netif)
     {
-        dbug_error("loop_init: failed to open loopback interface");
+        dbug_error("netdev_init: failed to open network interface");
         return NET_ERR_SYS;
     }
 
@@ -42,7 +68,7 @@ static net_err_t netdev_init(void)
     ipaddr_t gateway;
 
     ipaddr4_form_str(&ipaddr, virtual_ip);
-    ipaddr4_form_str(&netmask, "255.255.255.0");
+    ipaddr4_form_str(&netmask, netif_info.netmask);
     ipaddr4_form_str(&gateway, gateway_ip);
 
     netif_set_addr(netif, &ipaddr, &netmask, &gateway);
