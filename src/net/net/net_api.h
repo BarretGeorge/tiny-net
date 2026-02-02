@@ -40,6 +40,11 @@ const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 #undef sockaddr
 #define sockaddr            x_sockaddr
 
+#define sockaddr_in      x_sockaddr_in
+
+#undef socklen_t
+#define socklen_t x_socklen_t
+
 #define socket(domain, type, protocol) x_socket(domain, type, protocol)
 
 #define bind(fd, addr, addrlen) x_bind(fd, addr, addrlen)

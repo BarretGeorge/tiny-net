@@ -65,10 +65,18 @@ static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
     return NET_ERR_OK;
 }
 
+static net_err_t raw_recvfrom(sock_t* sock, uint8_t* buf, const size_t len, int flags,
+                              const struct x_socketaddr* src, x_socklen_t* src_len, ssize_t* recv_size)
+{
+    *recv_size = 0;
+    return NET_ERR_NEED_WAIT;
+}
+
 sock_t* raw_create(const int family, const int protocol)
 {
     static const sock_ops_t raw_ops = {
         .sendto = raw_sendto,
+        .recvfrom = raw_recvfrom,
     };
     raw_t* raw = mblock_alloc(&raw_mblock, -1);
     if (raw == NULL)
@@ -81,11 +89,22 @@ sock_t* raw_create(const int family, const int protocol)
     if (err != NET_ERR_OK)
     {
         dbug_error(DBG_MOD_RAW, "raw_create: sock_init failed");
-        mblock_free(&raw_mblock, raw);
-        return NULL;
+        goto create_fail;
+    }
+
+    raw->base.recv_wait = &raw->recv_wait;
+    if ((err = sock_wait_init(&raw->recv_wait) != NET_ERR_OK))
+    {
+        dbug_error(DBG_MOD_RAW, "raw_create: sock_wait_init failed,err:%d", err);
+        goto create_fail;
     }
 
     nlist_insert_last(&raw_list, &raw->base.node);
 
     return &raw->base;
+
+create_fail:
+    sock_free(&raw->base);
+    mblock_free(&raw_mblock, raw);
+    return NULL;
 }

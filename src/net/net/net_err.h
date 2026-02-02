@@ -3,6 +3,7 @@
 
 typedef enum net_err_t
 {
+    NET_ERR_NEED_WAIT = 1, // 需要等待
     NET_ERR_OK = 0, // 成功
     NET_ERR_SYS = -1, // 系统错误
     NET_ERR_MEM = -2, // 内存错误

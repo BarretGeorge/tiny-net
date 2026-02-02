@@ -110,9 +110,13 @@ net_err_t socket_sendto_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_STATE;
     }
-    net_err_t err = s->sock->ops->sendto(s->sock, data->buf, data->len, data->flags, data->addr, data->addrlen,
+    net_err_t err = s->sock->ops->sendto(s->sock, data->buf, data->len, data->flags, data->addr, *data->addrlen,
                                          &data->transferred_len);
-    if (err != NET_ERR_OK)
+    if (err == NET_ERR_NEED_WAIT && s->sock->send_wait)
+    {
+        sock_wait_add(s->sock->send_wait, s->sock->send_timeout, req);
+    }
+    if (err < NET_ERR_OK)
     {
         dbug_error(DBG_MOD_SOCK, "socket sendto failed, err=%d", err);
         return err;
@@ -133,9 +137,14 @@ net_err_t socket_recvfrom_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_STATE;
     }
-    net_err_t err = s->sock->ops->recvfrom(s->sock, data->buf, data->len, data->flags, data->addr, &data->addrlen,
+    net_err_t err = s->sock->ops->recvfrom(s->sock, data->buf, data->len, data->flags, data->addr, data->addrlen,
                                            &data->transferred_len);
-    if (err != NET_ERR_OK)
+    if (err == NET_ERR_NEED_WAIT && s->sock->recv_wait)
+    {
+        sock_wait_add(s->sock->recv_wait, s->sock->recv_timeout, req);
+    }
+
+    if (err < NET_ERR_OK)
     {
         dbug_error(DBG_MOD_SOCK, "socket recvfrom failed, err=%d", err);
         return err;
@@ -156,5 +165,92 @@ net_err_t sock_init(sock_t* sock, const int family, const int protocol, const so
     sock->remote_port = 0;
     sock->recv_timeout = 0;
     sock->send_timeout = 0;
+    sock->send_wait = NULL;
+    sock->recv_wait = NULL;
+    sock->conn_wait = NULL;
     return NET_ERR_OK;
+}
+
+net_err_t sock_wait_init(sock_wait_t* wait)
+{
+    wait->waiting = 0;
+    wait->err = NET_ERR_OK;
+    wait->sem = sys_sem_create(0);
+    if (wait->sem == SYS_SEM_INVALID)
+    {
+        return NET_ERR_SYS;
+    }
+    return NET_ERR_OK;
+}
+
+void sock_wait_destroy(sock_wait_t* wait)
+{
+    if (wait->sem != SYS_SEM_INVALID)
+    {
+        sys_sem_free(wait->sem);
+        wait->sem = SYS_SEM_INVALID;
+    }
+}
+
+void sock_wait_add(sock_wait_t* wait, const int timeout, sock_req_t* req)
+{
+    wait->waiting++;
+
+    req->wait = wait;
+    req->wait_timeout = timeout;
+}
+
+net_err_t sock_wait_enter(const sock_wait_t* wait, const int timeout)
+{
+    if (sys_sem_wait(wait->sem, timeout) < 0)
+    {
+        return NET_ERR_TIMEOUT;
+    }
+    return wait->err;
+}
+
+void sock_wait_leave(sock_wait_t* wait, const net_err_t err)
+{
+    if (wait->waiting > 0)
+    {
+        wait->waiting--;
+        sys_sem_notify(wait->sem);
+        wait->err = err;
+    }
+}
+
+void sock_wakeup(const sock_t* sock, const int type, const net_err_t err)
+{
+    if (type & SOCK_WAIT_READ && sock->recv_wait)
+    {
+        sock_wait_leave(sock->recv_wait, err);
+    }
+    if (type & SOCK_WAIT_WRITE && sock->send_wait)
+    {
+        sock_wait_leave(sock->send_wait, err);
+    }
+    if (type & SOCK_WAIT_CONN && sock->conn_wait)
+    {
+        sock_wait_leave(sock->conn_wait, err);
+    }
+}
+
+void sock_free(const sock_t* sock)
+{
+    if (sock == NULL)
+    {
+        return;
+    }
+    if (sock->recv_wait)
+    {
+        sock_wait_destroy(sock->recv_wait);
+    }
+    if (sock->send_wait)
+    {
+        sock_wait_destroy(sock->send_wait);
+    }
+    if (sock->conn_wait)
+    {
+        sock_wait_destroy(sock->conn_wait);
+    }
 }

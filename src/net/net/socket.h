@@ -67,7 +67,6 @@ struct x_socketaddr
 #define in_addr x_in_addr
 #define socketaddr x_socketaddr
 #define sockaddr x_sockaddr
-#define sockaddr_in x_sockaddr_in
 
 int x_socket(int family, int type, int protocol);
 

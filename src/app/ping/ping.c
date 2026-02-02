@@ -72,7 +72,7 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         while (true)
         {
             // 接收响应报文
-            x_socklen_t addrlen = sizeof(dest_addr);
+            socklen_t addrlen = sizeof(dest_addr);
             ssize_t recv_size = recvfrom(fd, &ping->reply, sizeof(ping->reply), 0, (struct socketaddr*)&dest_addr,
                                          &addrlen);
             if (recv_size < 0)

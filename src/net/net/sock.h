@@ -10,6 +10,32 @@ struct sock_t;
 
 struct x_socketaddr;
 
+struct sock_req_t;
+
+#define SOCK_WAIT_READ (1<<0)
+#define SOCK_WAIT_WRITE (1<<1)
+#define SOCK_WAIT_CONN (1<<2)
+#define SOCK_WAIT_ALL (SOCK_WAIT_READ | SOCK_WAIT_WRITE | SOCK_WAIT_CONN)
+
+typedef struct sock_wait_t
+{
+    sys_sem_t sem;
+    net_err_t err;
+    int waiting;
+} sock_wait_t;
+
+net_err_t sock_wait_init(sock_wait_t* wait);
+
+void sock_wait_destroy(sock_wait_t* wait);
+
+void sock_wait_add(sock_wait_t* wait, int timeout, struct sock_req_t* req);
+
+net_err_t sock_wait_enter(const sock_wait_t* wait, int timeout);
+
+void sock_wait_leave(sock_wait_t* wait, net_err_t err);
+
+void sock_wakeup(const struct sock_t* sock, int type, net_err_t err);
+
 typedef struct sock_ops_t
 {
     net_err_t (*close)(struct sock_t* sock);
@@ -33,6 +59,10 @@ typedef struct sock_t
     net_err_t err;
     int recv_timeout;
     int send_timeout;
+
+    sock_wait_t* recv_wait;
+    sock_wait_t* send_wait;
+    sock_wait_t* conn_wait;
     nlist_node_t node;
 } sock_t;
 
@@ -60,13 +90,15 @@ typedef struct sock_data_t
     size_t len;
     int flags;
     struct x_socketaddr* addr;
-    x_socklen_t addrlen;
+    x_socklen_t* addrlen;
     ssize_t transferred_len;
 } sock_data_t;
 
 typedef struct sock_req_t
 {
     int fd;
+    sock_wait_t* wait;
+    int wait_timeout;
 
     union
     {
@@ -84,5 +116,7 @@ net_err_t socket_sendto_req_in(const func_msg_t* msg);
 net_err_t socket_recvfrom_req_in(const func_msg_t* msg);
 
 net_err_t sock_init(sock_t* sock, int family, int protocol, const sock_ops_t* ops);
+
+void sock_free(const sock_t* sock);
 
 #endif //TINY_NET_SOCK_H
