@@ -6,24 +6,26 @@ static nlist_t timer_list;
 
 net_err_t net_timer_init()
 {
-    dbug_info("Initializing timer module...");
+    dbug_info(DBG_MOD_TIMER, "Initializing timer module...");
     nlist_init(&timer_list);
     return NET_ERR_OK;
 }
 
-#if DBG_DISPLAY_ENABLE(DBG_BUG)
+#if DBG_DISPLAY_ENABLE(DBG_MOD_TIMER)
 static void display_timer()
 {
-    dbug_info("--------------timer--start------------");
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_TIMER)) return;
+
+    dbug_info(DBG_MOD_TIMER, "--------------timer--start------------");
     nlist_node_t* node;
-    dbug_info("Current timers:");
+    dbug_info(DBG_MOD_TIMER, "Current timers:");
     nlist_for_each(node, &timer_list)
     {
         net_timer_t* timer = nlist_entry(node, net_timer_t, node);
-        dbug_info("  Timer name: %s, expire:%u, interval: %u ms, flags: 0x%02X",
+        dbug_info(DBG_MOD_TIMER, "  Timer name: %s, expire:%u, interval: %u ms, flags: 0x%02X",
                   timer->name, timer->expire, timer->interval, timer->flags);
     }
-    dbug_info("--------------timer--end-------------");
+    dbug_info(DBG_MOD_TIMER, "--------------timer--end-------------");
 }
 #else
 #define display_timer()

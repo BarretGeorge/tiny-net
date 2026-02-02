@@ -3,6 +3,6 @@
 
 net_err_t net_plat_init(void)
 {
-    dbug_info("net plat init");
+    dbug_info(DBG_MOD_PLATFORM, "net plat init");
     return NET_ERR_OK;
 }

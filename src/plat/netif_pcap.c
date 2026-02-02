@@ -29,7 +29,7 @@ void recv_thread(void* arg)
         pktbuf_t* buf = pktbuf_alloc((int)header->len);
         if (!buf)
         {
-            dbug_warn("pcap recv_thread: pktbuf_alloc failed");
+            dbug_warn(DBG_MOD_PLATFORM, "pcap recv_thread: pktbuf_alloc failed");
             continue;
         }
         pktbuf_write(buf, data, (int)header->len);
@@ -38,7 +38,7 @@ void recv_thread(void* arg)
         net_err_t err = netif_put_in(netif, buf, 0);
         if (err != NET_ERR_OK)
         {
-            dbug_warn("pcap recv_thread: netif_put_in failed");
+            dbug_warn(DBG_MOD_PLATFORM, "pcap recv_thread: netif_put_in failed");
             pktbuf_free(buf);
             continue;
         }
@@ -60,7 +60,7 @@ void send_thread(void* arg)
         pktbuf_t* buf = netif_get_out(netif, 0);
         if (buf == NULL)
         {
-            dbug_error("pcap send_thread: netif_get_out timeout");
+            dbug_error(DBG_MOD_PLATFORM, "pcap send_thread: netif_get_out timeout");
             continue;
         }
 
@@ -69,11 +69,11 @@ void send_thread(void* arg)
         pktbuf_read(buf, rw_buffer, total_size);
         if (pcap_inject(pcap, rw_buffer, total_size) == -1)
         {
-            dbug_error("pcap send_thread: pcap_inject failed, err:%s", pcap_geterr(pcap));
+            dbug_error(DBG_MOD_PLATFORM, "pcap send_thread: pcap_inject failed, err:%s", pcap_geterr(pcap));
         }
         else
         {
-            dbug_info("发送一个数据包完成 size=%d", total_size);
+            dbug_info(DBG_MOD_PLATFORM, "发送一个数据包完成 size=%d", total_size);
         }
         pktbuf_free(buf);
     }
@@ -85,7 +85,7 @@ net_err_t netif_pcap_open(netif_t* netif, void* data)
     pcap_t* pcap = pcap_device_open(pcap_data->ipaddr, pcap_data->hwaddr);
     if (!pcap)
     {
-        dbug_error("netif_pcap_open: failed to open pcap device");
+        dbug_error(DBG_MOD_PLATFORM, "netif_pcap_open: failed to open pcap device");
         return NET_ERR_IO;
     }
     netif->type = NETIF_TYPE_ETHERNET;

@@ -20,7 +20,7 @@ static net_err_t fragment_init()
                                 NLOCKER_TYPE_NONE);
     if (err != NET_ERR_OK)
     {
-        dbug_error("fragment_init: mblock_init failed, err=%d", err);
+        dbug_error(DBG_MOD_IPV4, "fragment_init: mblock_init failed, err=%d", err);
         return err;
     }
     return NET_ERR_OK;
@@ -103,9 +103,11 @@ static uint16_t get_fragment_end(const ipv4_pkt_t* pkt)
     return get_fragment_start(pkt) + get_fragment_data_size(pkt);
 }
 
-#if DBG_DISPLAY_ENABLE(DBG_IPV4)
+#if DBG_DISPLAY_ENABLE(DBG_MOD_IPV4)
 static void display_ipv4_header(const ipv4_pkt_t* pkt)
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_IPV4)) return;
+
     const ipv4_header_t* hdr = &pkt->header;
     plat_printf("IPv4 Header:\n");
     plat_printf("  Version: %u\n", hdr->version);
@@ -126,6 +128,8 @@ static void display_ipv4_header(const ipv4_pkt_t* pkt)
 
 static void display_ipv4_fragment()
 {
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_IPV4)) return;
+
     nlist_node_t* node;
     int index = 0;
     nlist_for_each(node, &fragment_list)
@@ -211,14 +215,14 @@ static pktbuf_t* fragment_join(ip_fragment_t* fragment)
         net_err_t err = pktbuf_remove_header(buf, ipv4_hdr_size(pkt));
         if (err != NET_ERR_OK)
         {
-            dbug_error("fragment_join: pktbuf_remove_header failed, err=%d", err);
+            dbug_error(DBG_MOD_IPV4, "fragment_join: pktbuf_remove_header failed, err=%d", err);
             pktbuf_free(buf);
             goto err_return;
         }
         err = join_pktbuf(joined_buf, buf);
         if (err != NET_ERR_OK)
         {
-            dbug_error("fragment_join: join_pktbuf failed, err=%d", err);
+            dbug_error(DBG_MOD_IPV4, "fragment_join: join_pktbuf failed, err=%d", err);
             pktbuf_free(buf);
             goto err_return;
         }
@@ -237,21 +241,21 @@ static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, n
     // 检查版本号
     if (pkt->header.version != NET_VERSION_IPV4)
     {
-        dbug_warn("ipv4_pkt_is_valid: invalid version %d", pkt->header.version);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_pkt_is_valid: invalid version %d", pkt->header.version);
         return NET_ERR_FRAME;
     }
 
     int hdr_len = ipv4_hdr_size(pkt);
     if (hdr_len < sizeof(ipv4_header_t))
     {
-        dbug_warn("ipv4_pkt_is_valid: invalid header length %d", hdr_len);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_pkt_is_valid: invalid header length %d", hdr_len);
         return NET_ERR_FRAME;
     }
 
     int total_len = x_ntohs(pkt->header.total_len);
     if (total_len < hdr_len || total_len > size)
     {
-        dbug_warn("ipv4_pkt_is_valid: invalid total length %d", total_len);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_pkt_is_valid: invalid total length %d", total_len);
         return NET_ERR_FRAME;
     }
 
@@ -262,7 +266,7 @@ static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, n
         uint16_t checksum = checksum16(&pkt->header, hdr_len, 0, true);
         if (checksum != 0)
         {
-            dbug_warn("ipv4_pkt_is_valid: invalid header checksum 0x%04X", checksum);
+            dbug_warn(DBG_MOD_IPV4, "ipv4_pkt_is_valid: invalid header checksum 0x%04X", checksum);
             return NET_ERR_CHECKSUM;
         }
     }
@@ -288,13 +292,13 @@ static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* 
     case PROTOCOL_TYPE_TCP: // TCP
         break;
     default:
-        dbug_warn("ip_normal_input: unsupported protocol %d", ipv4_pkt->header.protocol);
+        dbug_warn(DBG_MOD_IPV4, "ip_normal_input: unsupported protocol %d", ipv4_pkt->header.protocol);
         return NET_ERR_FRAME;
     }
 
     if (err != NET_ERR_OK)
     {
-        dbug_warn("ip_normal_input: protocol %d input failed, err=%d", ipv4_pkt->header.protocol, err);
+        dbug_warn(DBG_MOD_IPV4, "ip_normal_input: protocol %d input failed, err=%d", ipv4_pkt->header.protocol, err);
     }
     return err;
 }
@@ -304,7 +308,7 @@ static net_err_t ip_fragment_insert(ip_fragment_t* fragment, pktbuf_t* buf, cons
 {
     if (nlist_count(&fragment->buf_list) >= IPV4_FRAGS_BUFFER_MAX_NR)
     {
-        dbug_warn("ip_fragment_insert: fragment buffer list full");
+        dbug_warn(DBG_MOD_IPV4, "ip_fragment_insert: fragment buffer list full");
         fragment_free(fragment);
         return NET_ERR_MEM;
     }
@@ -353,7 +357,7 @@ static net_err_t ip_fragment_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t
         frag = fragment_alloc();
         if (frag == NULL)
         {
-            dbug_error("ip_fragment_input: fragment_alloc failed");
+            dbug_error(DBG_MOD_IPV4, "ip_fragment_input: fragment_alloc failed");
             return NET_ERR_MEM;
         }
         fragment_add(frag, src_ip, ipv4_pkt->header.id);
@@ -362,7 +366,7 @@ static net_err_t ip_fragment_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t
     net_err_t err = ip_fragment_insert(frag, buf, ipv4_pkt);
     if (err != NET_ERR_OK)
     {
-        dbug_warn("ip_fragment_input: ip_fragment_insert failed, err=%d", err);
+        dbug_warn(DBG_MOD_IPV4, "ip_fragment_input: ip_fragment_insert failed, err=%d", err);
         return err;
     }
 
@@ -372,14 +376,14 @@ static net_err_t ip_fragment_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t
         pktbuf_t* joined_buf = fragment_join(frag);
         if (joined_buf == NULL)
         {
-            dbug_error("ip_fragment_input: fragment_join failed");
+            dbug_error(DBG_MOD_IPV4, "ip_fragment_input: fragment_join failed");
             return NET_ERR_MEM;
         }
         fragment_free(frag);
         err = ip_normal_input(netif, joined_buf, src_ip, dest_ip);
         if (err != NET_ERR_OK)
         {
-            dbug_warn("ip_fragment_input: ip_normal_input failed, err=%d", err);
+            dbug_warn(DBG_MOD_IPV4, "ip_fragment_input: ip_normal_input failed, err=%d", err);
             pktbuf_free(joined_buf);
             return err;
         }
@@ -401,11 +405,11 @@ void ipv4_set_hdr_size(ipv4_pkt_t* pkt, const int size)
 
 net_err_t ipv4_init()
 {
-    dbug_info("ipv4_init");
+    dbug_info(DBG_MOD_IPV4, "ipv4_init");
     net_err_t err = fragment_init();
     if (err != NET_ERR_OK)
     {
-        dbug_error("ipv4_init: fragment_init failed, err=%d", err);
+        dbug_error(DBG_MOD_IPV4, "ipv4_init: fragment_init failed, err=%d", err);
         return err;
     }
     return NET_ERR_OK;
@@ -413,7 +417,7 @@ net_err_t ipv4_init()
 
 net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
 {
-    dbug_info("ipv4_input");
+    dbug_info(DBG_MOD_IPV4, "ipv4_input");
 
     // 设置包的连续性
     pktbuf_set_cont(buf, sizeof(ipv4_header_t));
@@ -424,7 +428,7 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     net_err_t err = ipv4_pkt_is_valid(pkt, buf->total_size, netif);
     if (err != NET_ERR_OK)
     {
-        dbug_warn("ipv4_input: invalid ipv4 packet, err=%d", err);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_input: invalid ipv4 packet, err=%d", err);
         return err;
     }
 
@@ -433,7 +437,7 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     // 调整包的长度 为实际长度
     if ((err = pktbuf_resize(buf, pkt->header.total_len)) < 0)
     {
-        dbug_warn("ipv4_input: pktbuf_resize failed, err=%d", err);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_input: pktbuf_resize failed, err=%d", err);
         return err;
     }
 
@@ -443,7 +447,7 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
 
     if (!ipaddr_is_match(&dest_ip, &netif->ipaddr, &netif->netmask))
     {
-        dbug_warn("ipv4_input: packet not for us,dest ip %s", dest_ip.a_addr);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_input: packet not for us,dest ip %s", dest_ip.a_addr);
         return NET_ERR_TARGET_ADDR_MATCH;
     }
 
@@ -459,7 +463,7 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
 
     if (err != NET_ERR_OK)
     {
-        dbug_warn("ipv4_input: ip_normal_input failed, err=%d", err);
+        dbug_warn(DBG_MOD_IPV4, "ipv4_input: ip_normal_input failed, err=%d", err);
         pktbuf_free(buf);
         return err;
     }
@@ -473,7 +477,7 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     net_err_t err = pktbuf_add_header(buf, sizeof(ipv4_header_t), true);
     if (err != NET_ERR_OK)
     {
-        dbug_error("ipv4_output: pktbuf_add_header failed, err=%d", err);
+        dbug_error(DBG_MOD_IPV4, "ipv4_output: pktbuf_add_header failed, err=%d", err);
         return err;
     }
 
@@ -504,7 +508,7 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     err = netif_out(netif_get_default(), (ipaddr_t*)dest_ip, buf);
     if (err != NET_ERR_OK)
     {
-        dbug_error("ipv4_output: netif_out failed, err=%d", err);
+        dbug_error(DBG_MOD_IPV4, "ipv4_output: netif_out failed, err=%d", err);
         return err;
     }
     return NET_ERR_OK;

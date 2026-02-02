@@ -13,7 +13,7 @@
 
 net_err_t net_init()
 {
-    dbug_info("init net");
+    dbug_info(DBG_MOD_COMMON, "init net");
     // 平台相关初始化
     net_plat_init();
 
@@ -49,6 +49,6 @@ net_err_t net_init()
 net_err_t net_start()
 {
     exmsg_start();
-    dbug_info("net is started");
+    dbug_info(DBG_MOD_COMMON, "net is started");
     return NET_ERR_OK;
 }

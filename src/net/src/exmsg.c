@@ -17,7 +17,7 @@ static mblock_t msg_mblock;
 
 net_err_t exmsg_init()
 {
-    dbug_info("exmsg init...");
+    dbug_info(DBG_MOD_EXMSG, "exmsg init...");
 
     net_err_t err = NET_ERR_OK;
 
@@ -25,7 +25,7 @@ net_err_t exmsg_init()
     err = mblock_init(&msg_mblock, msg_buf, sizeof(exmsg_t), EXMSG_QUEUE_SIZE, NLOCKER_TYPE_THREAD);
     if (err != NET_ERR_OK)
     {
-        dbug_error("exmsg mblock init failed, err=%d", err);
+        dbug_error(DBG_MOD_EXMSG, "exmsg mblock init failed, err=%d", err);
         goto fail;
     }
 
@@ -33,7 +33,7 @@ net_err_t exmsg_init()
     err = fixq_init(&msg_queue, msg_tbl, EXMSG_QUEUE_SIZE, NLOCKER_TYPE_THREAD);
     if (err != NET_ERR_OK)
     {
-        dbug_error("exmsg queue init failed, err=%d", err);
+        dbug_error(DBG_MOD_EXMSG, "exmsg queue init failed, err=%d", err);
         goto fail;
     }
 
@@ -64,7 +64,7 @@ static net_err_t do_netif_input(const exmsg_t* msg)
 
         if (err != NET_ERR_OK)
         {
-            dbug_error("处理输入数据包失败，err=%d", err);
+            dbug_error(DBG_MOD_EXMSG, "处理输入数据包失败，err=%d", err);
             pktbuf_free(buf);
         }
     }
@@ -85,7 +85,7 @@ static net_err_t do_func(func_msg_t* func_msg)
 
 static void work_thread(void* arg)
 {
-    dbug_info("exmsg work_thread started");
+    dbug_info(DBG_MOD_EXMSG, "exmsg work_thread started");
     net_time_t plat_start_time;
     sys_time_curr(&plat_start_time);
 
@@ -96,7 +96,7 @@ static void work_thread(void* arg)
         exmsg_t* msg = fixq_recv(&msg_queue, (int32_t)waitMo);
         if (msg != NULL)
         {
-            dbug_info("exmsg work_thread: received msg type=%d", msg->type);
+            dbug_info(DBG_MOD_EXMSG, "exmsg work_thread: received msg type=%d", msg->type);
             switch (msg->type)
             {
             case NET_EXMSG_TYPE_NETIF_IN:
@@ -135,14 +135,14 @@ net_err_t exmsg_netif_in(netif_t* netif)
     exmsg_t* msg = mblock_alloc(&msg_mblock, -1);
     if (msg == NULL)
     {
-        dbug_warn("no free exmsg block");
+        dbug_warn(DBG_MOD_EXMSG, "no free exmsg block");
         return NET_ERR_MEM;
     }
     msg->type = NET_EXMSG_TYPE_NETIF_IN;
     msg->netif.netif = netif;
     if (fixq_send(&msg_queue, msg, -1) != NET_ERR_OK)
     {
-        dbug_error("fixq full");
+        dbug_error(DBG_MOD_EXMSG, "fixq full");
         mblock_free(&msg_mblock, msg);
         return NET_ERR_MEM;
     }
@@ -160,14 +160,14 @@ net_err_t exmsg_func_exec(const exmsg_func_t func, void* arg)
 
     if (func_msg.wait_sem == SYS_SEM_INVALID)
     {
-        dbug_error("create func_msg wait_sem failed");
+        dbug_error(DBG_MOD_EXMSG, "create func_msg wait_sem failed");
         return NET_ERR_SYS;
     }
 
     exmsg_t* msg = mblock_alloc(&msg_mblock, 0);
     if (msg == NULL)
     {
-        dbug_warn("no free exmsg block");
+        dbug_warn(DBG_MOD_EXMSG, "no free exmsg block");
         sys_sem_free(func_msg.wait_sem);
         return NET_ERR_MEM;
     }
@@ -175,7 +175,7 @@ net_err_t exmsg_func_exec(const exmsg_func_t func, void* arg)
     msg->func = &func_msg;
     if (fixq_send(&msg_queue, msg, 0) != NET_ERR_OK)
     {
-        dbug_error("fixq full");
+        dbug_error(DBG_MOD_EXMSG, "fixq full");
         mblock_free(&msg_mblock, msg);
         return NET_ERR_MEM;
     }
