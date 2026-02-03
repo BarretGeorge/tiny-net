@@ -11,7 +11,7 @@ int main(const int argc, char** argv)
 
     bool show_help;
     int count, interval, timeout, size;
-    const char* host = "192.168.100.104";
+    const char* host = "192.168.100.120";
 
     args_register_bool(&parser, "help", 'h', &show_help, false, "Show this help message");
     args_register_int(&parser, "count", 'c', &count, 4, "Number of pings to send");
@@ -40,6 +40,5 @@ int main(const int argc, char** argv)
 
     ping_t ping;
     ping_run(&ping, host, count, size, interval, timeout);
-
     args_parser_destroy(&parser);
 }

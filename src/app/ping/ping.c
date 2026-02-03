@@ -15,8 +15,8 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         return;
     }
 
-    timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    // timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
+    // setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
@@ -112,5 +112,5 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
     close(fd);
 
     // 结束程序
-    exit(0);
+    // exit(0);
 }

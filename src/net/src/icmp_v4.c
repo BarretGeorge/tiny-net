@@ -24,7 +24,6 @@ static net_err_t is_icmp_v4_pkt_valid(const icmp_v4_pkt_t* pkt, const uint32_t s
     }
 
     // 计算校验和
-    pktbuf_reset_access(buf);
     uint16_t checksum = pktbuf_checksum16(buf, (int)size, 0, true);
     if (checksum != 0)
     {
@@ -68,8 +67,10 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     ip_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
 
     icmp_v4_pkt_t* icmp_pkt = (icmp_v4_pkt_t*)(pktbuf_data(buf) + ip_hdr_size);
+    // 重置访问位置
+    pktbuf_reset_access(buf);
     pktbuf_seek(buf, ip_hdr_size);
-    if ((err = is_icmp_v4_pkt_valid(icmp_pkt, buf->total_size, buf)) != NET_ERR_OK)
+    if ((err = is_icmp_v4_pkt_valid(icmp_pkt, buf->total_size - ip_hdr_size, buf)) != NET_ERR_OK)
     {
         dbug_warn(DBG_MOD_ICMP, "icmp_v4_input: invalid icmpv4 packet");
         return err;
