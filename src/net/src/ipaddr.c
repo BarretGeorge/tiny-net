@@ -109,16 +109,7 @@ void ipaddr_from_buf(ipaddr_t* dest, const uint8_t* buf)
 
 int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2)
 {
-    if (ip1->type != ip2->type)
-    {
-        return 0;
-    }
-    if (ip1->type == IPADDR_TYPE_V4)
-    {
-        return ip1->q_addr == ip2->q_addr;
-    }
-    dbug_error(DBG_MOD_COMMON, "IPv6 not supported");
-    return 0;
+    return ip1->q_addr == ip2->q_addr;
 }
 
 bool is_local_broadcast_ip(const ipaddr_t* ip)
