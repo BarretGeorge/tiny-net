@@ -2,6 +2,7 @@
 #include "dbug.h"
 #include "ipv4.h"
 #include "protocol.h"
+#include "raw.h"
 
 static net_err_t icmp_v4_output(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf)
 {
@@ -66,13 +67,8 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     // 重新获取 ip_pkt 指针
     ip_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
 
-    if ((err = pktbuf_remove_header(buf, ip_hdr_size)) != NET_ERR_OK)
-    {
-        dbug_error(DBG_MOD_ICMP, "icmp_v4_input: pktbuf_remove_header failed, err=%d", err);
-        return err;
-    }
-
-    icmp_v4_pkt_t* icmp_pkt = (icmp_v4_pkt_t*)pktbuf_data(buf);
+    icmp_v4_pkt_t* icmp_pkt = (icmp_v4_pkt_t*)(pktbuf_data(buf) + ip_hdr_size);
+    pktbuf_seek(buf, ip_hdr_size);
     if ((err = is_icmp_v4_pkt_valid(icmp_pkt, buf->total_size, buf)) != NET_ERR_OK)
     {
         dbug_warn(DBG_MOD_ICMP, "icmp_v4_input: invalid icmpv4 packet");
@@ -82,9 +78,19 @@ net_err_t icmp_v4_input(const ipaddr_t* src_ip, const ipaddr_t* netif_ip, pktbuf
     switch (icmp_pkt->header.type)
     {
     case ICMP_V4_TYPE_ECHO_REQUEST: // 回显请求
+        // 移除IPv4头
+        if ((err = pktbuf_remove_header(buf, ip_hdr_size)) != NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_ICMP, "icmp_v4_input: pktbuf_remove_header failed, err=%d", err);
+            return err;
+        }
+
+        pktbuf_reset_access(buf);
+
         err = icmp_v4_echo_reply(src_ip, netif_ip, buf);
         break;
     default:
+        err = raw_input(buf);
         break;
     }
     if (err != NET_ERR_OK)

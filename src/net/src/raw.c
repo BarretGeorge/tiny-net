@@ -110,3 +110,45 @@ create_fail:
     mblock_free(&raw_mblock, raw);
     return NULL;
 }
+
+static raw_t* raw_find(const ipaddr_t* src_ip, const ipaddr_t* dest_ip, const uint8_t protocol)
+{
+    nlist_node_t* node;
+    nlist_for_each(node, &raw_list)
+    {
+        raw_t* raw = (raw_t*)nlist_entry(node, sock_t, node);
+
+        if (raw->base.protocol && (raw->base.protocol != protocol))
+        {
+            continue;
+        }
+        if (!ipaddr_is_any(&raw->base.remote_ip) && !ipaddr_is_equal(&raw->base.remote_ip, src_ip))
+        {
+            continue;
+        }
+        if (!ipaddr_is_any(&raw->base.local_ip) && !ipaddr_is_equal(&raw->base.local_ip, dest_ip))
+        {
+            continue;
+        }
+        return raw;
+    }
+    return NULL;
+}
+
+net_err_t raw_input(pktbuf_t* pktbuf)
+{
+    ipv4_header_t* ip_header = (ipv4_header_t*)pktbuf_data(pktbuf);
+
+    ipaddr_t src_ip, dest_ip;
+    ipaddr_from_buf(&src_ip, ip_header->src_addr);
+    ipaddr_from_buf(&dest_ip, ip_header->dest_addr);
+
+    raw_t* raw = raw_find(&src_ip, &dest_ip, ip_header->protocol);
+    if (raw == NULL)
+    {
+        dbug_warn(DBG_MOD_RAW, "raw_input: no matching raw socket for protocol %d", ip_header->protocol);
+        return NET_ERR_TARGET_ADDR_MATCH;
+    }
+
+    return NET_ERR_OK;
+}

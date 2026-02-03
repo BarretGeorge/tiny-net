@@ -159,18 +159,6 @@ bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip)
     return host.q_addr == max_host.q_addr;
 }
 
-net_err_t ipaddr4_form_buf(ipaddr_t* ip, const uint8_t* buf)
-{
-    if (!ip || !buf)
-    {
-        return NET_ERR_INVALID_PARAM;
-    }
-    ip->type = IPADDR_TYPE_V4;
-    // 将网络字节序转换为主机字节序
-    ip->q_addr = ntohl(*(uint32_t*)buf);
-    return NET_ERR_OK;
-}
-
 bool ipaddr_is_match(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const ipaddr_t* netmask)
 {
     if (is_local_broadcast_ip(dest_ip))

@@ -57,8 +57,6 @@ bool ipaddr_is_any(const ipaddr_t* ip);
 
 net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str);
 
-net_err_t ipaddr4_form_buf(ipaddr_t* ip, const uint8_t* buf);
-
 const ipaddr_t* get_addr_any();
 
 void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src);

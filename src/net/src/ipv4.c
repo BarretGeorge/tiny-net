@@ -4,6 +4,7 @@
 #include "tool.h"
 #include "icmp_v4.h"
 #include "mblock.h"
+#include "raw.h"
 
 static uint16_t packet_id = 0;
 
@@ -292,8 +293,8 @@ static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* 
     case PROTOCOL_TYPE_TCP: // TCP
         break;
     default:
-        dbug_warn(DBG_MOD_IPV4, "ip_normal_input: unsupported protocol %d", ipv4_pkt->header.protocol);
-        return NET_ERR_FRAME;
+        err = raw_input(buf);
+        break;
     }
 
     if (err != NET_ERR_OK)
@@ -442,8 +443,8 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     }
 
     ipaddr_t src_ip, dest_ip;
-    ipaddr4_form_buf(&src_ip, pkt->header.src_addr);
-    ipaddr4_form_buf(&dest_ip, pkt->header.dest_addr);
+    ipaddr_from_buf(&src_ip, pkt->header.src_addr);
+    ipaddr_from_buf(&dest_ip, pkt->header.dest_addr);
 
     if (!ipaddr_is_match(&dest_ip, &netif->ipaddr, &netif->netmask))
     {
