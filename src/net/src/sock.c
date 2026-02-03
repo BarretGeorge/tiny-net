@@ -1,5 +1,4 @@
 #include "sock.h"
-
 #include "dbug.h"
 #include "raw.h"
 #include "sys_plat.h"
@@ -152,6 +151,26 @@ net_err_t socket_recvfrom_req_in(const func_msg_t* msg)
     return NET_ERR_OK;
 }
 
+net_err_t socket_setsockopt_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    // switch (req->opt.opt_name)
+    // {
+    // case SO_RCVTIMEO:
+    //     break;
+    // case SO_SNDTIMEO:
+    //     break;
+    // default:
+    //     return NET_ERR_OPTION;
+    // }
+    return s->sock->ops->setopt(s->sock, req->opt.level, req->opt.opt_name, req->opt.opt_val, req->opt.opt_len);
+}
+
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)
 {
     sock->family = family;
@@ -253,4 +272,35 @@ void sock_free(const sock_t* sock)
     {
         sock_wait_destroy(sock->conn_wait);
     }
+}
+
+net_err_t sock_setopt(sock_t* sock, int level, int opt_name, const void* opt_val, int opt_len)
+{
+    if (level != SOL_SOCKET)
+    {
+        return NET_ERR_OPTION;
+    }
+
+    switch (opt_name)
+    {
+    case SO_RCVTIMEO:
+        if (opt_len != sizeof(x_timeval))
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        x_timeval tv = *(const x_timeval*)opt_val;
+        sock->recv_timeout = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+        break;
+    case SO_SNDTIMEO:
+        if (opt_len != sizeof(x_timeval))
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        x_timeval stv = *(const x_timeval*)opt_val;
+        sock->send_timeout = (stv.tv_sec * 1000) + (stv.tv_usec / 1000);
+        break;
+    default:
+        return NET_ERR_OPTION;
+    }
+    return NET_ERR_OK;
 }

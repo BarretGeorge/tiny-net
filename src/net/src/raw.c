@@ -2,6 +2,7 @@
 #include "dbug.h"
 #include "mblock.h"
 #include "ipv4.h"
+#include "sock.h"
 #include "socket.h"
 
 static raw_t raw_tbl[RAW_MAX_NR];
@@ -77,6 +78,7 @@ sock_t* raw_create(const int family, const int protocol)
     static const sock_ops_t raw_ops = {
         .sendto = raw_sendto,
         .recvfrom = raw_recvfrom,
+        .setopt = sock_setopt,
     };
     raw_t* raw = mblock_alloc(&raw_mblock, -1);
     if (raw == NULL)

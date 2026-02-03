@@ -22,6 +22,21 @@
 #undef IPPROTO_ICMP
 #define IPPROTO_ICMP       1
 
+#undef SOL_SOCKET
+#define SOL_SOCKET         0
+
+#undef SO_RCVTIMEO
+#define SO_RCVTIMEO        1
+
+#undef SO_SNDTIMEO
+#define SO_SNDTIMEO        2
+
+typedef struct x_timeval
+{
+    int tv_sec;
+    int tv_usec;
+} x_timeval;
+
 #pragma pack(1)
 struct x_in_addr
 {
@@ -81,6 +96,6 @@ int x_connect(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
 int x_send(int fd, const void* buf, unsigned int len, int flags);
 int x_recv(int fd, void* buf, unsigned int len, int flags);
 int x_close(int fd);
-int x_setsockopt(int fd, int level, int optname, const void* optval, unsigned int optlen);
+int x_setsockopt(int fd, int level, int opt_name, const void* opt_val, int opt_len);
 
 #endif //TINY_NET_SOCKET_H

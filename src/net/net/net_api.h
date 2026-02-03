@@ -27,6 +27,8 @@ int x_inet_pton(int family, const char* src, void* dst);
 
 const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 
+#define timeval x_timeval
+
 #define inet_ntoa(in) x_inet_ntoa(in)
 
 #define inet_addr(cp) x_inet_addr(cp)
@@ -61,7 +63,7 @@ const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 
 #define close(fd) x_close(fd)
 
-#define setsockopt(fd, level, optname, optval, optlen) x_setsockopt(fd, level, optname, optval, optlen)
+#define setsockopt(fd, level, opt_name, opt_val, opt_len) x_setsockopt(fd, level, opt_name, opt_val, opt_len)
 
 #define sendto(fd, buf, len, flags, addr, addrlen) x_sendto(fd, buf, len, flags, addr, addrlen)
 

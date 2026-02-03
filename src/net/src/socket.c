@@ -144,7 +144,25 @@ int x_close(int fd)
     return 0;
 }
 
-int x_setsockopt(int fd, int level, int optname, const void* optval, unsigned int optlen)
+int x_setsockopt(const int fd, const int level, int opt_name, const void* opt_val, int opt_len)
 {
-    return 0;
+    if (opt_val == NULL || opt_len == 0)
+    {
+        return -1;
+    }
+    sock_req_t req;
+    req.fd = fd;
+    req.wait = NULL;
+    req.wait_timeout = 0;
+    req.opt.level = level;
+    req.opt.opt_name = opt_name;
+    req.opt.opt_val = opt_val;
+    req.opt.opt_len = opt_len;
+
+    net_err_t err = exmsg_func_exec(socket_setsockopt_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        return -1;
+    }
+    return req.fd;
 }

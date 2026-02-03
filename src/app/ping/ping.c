@@ -2,7 +2,6 @@
 #include "tool.h"
 #include "socket.h"
 #include "net_api.h"
-#include <sys/time.h>
 
 #define ECHO_ID 0x1234
 
@@ -16,8 +15,8 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         return;
     }
 
-    // struct timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
-    // setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
@@ -46,7 +45,7 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
 
     for (int i = 0; i < count; ++i)
     {
-        struct timeval start_tv, end_tv;
+        timeval start_tv, end_tv;
         gettimeofday(&start_tv, NULL);
 
         // 构建ICMP请求报文
