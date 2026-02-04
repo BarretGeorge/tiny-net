@@ -69,8 +69,38 @@ static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
 static net_err_t raw_recvfrom(sock_t* sock, uint8_t* buf, const size_t len, int flags,
                               const struct x_socketaddr* src, x_socklen_t* src_len, ssize_t* recv_size)
 {
-    *recv_size = 0;
-    return NET_ERR_NEED_WAIT;
+    raw_t* raw = (raw_t*)sock;
+    nlist_node_t* frist = nlist_remove_first(&raw->recv_list);
+    if (frist == NULL)
+    {
+        *recv_size = 0;
+        return NET_ERR_NEED_WAIT;
+    }
+    pktbuf_t* pktbuf = nlist_entry(frist, pktbuf_t, node);
+
+    ipv4_header_t* ip_header = (ipv4_header_t*)pktbuf_data(pktbuf);
+    struct x_sockaddr_in* addr = (struct x_sockaddr_in*)src;
+    plat_memset(addr, 0, sizeof(struct x_sockaddr_in));
+    addr->sin_family = AF_INET;
+    addr->sin_port = 0;
+    plat_memcpy(&addr->sin_addr, ip_header->src_addr, IPV4_ADDR_LEN);
+    if (src_len != NULL)
+    {
+        *src_len = sizeof(struct x_sockaddr_in);
+    }
+
+    size_t copy_size = pktbuf->total_size < len ? pktbuf->total_size : len;
+    pktbuf_reset_access(pktbuf);
+    net_err_t err = pktbuf_read(pktbuf, buf, (int)copy_size);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_RAW, "raw_recvfrom: pktbuf_read failed, err=%d", err);
+        pktbuf_free(pktbuf);
+        return err;
+    }
+    pktbuf_free(pktbuf);
+    *recv_size = (ssize_t)copy_size;
+    return NET_ERR_OK;
 }
 
 sock_t* raw_create(const int family, const int protocol)
@@ -102,6 +132,7 @@ sock_t* raw_create(const int family, const int protocol)
     }
 
     nlist_insert_last(&raw_list, &raw->base.node);
+    nlist_init(&raw->recv_list);
 
     return &raw->base;
 
@@ -150,5 +181,14 @@ net_err_t raw_input(pktbuf_t* pktbuf)
         return NET_ERR_TARGET_ADDR_MATCH;
     }
 
+    if (nlist_count(&raw->recv_list) >= RAW_RECV_QUEUE_LEN)
+    {
+        dbug_warn(DBG_MOD_RAW, "raw_input: recv queue full, dropping packet");
+        pktbuf_free(pktbuf);
+        return NET_ERR_MEM;
+    }
+
+    nlist_insert_last(&raw->recv_list, &pktbuf->node);
+    sock_wakeup(&raw->base,SOCK_WAIT_READ, NET_ERR_OK);
     return NET_ERR_OK;
 }

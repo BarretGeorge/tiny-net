@@ -77,4 +77,7 @@
 // 套接字最大文件描述符数量
 #define SOCKET_MAX_FD RAW_MAX_NR
 
+// 原始套接字接收队列长度
+#define RAW_RECV_QUEUE_LEN 128
+
 #endif //TINY_NET_NET_CFG_H
