@@ -103,12 +103,36 @@ static net_err_t raw_recvfrom(sock_t* sock, uint8_t* buf, const size_t len, int 
     return NET_ERR_OK;
 }
 
+static net_err_t raw_close(sock_t* sock)
+{
+    raw_t* raw = (raw_t*)sock;
+
+    // 从全局列表中移除
+    nlist_remove(&raw_list, &raw->base.node);
+
+    // 移除消息队列中的数据包
+    nlist_node_t* node;
+    while ((node = nlist_remove_first(&raw->recv_list)) != NULL)
+    {
+        pktbuf_t* pktbuf = nlist_entry(node, pktbuf_t, node);
+        pktbuf_free(pktbuf);
+    }
+
+    // 释放sock
+    sock_free(sock);
+
+    // 释放raw内存块
+    mblock_free(&raw_mblock, raw);
+    return NET_ERR_OK;
+}
+
 sock_t* raw_create(const int family, const int protocol)
 {
     static const sock_ops_t raw_ops = {
         .sendto = raw_sendto,
         .recvfrom = raw_recvfrom,
         .setopt = sock_setopt,
+        .close = raw_close,
     };
     raw_t* raw = mblock_alloc(&raw_mblock, -1);
     if (raw == NULL)

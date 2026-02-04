@@ -139,8 +139,22 @@ int x_recv(int fd, void* buf, unsigned int len, int flags)
     return 0;
 }
 
-int x_close(int fd)
+int x_close(const int fd)
 {
+    sock_req_t req;
+    req.fd = fd;
+    req.wait = NULL;
+    req.wait_timeout = 0;
+
+    net_err_t err = exmsg_func_exec(socket_close_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        return -1;
+    }
+    if (req.wait)
+    {
+        sock_wait_enter(req.wait, req.wait_timeout);
+    }
     return 0;
 }
 

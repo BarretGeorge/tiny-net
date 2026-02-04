@@ -1,10 +1,12 @@
+#include <stdio.h>
 #include "ping/ping.h"
 #include "args.h"
 #include "common.h"
-#include <stdio.h>
+#include "dbug_module.h"
 
 int main(const int argc, char** argv)
 {
+    dbug_module_disable_all();
     tiny_net_init();
     args_parser_t parser;
     args_parser_init(&parser, argc, argv);

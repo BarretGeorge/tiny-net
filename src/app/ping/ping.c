@@ -113,8 +113,12 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
     plat_printf("\n--- %s ping statistics ---\n", dest_ip);
     plat_printf("%d packets transmitted, %d packets received, %.1f%% packet loss\n",
                 count, received, loss_rate);
-    close(fd);
-
-    // 结束程序
-    // exit(0);
+    if (close(fd) != 0)
+    {
+        plat_printf("socket close failed\n");
+    }
+    else
+    {
+        plat_printf("socket closed\n");
+    }
 }

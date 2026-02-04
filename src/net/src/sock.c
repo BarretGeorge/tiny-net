@@ -171,6 +171,24 @@ net_err_t socket_setsockopt_req_in(const func_msg_t* msg)
     return s->sock->ops->setopt(s->sock, req->opt.level, req->opt.opt_name, req->opt.opt_val, req->opt.opt_len);
 }
 
+net_err_t socket_close_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    net_err_t err = NET_ERR_OK;
+    if (s->sock->ops->close)
+    {
+        err = s->sock->ops->close(s->sock);
+    }
+    // sock_free(s->sock);
+    socket_free(s);
+    return err;
+}
+
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)
 {
     sock->family = family;
