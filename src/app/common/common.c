@@ -78,6 +78,8 @@ static net_err_t netdev_init(void)
 
     netif_set_active(netif);
 
+    netif_set_default(netif);
+
     return NET_ERR_OK;
 }
 
