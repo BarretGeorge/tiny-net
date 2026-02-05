@@ -472,6 +472,101 @@ net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
     return NET_ERR_OK;
 }
 
+// 发送单个IP数据包
+static net_err_t ipv4_send_pkt(netif_t* netif, const ipaddr_t* dest_ip, pktbuf_t* buf)
+{
+    ipv4_pkt_t* pkt = (ipv4_pkt_t*)pktbuf_data(buf);
+
+    // 转换为网络字节序
+    ipv4_header_htonl(&pkt->header);
+
+    // 重置访问位置并计算校验和
+    pktbuf_reset_access(buf);
+    pkt->header.header_checksum = pktbuf_checksum16(buf, ipv4_hdr_size(pkt), 0, true);
+
+    display_ipv4_header(pkt);
+
+    return netif_out(netif, (ipaddr_t*)dest_ip, buf);
+}
+
+// 分片发送
+static net_err_t ipv4_output_fragment(netif_t* netif, const ipaddr_t* dest_ip, pktbuf_t* buf)
+{
+    // 保存原始IP头（主机字节序）
+    ipv4_header_t orig_hdr;
+    plat_memcpy(&orig_hdr, pktbuf_data(buf), sizeof(ipv4_header_t));
+
+    int hdr_size = (int)sizeof(ipv4_header_t);
+    int data_total = (int)orig_hdr.total_len - hdr_size;
+    // 每个分片的最大数据量，向下对齐8字节
+    int max_data = (netif->mtu - hdr_size) & ~7;
+
+    // 移除原始IP头，buf只保留载荷数据
+    pktbuf_remove_header(buf, hdr_size);
+    pktbuf_reset_access(buf);
+
+    int offset = 0;
+    net_err_t err = NET_ERR_OK;
+
+    while (offset < data_total)
+    {
+        int remain = data_total - offset;
+        int frag_data_size = (remain > max_data) ? max_data : remain;
+        bool is_last = (offset + frag_data_size >= data_total);
+
+        // 分配新的分片buf
+        pktbuf_t* frag_buf = pktbuf_alloc(frag_data_size);
+        if (!frag_buf)
+        {
+            dbug_error(DBG_MOD_IPV4, "ipv4_output_fragment: pktbuf_alloc failed");
+            err = NET_ERR_MEM;
+            break;
+        }
+
+        // 从原始buf的当前位置复制数据到分片buf
+        pktbuf_reset_access(frag_buf);
+        err = pktbuf_copy(frag_buf, buf, frag_data_size);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_IPV4, "ipv4_output_fragment: pktbuf_copy failed, err=%d", err);
+            pktbuf_free(frag_buf);
+            break;
+        }
+
+        // 添加IP头
+        err = pktbuf_add_header(frag_buf, hdr_size, true);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_IPV4, "ipv4_output_fragment: pktbuf_add_header failed, err=%d", err);
+            pktbuf_free(frag_buf);
+            break;
+        }
+
+        // 复制原始头部，修改分片相关字段
+        ipv4_pkt_t* frag_pkt = (ipv4_pkt_t*)pktbuf_data(frag_buf);
+        plat_memcpy(&frag_pkt->header, &orig_hdr, hdr_size);
+        frag_pkt->header.total_len = (uint16_t)(hdr_size + frag_data_size);
+        frag_pkt->header.frag_offset = (uint16_t)(offset / 8);
+        frag_pkt->header.more_frags = is_last ? 0 : 1;
+        frag_pkt->header.header_checksum = 0;
+
+        // 发送分片
+        err = ipv4_send_pkt(netif, dest_ip, frag_buf);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_IPV4, "ipv4_output_fragment: send frag failed, offset=%d, err=%d", offset, err);
+            pktbuf_free(frag_buf);
+            break;
+        }
+
+        offset += frag_data_size;
+    }
+
+    // 释放原始buf
+    pktbuf_free(buf);
+    return err;
+}
+
 net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf)
 {
     // 添加IPv4头
@@ -495,22 +590,15 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     ipaddr_to_buf(src_ip, pkt->header.src_addr);
     ipaddr_to_buf(dest_ip, pkt->header.dest_addr);
 
-    // 转换为网络字节序
-    ipv4_header_htonl(&pkt->header);
+    netif_t* netif = netif_get_default();
 
-    // 重置访问位置
-    pktbuf_reset_access(buf);
-
-    // 计算校验和
-    pkt->header.header_checksum = pktbuf_checksum16(buf, ipv4_hdr_size(pkt), 0, true);
-
-    display_ipv4_header(pkt);
-
-    err = netif_out(netif_get_default(), (ipaddr_t*)dest_ip, buf);
-    if (err != NET_ERR_OK)
+    // 不需要分片，直接发送
+    if ((int)buf->total_size <= netif->mtu)
     {
-        dbug_error(DBG_MOD_IPV4, "ipv4_output: netif_out failed, err=%d", err);
-        return err;
+        return ipv4_send_pkt(netif, dest_ip, buf);
     }
-    return NET_ERR_OK;
+
+    // 需要分片发送
+    dbug_info(DBG_MOD_IPV4, "ipv4_output: packet size %d > mtu %d, fragmenting", buf->total_size, netif->mtu);
+    return ipv4_output_fragment(netif, dest_ip, buf);
 }
