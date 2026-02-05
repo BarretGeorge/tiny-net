@@ -161,9 +161,40 @@ static void display_ipv4_fragment()
         plat_printf("\n");
     }
 }
+
+static void display_ipv4_route_table()
+{
+    if (!DBG_DISPLAY_CHECK(DBG_MOD_IPV4)) return;
+
+    plat_printf("IPv4 Route Table:\n");
+    plat_printf("  %-15s %-15s %-15s %-10s\n", "Destination", "Netmask", "Gateway", "Netif");
+    for (int i = 0; i < IPV4_ROUTE_TABLE_MAX_NR; i++)
+    {
+        route_entry_t* entry = &route_table[i];
+        if (entry->netif == NULL)
+        {
+            continue;
+        }
+        char dest_str[16];
+        char netmask_str[16];
+        char next_hop_str[16];
+
+        ipaddr_to_str(&entry->net, dest_str, sizeof(dest_str));
+        ipaddr_to_str(&entry->mask, netmask_str, sizeof(netmask_str));
+        ipaddr_to_str(&entry->next_hop, next_hop_str, sizeof(next_hop_str));
+
+        plat_printf("  %-15s %-15s %-15s %-10s\n",
+                    dest_str,
+                    netmask_str,
+                    next_hop_str,
+                    entry->netif->name);
+    }
+    plat_printf("\n");
+}
 #else
 #define  display_ipv4_header(header)
 #define display_ipv4_fragment()
+#define display_ipv4_route_table()
 #endif
 
 static void ipv4_header_ntohs(ipv4_header_t* hdr)
@@ -446,9 +477,27 @@ void route_entry_add(const ipaddr_t* net, const ipaddr_t* mask, const ipaddr_t* 
     ipaddr_copy(&entry->mask, mask);
     ipaddr_copy(&entry->next_hop, next_hop);
     entry->netif = netif;
+    entry->mask_1_cnt = ipaddr_1_count(mask);
 
     nlist_node_init(&entry->node);
     nlist_insert_last(&route_list, &entry->node);
+    display_ipv4_route_table();
+}
+
+void route_entry_remove(const ipaddr_t* net, const ipaddr_t* mask)
+{
+    nlist_node_t* node;
+    nlist_for_each(node, &route_list)
+    {
+        route_entry_t* entry = nlist_entry(node, route_entry_t, node);
+        if (ipaddr_is_equal(&entry->net, net) && ipaddr_is_equal(&entry->mask, mask))
+        {
+            nlist_remove(&route_list, &entry->node);
+            mblock_free(&route_table_mblock, entry);
+            return;
+        }
+    }
+    display_ipv4_route_table();
 }
 
 net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)
@@ -636,4 +685,25 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     // 需要分片发送
     dbug_info(DBG_MOD_IPV4, "ipv4_output: packet size %d > mtu %d, fragmenting", buf->total_size, netif->mtu);
     return ipv4_output_fragment(netif, dest_ip, buf);
+}
+
+route_entry_t* find_route_entry(const ipaddr_t* dest_ip)
+{
+    route_entry_t* best_entry = NULL;
+    nlist_node_t* node;
+    nlist_for_each(node, &route_list)
+    {
+        route_entry_t* entry = nlist_entry(node, route_entry_t, node);
+
+        ipaddr_t net = ipaddr_get_network(dest_ip, &entry->mask);
+        if (!ipaddr_is_equal(&net, &entry->net))
+        {
+            continue;
+        }
+        if (best_entry == NULL || entry->mask_1_cnt > best_entry->mask_1_cnt)
+        {
+            best_entry = entry;
+        }
+    }
+    return best_entry;
 }

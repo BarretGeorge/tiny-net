@@ -124,7 +124,7 @@ net_err_t netif_set_inactive(netif_t* netif);
 net_err_t netif_close(netif_t* netif);
 
 // 设置默认网卡
-net_err_t netif_set_default(netif_t* netif);
+void netif_set_default(netif_t* netif);
 
 // 将数据包放入网卡的接收队列
 net_err_t netif_put_in(netif_t* netif, pktbuf_t* buf, int tmo);

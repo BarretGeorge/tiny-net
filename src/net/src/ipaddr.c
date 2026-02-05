@@ -13,6 +13,13 @@ void ipaddr_set_any(ipaddr_t* ip)
     ip->q_addr = 0;
 }
 
+ipaddr_t* ipaddr_get_any()
+{
+    static ipaddr_t addr_any;
+    ipaddr_set_any(&addr_any);
+    return &addr_any;
+}
+
 bool ipaddr_is_any(const ipaddr_t* ip)
 {
     if (!ip)
@@ -99,6 +106,23 @@ void ipaddr_to_buf(const ipaddr_t* src, uint8_t* buf)
     buf[3] = src->a_addr[3];
 }
 
+void ipaddr_to_str(const ipaddr_t* ip, char* buf, const int buf_len)
+{
+    if (ip->type != IPADDR_TYPE_V4 || buf_len < 16)
+    {
+        if (buf_len > 0)
+        {
+            buf[0] = '\0';
+        }
+        return;
+    }
+    plat_sprintf(buf, "%u.%u.%u.%u",
+                 ip->a_addr[0],
+                 ip->a_addr[1],
+                 ip->a_addr[2],
+                 ip->a_addr[3]);
+}
+
 void ipaddr_from_buf(ipaddr_t* dest, const uint8_t* buf)
 {
     dest->a_addr[0] = buf[0];
@@ -129,7 +153,7 @@ static ipaddr_t ipaddr_get_host(const ipaddr_t* netmask, const ipaddr_t* ip)
     return host;
 }
 
-static ipaddr_t ipaddr_get_network(const ipaddr_t* netmask, const ipaddr_t* ip)
+ipaddr_t ipaddr_get_network(const ipaddr_t* netmask, const ipaddr_t* ip)
 {
     ipaddr_t network;
     network.type = IPADDR_TYPE_V4;
@@ -170,4 +194,16 @@ bool ipaddr_is_match(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const ipad
         return true;
     }
     return false;
+}
+
+int ipaddr_1_count(const ipaddr_t* ip)
+{
+    int count = 0;
+    uint32_t val = ip->q_addr;
+    while (val)
+    {
+        count += (int)val & 1;
+        val >>= 1;
+    }
+    return count;
 }

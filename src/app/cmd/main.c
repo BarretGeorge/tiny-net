@@ -5,7 +5,8 @@
 
 int main(void)
 {
-    dbug_module_enable_all();
+    // dbug_module_enable_all();
+    dbug_module_enable_only(DBG_MOD_IPV4);
 
     tiny_net_init();
 

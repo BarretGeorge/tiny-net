@@ -6,6 +6,7 @@
 #include "loop.h"
 #include "arp.h"
 #include "ether.h"
+#include "ipv4.h"
 #include "netif_pcap.h"
 #include "sock.h"
 #include "raw.h"
@@ -94,11 +95,11 @@ net_err_t tiny_net_init(void)
     // 定时器初始化
     net_timer_init();
 
-    // 回环网卡初始化
-    loop_init();
-
     // ARP模块初始化
     arp_init();
+
+    // IPv4协议栈初始化
+    ipv4_init();
 
     // 以太网卡初始化
     ether_init();
@@ -114,6 +115,9 @@ net_err_t tiny_net_init(void)
 
     // 原始套接字模块初始化
     raw_init();
+
+    // 回环网卡初始化
+    loop_init();
 
     return NET_ERR_OK;
 }

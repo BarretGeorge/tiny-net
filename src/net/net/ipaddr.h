@@ -53,6 +53,8 @@ typedef struct ipaddr_t
 
 void ipaddr_set_any(ipaddr_t* ip);
 
+ipaddr_t* ipaddr_get_any();
+
 bool ipaddr_is_any(const ipaddr_t* ip);
 
 net_err_t ipaddr4_form_str(ipaddr_t* ip, const char* str);
@@ -63,6 +65,8 @@ void ipaddr_copy(ipaddr_t* dest, const ipaddr_t* src);
 
 void ipaddr_to_buf(const ipaddr_t* src, uint8_t* buf);
 
+void ipaddr_to_str(const ipaddr_t* ip, char* buf, int buf_len);
+
 void ipaddr_from_buf(ipaddr_t* dest, const uint8_t* buf);
 
 int ipaddr_is_equal(const ipaddr_t* ip1, const ipaddr_t* ip2);
@@ -72,5 +76,9 @@ bool is_local_broadcast_ip(const ipaddr_t* ip);
 bool is_directed_broadcast_ip(const ipaddr_t* netmask, const ipaddr_t* ip);
 
 bool ipaddr_is_match(const ipaddr_t* dest_ip, const ipaddr_t* src_ip, const ipaddr_t* netmask);
+
+ipaddr_t ipaddr_get_network(const ipaddr_t* netmask, const ipaddr_t* ip);
+
+int ipaddr_1_count(const ipaddr_t* ip);
 
 #endif //TINY_NET_IPADDR_H

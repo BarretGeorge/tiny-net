@@ -88,6 +88,7 @@ typedef struct route_entry_t
     ipaddr_t next_hop;
     netif_t* netif;
     nlist_node_t node;
+    int mask_1_cnt;
 } route_entry_t;
 
 net_err_t ipv4_init();
@@ -96,6 +97,8 @@ void route_entry_init();
 
 void route_entry_add(const ipaddr_t* net, const ipaddr_t* mask, const ipaddr_t* next_hop, netif_t* netif);
 
+void route_entry_remove(const ipaddr_t* net, const ipaddr_t* mask);
+
 int ipv4_hdr_size(const ipv4_pkt_t* pkt);
 
 void ipv4_set_hdr_size(ipv4_pkt_t* pkt, int size);
@@ -103,5 +106,7 @@ void ipv4_set_hdr_size(ipv4_pkt_t* pkt, int size);
 net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf);
 
 net_err_t ipv4_output(uint8_t protocol, const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf);
+
+route_entry_t* find_route_entry(const ipaddr_t* dest_ip);
 
 #endif //TINY_NET_IPV4_H

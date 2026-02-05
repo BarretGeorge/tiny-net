@@ -4,7 +4,7 @@
 #include "dbug.h"
 #include "ether.h"
 #include "exmsg.h"
-#include "protocol.h"
+#include "ipv4.h"
 
 // 网卡接口内存块
 static netif_t netif_buffer[NETIF_DEV_CNT];
@@ -231,6 +231,14 @@ net_err_t netif_set_active(netif_t* netif)
         }
     }
 
+    // 添加相关路由到路由表
+    ipaddr_t ip = ipaddr_get_network(&netif->netmask, &netif->ipaddr);
+    route_entry_add(&ip, &netif->netmask, ipaddr_get_any(), netif);
+
+    // 添加本地广播地址路由
+    ipaddr_from_buf(&ip, ether_broadcast_addr());
+    route_entry_add(&netif->ipaddr, &ip, ipaddr_get_any(), netif);
+
     display_netif_list();
     return NET_ERR_OK;
 }
@@ -266,7 +274,17 @@ net_err_t netif_set_inactive(netif_t* netif)
     if (netif_default == netif)
     {
         netif_default = NULL;
+        route_entry_remove(ipaddr_get_any(), ipaddr_get_any());
     }
+
+    // 从路由表中移除相关路由
+    ipaddr_t ip = ipaddr_get_network(&netif->netmask, &netif->ipaddr);
+    route_entry_remove(&ip, &netif->netmask);
+
+    // 移除本地广播地址路由
+    ipaddr_from_buf(&ip, ether_broadcast_addr());
+    route_entry_remove(&netif->ipaddr, &ip);
+
     display_netif_list();
     return NET_ERR_OK;
 }
@@ -304,10 +322,19 @@ net_err_t netif_close(netif_t* netif)
     return NET_ERR_OK;
 }
 
-net_err_t netif_set_default(netif_t* netif)
+void netif_set_default(netif_t* netif)
 {
     netif_default = netif;
-    return NET_ERR_OK;
+
+    // 网关地址无效直接返回
+    if (netif == NULL || ipaddr_is_any(&netif->gateway))
+    {
+        return;
+    }
+    // 先移除已有的默认路由
+    route_entry_remove(ipaddr_get_any(), ipaddr_get_any());
+    // 添加新的默认路由
+    route_entry_add(ipaddr_get_any(), ipaddr_get_any(), &netif->gateway, netif);
 }
 
 net_err_t netif_put_in(netif_t* netif, pktbuf_t* buf, const int tmo)
