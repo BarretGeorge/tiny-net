@@ -14,6 +14,12 @@ static mblock_t fragment_mblock;
 
 static nlist_t fragment_list;
 
+static nlist_t route_list;
+
+static route_entry_t route_table[IPV4_ROUTE_TABLE_MAX_NR];
+
+static mblock_t route_table_mblock;
+
 static net_err_t fragment_init()
 {
     nlist_init(&fragment_list);
@@ -413,7 +419,36 @@ net_err_t ipv4_init()
         dbug_error(DBG_MOD_IPV4, "ipv4_init: fragment_init failed, err=%d", err);
         return err;
     }
+
+    route_entry_init();
+
     return NET_ERR_OK;
+}
+
+void route_entry_init()
+{
+    nlist_init(&route_list);
+
+    mblock_init(&route_table_mblock, route_table, sizeof(route_entry_t), IPV4_ROUTE_TABLE_MAX_NR, NLOCKER_TYPE_NONE);
+}
+
+
+void route_entry_add(const ipaddr_t* net, const ipaddr_t* mask, const ipaddr_t* next_hop, netif_t* netif)
+{
+    route_entry_t* entry = mblock_alloc(&route_table_mblock, -1);
+    if (entry == NULL)
+    {
+        dbug_error(DBG_MOD_IPV4, "route_entry_add: mblock_alloc failed");
+        return;
+    }
+
+    ipaddr_copy(&entry->net, net);
+    ipaddr_copy(&entry->mask, mask);
+    ipaddr_copy(&entry->next_hop, next_hop);
+    entry->netif = netif;
+
+    nlist_node_init(&entry->node);
+    nlist_insert_last(&route_list, &entry->node);
 }
 
 net_err_t ipv4_input(netif_t* netif, pktbuf_t* buf)

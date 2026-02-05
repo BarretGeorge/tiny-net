@@ -81,7 +81,20 @@ typedef struct ip_fragment_t
     nlist_node_t node;
 } ip_fragment_t;
 
+typedef struct route_entry_t
+{
+    ipaddr_t net;
+    ipaddr_t mask;
+    ipaddr_t next_hop;
+    netif_t* netif;
+    nlist_node_t node;
+} route_entry_t;
+
 net_err_t ipv4_init();
+
+void route_entry_init();
+
+void route_entry_add(const ipaddr_t* net, const ipaddr_t* mask, const ipaddr_t* next_hop, netif_t* netif);
 
 int ipv4_hdr_size(const ipv4_pkt_t* pkt);
 

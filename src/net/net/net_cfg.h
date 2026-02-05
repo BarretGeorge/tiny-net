@@ -80,4 +80,7 @@
 // 原始套接字接收队列长度
 #define RAW_RECV_QUEUE_LEN 128
 
+// 路由表最大条目数量
+#define IPV4_ROUTE_TABLE_MAX_NR 32
+
 #endif //TINY_NET_NET_CFG_H
