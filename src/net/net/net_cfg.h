@@ -54,7 +54,7 @@
 #define ARP_TIMER_TMO 1
 
 // ARP 缓存项稳定状态超时时间，单位：秒
-#define ARP_ENTRY_STABLE_TMO 10
+#define ARP_ENTRY_STABLE_TMO 120
 
 // ARP 缓存项等待解析超时时间，单位：秒
 #define ARP_ENTRY_PENDING_TMO 5

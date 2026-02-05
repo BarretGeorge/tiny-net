@@ -13,7 +13,8 @@ int main(const int argc, char** argv)
 
     bool show_help;
     int count, interval, timeout, size;
-    const char* host = "192.168.100.120";
+    // const char* host = "192.168.100.120";
+    const char* host = "8.8.8.8";
 
     args_register_bool(&parser, "help", 'h', &show_help, false, "Show this help message");
     args_register_int(&parser, "count", 'c', &count, 4, "Number of pings to send");
@@ -34,10 +35,14 @@ int main(const int argc, char** argv)
         return 0;
     }
 
-    // 第一个参数固定为目标主机
-    if (parser.argc > 1)
+    // 第一个非选项参数作为目标主机
+    for (int i = 1; i < parser.argc; i++)
     {
-        host = parser.argv[parser.argc - 1];
+        if (parser.argv[i][0] != '-')
+        {
+            host = parser.argv[i];
+            break;
+        }
     }
 
     ping_t ping;
