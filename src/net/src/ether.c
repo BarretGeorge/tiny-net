@@ -119,14 +119,7 @@ static net_err_t ether_input(netif_t* netif, pktbuf_t* buf)
 // 输出函数指针
 static net_err_t ether_output(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
 {
-    // 判断下一跳：目的IP不在本地子网时，ARP网关而非目的地址
-    ipaddr_t* next_hop = ipaddr;
-    if (!ipaddr_is_match(ipaddr, &netif->ipaddr, &netif->netmask))
-    {
-        next_hop = &netif->gateway;
-    }
-
-    const uint8_t* hwaddr = arp_find(netif, next_hop);
+    const uint8_t* hwaddr = arp_find(netif, ipaddr);
     if (hwaddr != NULL)
     {
         // 已缓存，直接发送
@@ -134,7 +127,7 @@ static net_err_t ether_output(netif_t* netif, ipaddr_t* ipaddr, pktbuf_t* buf)
     }
 
     // 通过ARP解析MAC地址并发送
-    return arp_resolve(netif, next_hop, buf);
+    return arp_resolve(netif, ipaddr, buf);
 }
 
 net_err_t ether_init()

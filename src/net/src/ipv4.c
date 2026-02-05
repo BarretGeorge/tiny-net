@@ -580,7 +580,7 @@ static net_err_t ipv4_output_fragment(netif_t* netif, const ipaddr_t* dest_ip, p
     ipv4_header_t orig_hdr;
     plat_memcpy(&orig_hdr, pktbuf_data(buf), sizeof(ipv4_header_t));
 
-    int hdr_size = (int)sizeof(ipv4_header_t);
+    int hdr_size = sizeof(ipv4_header_t);
     int data_total = (int)orig_hdr.total_len - hdr_size;
     // 每个分片的最大数据量，向下对齐8字节
     int max_data = (netif->mtu - hdr_size) & ~7;
@@ -653,6 +653,28 @@ static net_err_t ipv4_output_fragment(netif_t* netif, const ipaddr_t* dest_ip, p
 
 net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipaddr_t* src_ip, pktbuf_t* buf)
 {
+    // 查找路由条目
+    route_entry_t* route = find_route_entry(dest_ip);
+    if (route == NULL)
+    {
+        dbug_error(DBG_MOD_IPV4, "ipv4_output: no route to host %s", dest_ip->a_addr);
+        return NET_ERR_NO_ROUTE;
+    }
+
+    ipaddr_t next_hop_ip;
+    if (ipaddr_is_any(&route->next_hop))
+    {
+        // 直连网络，下一跳为目的地址
+        ipaddr_copy(&next_hop_ip, dest_ip);
+    }
+    else
+    {
+        // 非直连网络，下一跳为路由表中的下一跳地址
+        ipaddr_copy(&next_hop_ip, &route->next_hop);
+    }
+
+    netif_t* netif = route->netif;
+
     // 添加IPv4头
     net_err_t err = pktbuf_add_header(buf, sizeof(ipv4_header_t), true);
     if (err != NET_ERR_OK)
@@ -671,20 +693,22 @@ net_err_t ipv4_output(const uint8_t protocol, const ipaddr_t* dest_ip, const ipa
     pkt->header.ttl = 64;
     pkt->header.header_checksum = 0;
     pkt->header.protocol = protocol;
+    if (src_ip == NULL || ipaddr_is_any(src_ip))
+    {
+        src_ip = &netif->ipaddr;
+    }
     ipaddr_to_buf(src_ip, pkt->header.src_addr);
     ipaddr_to_buf(dest_ip, pkt->header.dest_addr);
-
-    netif_t* netif = netif_get_default();
 
     // 不需要分片，直接发送
     if ((int)buf->total_size <= netif->mtu)
     {
-        return ipv4_send_pkt(netif, dest_ip, buf);
+        return ipv4_send_pkt(netif, &next_hop_ip, buf);
     }
 
     // 需要分片发送
     dbug_info(DBG_MOD_IPV4, "ipv4_output: packet size %d > mtu %d, fragmenting", buf->total_size, netif->mtu);
-    return ipv4_output_fragment(netif, dest_ip, buf);
+    return ipv4_output_fragment(netif, &next_hop_ip, buf);
 }
 
 route_entry_t* find_route_entry(const ipaddr_t* dest_ip)
