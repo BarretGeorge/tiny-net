@@ -2,6 +2,7 @@
 #include "tool.h"
 #include "socket.h"
 #include "net_api.h"
+#include "sys.h"
 
 #define ECHO_ID 0x1234
 
@@ -15,11 +16,11 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         return;
     }
 
-    // timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
-    timeval tv = {0, 0};
+    timeval tv = {timeout / 1000, (timeout % 1000) * 1000};
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     struct sockaddr_in dest_addr;
+    plat_memset(&dest_addr, 0, sizeof(struct sockaddr_in));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = 0;
     dest_addr.sin_addr.s_addr = inet_addr(dest_ip);
@@ -46,8 +47,8 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
 
     for (int i = 0; i < count; ++i)
     {
-        net_time_t start_tv, end_tv;
-        sys_time_curr(&start_tv);
+        net_time_t start_time;
+        sys_time_curr(&start_time);
 
         // 构建ICMP请求报文
         ping->request.icmp_header.type = ICMP_V4_TYPE_ECHO_REQUEST;
@@ -88,9 +89,10 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
                 ntohs(icmp_header->echo.id) == seq_id &&
                 ntohs(icmp_header->echo.seq) == i)
             {
-                sys_time_curr(&end_tv);
-                double rtt = (double)(end_tv.tv_sec - start_tv.tv_sec) * 1000.0
-                           + (double)(end_tv.tv_usec - start_tv.tv_usec) / 1000.0;
+                net_time_t end_time;
+                sys_time_curr(&end_time);
+                double rtt = (double)(end_time.tv_sec - start_time.tv_sec) * 1000.0 +
+                             (double)(end_time.tv_usec - start_time.tv_usec) / 1000.0;
 
                 plat_printf("%d bytes from %s: icmp_seq=%d ttl=%d time:%.3f ms\n",
                             (int)(recv_size - sizeof(ipv4_header_t)),
