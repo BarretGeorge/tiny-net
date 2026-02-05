@@ -251,8 +251,8 @@ void sock_wait_leave(sock_wait_t* wait, const net_err_t err)
     if (wait->waiting > 0)
     {
         wait->waiting--;
-        sys_sem_notify(wait->sem);
         wait->err = err;
+        sys_sem_notify(wait->sem);
     }
 }
 
