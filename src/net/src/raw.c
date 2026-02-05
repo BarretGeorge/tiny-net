@@ -149,7 +149,7 @@ sock_t* raw_create(const int family, const int protocol)
     }
 
     raw->base.recv_wait = &raw->recv_wait;
-    if ((err = sock_wait_init(&raw->recv_wait) != NET_ERR_OK))
+    if ((err = sock_wait_init(&raw->recv_wait)) != NET_ERR_OK)
     {
         dbug_error(DBG_MOD_RAW, "raw_create: sock_wait_init failed,err:%d", err);
         goto create_fail;

@@ -234,7 +234,7 @@ static pktbuf_t* fragment_join(ip_fragment_t* fragment)
 err_return:
     pktbuf_free(joined_buf);
     fragment_free(fragment);
-    return joined_buf;
+    return NULL;
 }
 
 static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, netif_t* netif)
