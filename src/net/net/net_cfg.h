@@ -89,4 +89,10 @@
 // 路由表最大条目数量
 #define IPV4_ROUTE_TABLE_MAX_NR 32
 
+// 动态端口范围开始
+#define NET_PORT_DYN_START 49152
+
+// 动态端口范围结束
+#define NET_PORT_DYN_END 65535
+
 #endif //TINY_NET_NET_CFG_H

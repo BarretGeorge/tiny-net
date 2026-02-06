@@ -11,6 +11,33 @@ static mblock_t udp_mblock;
 
 static nlist_t udp_list;
 
+static net_err_t alloc_port(sock_t* sock)
+{
+    for (uint16_t port = NET_PORT_DYN_START; port <= NET_PORT_DYN_END; ++port)
+    {
+        bool port_in_use = false;
+
+        nlist_node_t* node;
+        nlist_for_each(node, &udp_list)
+        {
+            udp_t* udp = nlist_entry(node, udp_t, base.node);
+            if (udp->base.local_port == port)
+            {
+                port_in_use = true;
+                break;
+            }
+        }
+
+        if (!port_in_use)
+        {
+            sock->local_port = port;
+            return NET_ERR_OK;
+        }
+    }
+
+    return NET_ERR_FULL; // 没有可用端口
+}
+
 net_err_t upd_init()
 {
     plat_memset(udp_tbl, 0, sizeof(udp_tbl));
@@ -36,6 +63,17 @@ static net_err_t udp_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
     {
         dbug_error(DBG_MOD_UDP, "raw_sendto: destination port mismatch");
         return NET_ERR_INVALID_PARAM;
+    }
+
+    // 分配端口
+    if (sock->local_port == 0)
+    {
+        net_err_t err = alloc_port(sock);
+        if (err != NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_UDP, "raw_sendto: get free udp port failed");
+            return err;
+        }
     }
 
     if (!ipaddr_is_any(&sock->remote_ip) && !ipaddr_is_equal(&dest_ip, &sock->remote_ip))
