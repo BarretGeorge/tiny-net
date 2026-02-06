@@ -31,6 +31,12 @@
 #undef SO_SNDTIMEO
 #define SO_SNDTIMEO        2
 
+#undef IPPROTO_UDP
+#define IPPROTO_UDP        17
+
+#undef IPPROTO_TCP
+#define IPPROTO_TCP        6
+
 typedef struct x_timeval
 {
     int tv_sec;

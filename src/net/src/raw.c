@@ -18,6 +18,7 @@ net_err_t raw_init()
     nlist_init(&raw_list);
 
     mblock_init(&raw_mblock, raw_tbl, sizeof(raw_t), RAW_MAX_NR, NLOCKER_TYPE_NONE);
+    dbug_info(DBG_MOD_RAW, "init raw");
     return NET_ERR_OK;
 }
 

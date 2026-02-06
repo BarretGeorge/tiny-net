@@ -11,6 +11,7 @@
 #include "sock.h"
 #include "raw.h"
 #include "sys_plat.h"
+#include "udp.h"
 
 // 动态获取的网络接口信息
 static netif_info_t netif_info;
@@ -117,6 +118,9 @@ net_err_t tiny_net_init(void)
 
     // 原始套接字模块初始化
     raw_init();
+
+    // UDP模块初始化
+    upd_init();
 
     // 回环网卡初始化
     loop_init();

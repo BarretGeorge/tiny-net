@@ -74,11 +74,17 @@
 // 原始套接字最大数量
 #define RAW_MAX_NR 64
 
+// UDP套接字最大数量
+#define UDP_MAX_NR 64
+
 // 套接字最大文件描述符数量
 #define SOCKET_MAX_FD RAW_MAX_NR
 
 // 原始套接字接收队列长度
 #define RAW_RECV_QUEUE_LEN 128
+
+// UDP套接字接收队列长度
+#define UDP_RECV_QUEUE_LEN 128
 
 // 路由表最大条目数量
 #define IPV4_ROUTE_TABLE_MAX_NR 32

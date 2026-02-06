@@ -24,8 +24,8 @@ typedef enum dbug_module_t
 
     // 传输层
     DBG_MOD_RAW,            // Raw Socket
-    DBG_MOD_TCP,            // TCP (预留)
-    DBG_MOD_UDP,            // UDP (预留)
+    DBG_MOD_TCP,            // TCP
+    DBG_MOD_UDP,            // UDP
 
     // Socket 层
     DBG_MOD_SOCKET,         // Socket API

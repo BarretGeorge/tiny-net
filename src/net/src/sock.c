@@ -1,6 +1,7 @@
 #include "sock.h"
 #include "dbug.h"
 #include "raw.h"
+#include "udp.h"
 #include "sys_plat.h"
 #include "socket.h"
 
@@ -60,6 +61,8 @@ net_err_t socket_create_req_in(const func_msg_t* msg)
         int protocol;
     } sock_tbl[] = {
         [SOCK_RAW] = {.create = raw_create, .protocol = IPPROTO_ICMP},
+        [SOCK_DGRAM] = {.create = udp_create, .protocol = IPPROTO_UDP},
+        [SOCK_STREAM] = {.create = NULL, .protocol = IPPROTO_TCP},
     };
 
     sock_req_t* req = msg->arg;
