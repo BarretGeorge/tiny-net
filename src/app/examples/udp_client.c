@@ -1,11 +1,11 @@
-#include <sys/socket.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+#include "common.h"
+#include "dbug_module.h"
+#include "net_api.h"
 
 int main()
 {
+    dbug_module_enable_only(DBG_MOD_UDP);
+    tiny_net_init();
     int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (fd < 0)
     {
@@ -24,10 +24,15 @@ int main()
     //     return -1;
     // }
 
-    char msg[] = "Hello, UDP Server!";
-    for (int i = 0; i < 10; i++)
+    char msg[1024];
+    printf("Enter messages to send to the server (type 'exit' to quit):\n");
+    while (fgets(msg, sizeof(msg), stdin) != NULL)
     {
-        ssize_t sent_bytes = sendto(fd, msg, sizeof(msg), 0, (struct sockaddr*)&server_addr, sizeof(server_addr));
+        if (strcmp(msg, "exit\n") == 0)
+        {
+            break;
+        }
+        ssize_t sent_bytes = sendto(fd, msg, sizeof(msg), 0, (struct socketaddr*)&server_addr, sizeof(server_addr));
         if (sent_bytes < 0)
         {
             perror("send failed");
@@ -37,5 +42,6 @@ int main()
         printf("Sent %zd bytes: %s\n", sent_bytes, msg);
         sleep(1);
     }
+    close(fd);
     return 0;
 }

@@ -77,13 +77,13 @@ void dbug_module_disable_all(void)
     }
 }
 
-void dbug_module_enable_only(dbug_module_t module)
+void dbug_module_enable_only(const dbug_module_t module)
 {
     dbug_module_disable_all();
     dbug_module_enable(module);
 }
 
-void dbug_module_set_multiple(const dbug_module_t* modules, int count, int enable)
+void dbug_module_set_multiple(const dbug_module_t* modules, const int count, const int enable)
 {
     for (int i = 0; i < count; i++)
     {

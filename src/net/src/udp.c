@@ -1,7 +1,9 @@
 #include "udp.h"
-
 #include "dbug.h"
 #include "mblock.h"
+#include "socket.h"
+#include "ipv4.h"
+#include "tool.h"
 
 static udp_t udp_tbl[UDP_MAX_NR];
 
@@ -24,6 +26,53 @@ net_err_t upd_init()
 static net_err_t udp_sendto(sock_t* sock, const uint8_t* buf, const size_t len, int flags,
                             const struct x_socketaddr* dest, x_socklen_t dest_len, ssize_t* sent_size)
 {
+    ipaddr_t dest_ip;
+
+    struct x_sockaddr_in* addr = (struct x_sockaddr_in*)dest;
+    ipaddr_from_buf(&dest_ip, addr->sin_addr.addr_array);
+
+    uint16_t dest_port = x_ntohs(addr->sin_port);
+    if (sock->remote_port != 0 && sock->remote_port != dest_port)
+    {
+        dbug_error(DBG_MOD_UDP, "raw_sendto: destination port mismatch");
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    if (!ipaddr_is_any(&sock->remote_ip) && !ipaddr_is_equal(&dest_ip, &sock->remote_ip))
+    {
+        dbug_error(DBG_MOD_UDP, "raw_sendto: destination address is any");
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    pktbuf_t* pktbuf = pktbuf_alloc((int)len);
+    if (pktbuf == NULL)
+    {
+        dbug_error(DBG_MOD_UDP, "raw_sendto: pktbuf_alloc failed");
+        return NET_ERR_MEM;
+    }
+
+    net_err_t err = pktbuf_write(pktbuf, buf, (int)len);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_UDP, "raw_sendto: pktbuf_write failed, err=%d", err);
+        pktbuf_free(pktbuf);
+        return err;
+    }
+
+    if (ipaddr_is_any(&sock->local_ip))
+    {
+        sock->local_ip = netif_get_default()->ipaddr;
+    }
+
+
+    // err = ipv4_output(sock->protocol, &dest_ip, &sock->local_ip, pktbuf);
+    // if (err != NET_ERR_OK)
+    // {
+    //     dbug_error(DBG_MOD_UDP, "raw_sendto: ipv4_output failed, err=%d", err);
+    //     pktbuf_free(pktbuf);
+    //     return err;
+    // }
+    *sent_size = (ssize_t)len;
     return NET_ERR_OK;
 }
 
