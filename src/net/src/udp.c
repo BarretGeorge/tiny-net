@@ -196,6 +196,7 @@ net_err_t upd_output(const ipaddr_t* dest_ip, const uint16_t dest_port, const ip
     udp_hdr->dest_port = x_htons(dest_port);
     udp_hdr->length = x_htons(buf->total_size);
     udp_hdr->checksum = 0;
+    udp_hdr->checksum = checksum16_pseudo(buf, src_ip, dest_ip, IPPROTO_UDP);
 
     err = ipv4_output(IPPROTO_UDP, dest_ip, src_ip, buf);
     if (err != NET_ERR_OK)

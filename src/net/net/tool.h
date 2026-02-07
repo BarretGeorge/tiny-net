@@ -2,9 +2,10 @@
 #define TINY_NET_TOOL_H
 
 #include <stdbool.h>
-
-#include "net_cfg.h"
 #include <stdint.h>
+#include "net_cfg.h"
+#include "ipaddr.h"
+#include "pktbuf.h"
 
 static inline uint16_t swap_u16(const uint16_t val)
 {
@@ -61,6 +62,9 @@ static inline uint16_t net_to_host_u16(const uint16_t val)
 #define x_ntohl net_to_host_u32
 
 // 计算16位校验和
-uint16_t checksum16(const void* data, uint16_t size,uint32_t pre_sum, bool complement);
+uint16_t checksum16(const void* data, uint16_t size, uint32_t pre_sum, bool complement);
+
+// 计算伪首部校验和
+uint16_t checksum16_pseudo(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dst_ip, uint8_t protocol);
 
 #endif //TINY_NET_TOOL_H
