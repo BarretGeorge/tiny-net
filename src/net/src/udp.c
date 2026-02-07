@@ -102,14 +102,13 @@ static net_err_t udp_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
         sock->local_ip = netif_get_default()->ipaddr;
     }
 
-
-    // err = ipv4_output(sock->protocol, &dest_ip, &sock->local_ip, pktbuf);
-    // if (err != NET_ERR_OK)
-    // {
-    //     dbug_error(DBG_MOD_UDP, "raw_sendto: ipv4_output failed, err=%d", err);
-    //     pktbuf_free(pktbuf);
-    //     return err;
-    // }
+    err = upd_output(&dest_ip, dest_port, &sock->local_ip, sock->local_port, pktbuf);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_UDP, "raw_sendto: ipv4_output failed, err=%d", err);
+        pktbuf_free(pktbuf);
+        return err;
+    }
     *sent_size = (ssize_t)len;
     return NET_ERR_OK;
 }
@@ -181,4 +180,28 @@ create_fail:
     sock_free(&udp->base);
     mblock_free(&udp_mblock, udp);
     return NULL;
+}
+
+net_err_t upd_output(const ipaddr_t* dest_ip, const uint16_t dest_port, const ipaddr_t* src_ip, const uint16_t src_port,
+                     pktbuf_t* buf)
+{
+    net_err_t err = pktbuf_add_header(buf, sizeof(udp_header_t), true);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_UDP, "upd_output: pktbuf_add_header failed, err=%d", err);
+        return err;
+    }
+    udp_header_t* udp_hdr = (udp_header_t*)pktbuf_data(buf);
+    udp_hdr->src_port = x_htons(src_port);
+    udp_hdr->dest_port = x_htons(dest_port);
+    udp_hdr->length = x_htons(buf->total_size);
+    udp_hdr->checksum = 0;
+
+    err = ipv4_output(IPPROTO_UDP, dest_ip, src_ip, buf);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_UDP, "upd_output: ipv4_output failed, err=%d", err);
+        return err;
+    }
+    return NET_ERR_OK;
 }

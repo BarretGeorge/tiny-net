@@ -57,7 +57,7 @@ void example_module_control(void)
  */
 void example_batch_setting(void)
 {
-    plat_printf("\n=== 示例3: 批量设置模块 ===\n\n");
+    plat_printf("\n=== 示例3: 批量设置模块 ===\n");
 
     // 定义网络层模块
     dbug_module_t network_modules[] = {
