@@ -47,5 +47,6 @@ uint16_t checksum16_pseudo(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t
     pseudo_hdr[11] = (uint8_t)(total & 0xFF);
 
     uint16_t pre_sum = checksum16(pseudo_hdr, sizeof(pseudo_hdr), 0, false);
+    pktbuf_reset_access(buf);
     return pktbuf_checksum16(buf, (int)buf->total_size, pre_sum, true);
 }
