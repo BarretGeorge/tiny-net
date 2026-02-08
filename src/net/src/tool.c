@@ -1,6 +1,6 @@
 #include "tool.h"
 
-uint16_t checksum16(const void* data, uint16_t size, const uint32_t pre_sum, bool complement)
+uint16_t checksum16(const void* data, uint16_t size, const uint32_t pre_sum, const bool complement)
 {
     uint16_t* curr_buf = (uint16_t*)data;
     uint32_t checksum = pre_sum;
