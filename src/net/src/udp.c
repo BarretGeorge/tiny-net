@@ -38,6 +38,15 @@ static net_err_t alloc_port(sock_t* sock)
     return NET_ERR_FULL; // 没有可用端口
 }
 
+static net_err_t udp_pkt_invalid(udp_pkt_t* pkt, const int size)
+{
+    if (size < (int)sizeof(udp_header_t))
+    {
+        return NET_ERR_FRAME;
+    }
+    return NET_ERR_OK;
+}
+
 net_err_t upd_init()
 {
     plat_memset(udp_tbl, 0, sizeof(udp_tbl));
@@ -116,6 +125,36 @@ static net_err_t udp_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
 static net_err_t udp_recvfrom(sock_t* sock, uint8_t* buf, const size_t len, int flags,
                               const struct x_socketaddr* src, x_socklen_t* src_len, ssize_t* recv_size)
 {
+    udp_t* udp = (udp_t*)sock;
+    nlist_node_t* frist = nlist_remove_first(&udp->recv_list);
+    if (frist == NULL)
+    {
+        *recv_size = 0;
+        return NET_ERR_NEED_WAIT;
+    }
+    pktbuf_t* pktbuf = nlist_entry(frist, pktbuf_t, node);
+
+    udp_from_t* from = (udp_from_t*)pktbuf_data(pktbuf);
+
+    struct x_sockaddr_in* addr = (struct x_sockaddr_in*)src;
+    plat_memset(addr, 0, sizeof(struct x_sockaddr_in));
+    addr->sin_family = AF_INET;
+    addr->sin_port = x_htons(from->src_port);
+    ipaddr_to_buf(&from->src_ip, addr->sin_addr.addr_array);
+
+    pktbuf_remove_header(pktbuf, sizeof(udp_from_t));
+
+    size_t copy_size = pktbuf->total_size < len ? pktbuf->total_size : len;
+    pktbuf_reset_access(pktbuf);
+    net_err_t err = pktbuf_read(pktbuf, buf, (int)copy_size);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_RAW, "udp_recvfrom: pktbuf_read failed, err=%d", err);
+        pktbuf_free(pktbuf);
+        return err;
+    }
+    pktbuf_free(pktbuf);
+    *recv_size = (ssize_t)copy_size;
     return NET_ERR_OK;
 }
 
@@ -204,5 +243,88 @@ net_err_t upd_output(const ipaddr_t* dest_ip, const uint16_t dest_port, const ip
         dbug_error(DBG_MOD_UDP, "upd_output: ipv4_output failed, err=%d", err);
         return err;
     }
+    return NET_ERR_OK;
+}
+
+static udp_t* udp_find(const ipaddr_t* src_ip, const uint16_t src_port, const ipaddr_t* dest_ip,
+                       const uint16_t dest_port)
+{
+    nlist_node_t* node;
+    nlist_for_each(node, &udp_list)
+    {
+        udp_t* udp = nlist_entry(node, udp_t, base.node);
+        if (udp->base.local_port == dest_port &&
+            (ipaddr_is_any(&udp->base.local_ip) || ipaddr_is_equal(&udp->base.local_ip, dest_ip)) &&
+            (ipaddr_is_any(&udp->base.remote_ip) || ipaddr_is_equal(&udp->base.remote_ip, src_ip)) &&
+            (udp->base.remote_port == 0 || udp->base.remote_port == src_port))
+        {
+            return udp;
+        }
+    }
+    return NULL;
+}
+
+net_err_t udp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
+{
+    uint8_t* data = pktbuf_data(buf);
+    int ip_hdr_size = ipv4_hdr_size((ipv4_pkt_t*)data);
+
+    net_err_t err = pktbuf_set_cont(buf, ip_hdr_size + (int)sizeof(udp_header_t));
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_UDP, "udp_input: pktbuf_set_cont failed, err=%d", err);
+        return err;
+    }
+
+    udp_pkt_t* udp_pkt = (udp_pkt_t*)(data + ip_hdr_size);
+    uint16_t remote_port = x_ntohs(udp_pkt->header.src_port);
+    uint16_t local_port = x_ntohs(udp_pkt->header.dest_port);
+
+    udp_t* udp = udp_find(src_ip, remote_port, dest_ip, local_port);
+    if (udp == NULL)
+    {
+        dbug_warn(DBG_MOD_UDP, "udp_input: no matching socket for dest port %d", local_port);
+        return NET_ERR_PORT_UNREACH;
+    }
+
+    pktbuf_remove_header(buf, ip_hdr_size);
+
+    udp_pkt = (udp_pkt_t*)pktbuf_data(buf);
+    if (udp_pkt->header.checksum != 0)
+    {
+        pktbuf_reset_access(buf);
+        uint16_t checksum = checksum16_pseudo(buf, src_ip, dest_ip, IPPROTO_UDP);
+        if (checksum != 0)
+        {
+            dbug_warn(DBG_MOD_UDP, "udp_input: invalid checksum");
+            return NET_ERR_CHECKSUM;
+        }
+    }
+
+    udp_pkt->header.dest_port = x_ntohs(udp_pkt->header.dest_port);
+    udp_pkt->header.src_port = x_ntohs(udp_pkt->header.src_port);
+    udp_pkt->header.length = x_ntohs(udp_pkt->header.length);
+    if ((err = udp_pkt_invalid(udp_pkt, (int)buf->total_size)) != NET_ERR_OK)
+    {
+        dbug_warn(DBG_MOD_UDP, "udp_input: invalid packet");
+        return err;
+    }
+
+    size_t len = sizeof(udp_header_t) - sizeof(udp_from_t);
+    pktbuf_remove_header(buf, (int)len);
+
+    udp_from_t* from = (udp_from_t*)pktbuf_data(buf);
+    ipaddr_copy(&from->src_ip, src_ip);
+    from->src_port = remote_port;
+
+    if (nlist_count(&udp->recv_list) >= UDP_RECV_QUEUE_LEN)
+    {
+        dbug_warn(DBG_MOD_UDP, "udp_input: recv queue full for port %d", local_port);
+        pktbuf_free(buf);
+        return NET_ERR_MEM;
+    }
+
+    nlist_insert_last(&udp->recv_list, &buf->node);
+    sock_wakeup(&udp->base,SOCK_WAIT_READ, NET_ERR_OK);
     return NET_ERR_OK;
 }

@@ -16,7 +16,13 @@ typedef struct udp_pkt_t
 {
     udp_header_t header;
     uint8_t data[0];
-} udp_packet_t;
+} udp_pkt_t;
+
+typedef struct udp_from_t
+{
+    ipaddr_t src_ip;
+    uint16_t src_port;
+} udp_from_t;
 #pragma pack()
 
 typedef struct udp_t
@@ -30,6 +36,9 @@ net_err_t upd_init();
 
 sock_t* udp_create(int family, int protocol);
 
-net_err_t upd_output(const ipaddr_t* dest_ip, uint16_t dest_port, const ipaddr_t* src_ip, uint16_t src_port, pktbuf_t* buf);
+net_err_t upd_output(const ipaddr_t* dest_ip, uint16_t dest_port, const ipaddr_t* src_ip, uint16_t src_port,
+                     pktbuf_t* buf);
+
+net_err_t udp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip);
 
 #endif //TINY_NET_UDP_H

@@ -2,7 +2,6 @@
 #include "dbug_module.h"
 #include "net_api.h"
 #include <stdio.h>
-#include <string.h>
 
 int main()
 {

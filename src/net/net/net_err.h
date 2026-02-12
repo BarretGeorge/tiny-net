@@ -19,6 +19,7 @@ typedef enum net_err_t
     NET_ERR_PROTOCOL = -12, // 协议错误
     NET_ERR_OPTION = -13, // 选项错误
     NET_ERR_NO_ROUTE = -14, // 无路由
+    NET_ERR_PORT_UNREACH = -15, // 端口不可达
 } net_err_t;
 
 #endif //TINY_NET_NET_ERR_H

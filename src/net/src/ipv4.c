@@ -5,6 +5,7 @@
 #include "icmp_v4.h"
 #include "mblock.h"
 #include "raw.h"
+#include "udp.h"
 
 static uint16_t packet_id = 0;
 
@@ -323,9 +324,13 @@ static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* 
         err = icmp_v4_input(src_ip, &netif->ipaddr, buf);
         break;
     case PROTOCOL_TYPE_UDP: // UDP
-        // 测试端口不可达
-        ipv4_header_ntohs(&ipv4_pkt->header);
-        err = icmp_v4_output_unreach(src_ip, &netif->ipaddr, ICMP_V4_CODE_UNREACH_PORT, buf);
+        err = udp_input(buf, src_ip, dest_ip);
+        if (err == NET_ERR_PORT_UNREACH)
+        {
+            ipv4_header_ntohs(&ipv4_pkt->header);
+            icmp_v4_output_unreach(src_ip, &netif->ipaddr, ICMP_V4_CODE_UNREACH_PORT, buf);
+            return err;
+        }
         break;
     case PROTOCOL_TYPE_TCP: // TCP
         break;
