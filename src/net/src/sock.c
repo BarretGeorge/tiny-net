@@ -4,6 +4,7 @@
 #include "udp.h"
 #include "sys_plat.h"
 #include "socket.h"
+#include "tool.h"
 
 static x_socket_t socket_tbl[SOCKET_MAX_FD];
 
@@ -192,6 +193,29 @@ net_err_t socket_close_req_in(const func_msg_t* msg)
     return err;
 }
 
+net_err_t socket_connect_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    net_err_t err = NET_ERR_OK;
+
+    sock_conn_t* conn = &req->conn;
+    if (s->sock->ops->connect)
+    {
+        err = s->sock->ops->connect(s->sock, conn->addr, conn->addrlen);
+    }
+
+    if (err == NET_ERR_NEED_WAIT && s->sock->conn_wait)
+    {
+        sock_wait_add(s->sock->conn_wait, s->sock->recv_timeout, req);
+    }
+    return err;
+}
+
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)
 {
     sock->family = family;
@@ -323,5 +347,13 @@ net_err_t sock_setopt(sock_t* sock, int level, int opt_name, const void* opt_val
     default:
         return NET_ERR_OPTION;
     }
+    return NET_ERR_OK;
+}
+
+net_err_t sock_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
+{
+    struct x_sockaddr_in* remote = (struct x_sockaddr_in*)addr;
+    ipaddr_from_buf(&sock->remote_ip, remote->sin_addr.addr_array);
+    sock->remote_port = x_ntohs(remote->sin_port);
     return NET_ERR_OK;
 }

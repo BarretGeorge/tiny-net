@@ -63,7 +63,7 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
 
         // 发送请求报文
         // ssize_t n = send(fd, &ping->request, total_size, 0);
-        ssize_t n = sendto(fd, &ping->request, total_size, 0, (struct socketaddr*)&dest_addr, sizeof(dest_addr));
+        ssize_t n = sendto(fd, &ping->request, total_size, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
         if (n < 0)
         {
             plat_printf("sendto failed\n");
@@ -74,7 +74,7 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
         {
             // 接收响应报文
             socklen_t addrlen = sizeof(dest_addr);
-            ssize_t recv_size = recvfrom(fd, &ping->reply, sizeof(ping->reply), 0, (struct socketaddr*)&dest_addr,
+            ssize_t recv_size = recvfrom(fd, &ping->reply, sizeof(ping->reply), 0, (struct sockaddr*)&dest_addr,
                                          &addrlen);
             if (recv_size < 0)
             {
@@ -92,7 +92,7 @@ void ping_run(ping_t* ping, const char* dest_ip, const int count, const int size
                 net_time_t end_time;
                 sys_time_curr(&end_time);
                 double rtt = (double)(end_time.tv_sec - start_time.tv_sec) * 1000.0 +
-                             (double)(end_time.tv_usec - start_time.tv_usec) / 1000.0;
+                    (double)(end_time.tv_usec - start_time.tv_usec) / 1000.0;
 
                 plat_printf("%d bytes from %s: icmp_seq=%d ttl=%d time:%.3f ms\n",
                             (int)(recv_size - sizeof(ipv4_header_t)),

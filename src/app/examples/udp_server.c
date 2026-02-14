@@ -20,7 +20,7 @@ int main()
     server_addr.sin_port = htons(9999);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(fd, (struct socketaddr*)&server_addr, sizeof(server_addr)) < 0)
+    if (bind(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
         perror("bind failed");
         close(fd);
@@ -35,7 +35,7 @@ int main()
         memset(buffer, 0, sizeof(buffer));
         socklen_t addr_len = sizeof(client_addr);
         ssize_t recv_bytes = recvfrom(fd, buffer, sizeof(buffer) - 1, 0,
-                                      (struct socketaddr*)&client_addr, &addr_len);
+                                      (struct sockaddr*)&client_addr, &addr_len);
         if (recv_bytes < 0)
         {
             perror("recvfrom failed");

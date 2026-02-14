@@ -101,7 +101,7 @@ int x_listen(int fd, int backlog);
 
 int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen);
 
-int x_connect(int fd, const struct x_sockaddr* addr, unsigned int addrlen);
+int x_connect(int fd,  struct x_sockaddr* addr, x_socklen_t addrlen);
 
 int x_send(int fd, const void* buf, unsigned int len, int flags);
 

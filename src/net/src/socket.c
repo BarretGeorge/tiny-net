@@ -124,8 +124,35 @@ int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen)
     return 0;
 }
 
-int x_connect(int fd, const struct x_sockaddr* addr, unsigned int addrlen)
+int x_connect(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)
 {
+    if (fd < 0 || addr == NULL || addrlen != sizeof(struct x_sockaddr))
+    {
+        dbug_error(DBG_MOD_SOCKET, "connect param err");
+        return -1;
+    }
+
+    if (addr->sa_family != AF_INET)
+    {
+        dbug_error(DBG_MOD_SOCKET, "family err");
+        return -1;
+    }
+
+    sock_req_t req;
+    req.wait = NULL;
+    req.fd = fd;
+    req.conn.addr = addr;
+    req.conn.addrlen = addrlen;
+
+    net_err_t err = exmsg_func_exec(socket_connect_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        return -1;
+    }
+    if (req.wait)
+    {
+        sock_wait_enter(req.wait, req.wait_timeout);
+    }
     return 0;
 }
 
