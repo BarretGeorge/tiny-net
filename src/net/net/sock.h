@@ -8,7 +8,7 @@ typedef int x_socklen_t;
 
 struct sock_t;
 
-struct x_socketaddr;
+struct x_sockaddr;
 
 struct sock_req_t;
 
@@ -41,9 +41,9 @@ typedef struct sock_ops_t
     net_err_t (*close)(struct sock_t* sock);
     net_err_t (*setsockopt)(struct sock_t* sock, int level, int opt_name, const void* opt_val, int opt_len);
     net_err_t (*sendto)(struct sock_t* sock, const uint8_t* buf, size_t len, int flags,
-                        const struct x_socketaddr* dest, x_socklen_t dest_len, ssize_t* sent_size);
+                        const struct x_sockaddr* dest, x_socklen_t dest_len, ssize_t* sent_size);
     net_err_t (*recvfrom)(struct sock_t* sock, uint8_t* buf, size_t len, int flags,
-                          const struct x_socketaddr* src, x_socklen_t* src_len, ssize_t* recv_size);
+                          const struct x_sockaddr* src, x_socklen_t* src_len, ssize_t* recv_size);
     net_err_t (*setopt)(struct sock_t* sock, int level, int opt_name, const void* opt_val, int opt_len);
     void (*destroy)(struct sock_t* sock);
 } sock_ops_t;
@@ -90,7 +90,7 @@ typedef struct sock_data_t
     uint8_t* buf;
     size_t len;
     int flags;
-    struct x_socketaddr* addr;
+    struct x_sockaddr* addr;
     x_socklen_t* addrlen;
     ssize_t transferred_len;
 } sock_data_t;

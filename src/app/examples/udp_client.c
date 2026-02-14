@@ -17,12 +17,12 @@ int main()
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(9999);
     server_addr.sin_addr.s_addr = inet_addr("192.168.100.120");
-    // if (connect(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
-    // {
-    //     perror("connect failed");
-    //     close(fd);
-    //     return -1;
-    // }
+    if (connect(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("connect failed");
+        close(fd);
+        return -1;
+    }
 
     char msg[1024];
     printf("Enter messages to send to the server (type 'exit' to quit):\n");

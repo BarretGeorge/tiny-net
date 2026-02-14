@@ -23,7 +23,7 @@ net_err_t raw_init()
 }
 
 static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, int flags,
-                            const struct x_socketaddr* dest, x_socklen_t dest_len, ssize_t* sent_size)
+                            const struct x_sockaddr* dest, x_socklen_t dest_len, ssize_t* sent_size)
 {
     ipaddr_t dest_ip;
 
@@ -68,7 +68,7 @@ static net_err_t raw_sendto(sock_t* sock, const uint8_t* buf, const size_t len, 
 }
 
 static net_err_t raw_recvfrom(sock_t* sock, uint8_t* buf, const size_t len, int flags,
-                              const struct x_socketaddr* src, x_socklen_t* src_len, ssize_t* recv_size)
+                              const struct x_sockaddr* src, x_socklen_t* src_len, ssize_t* recv_size)
 {
     raw_t* raw = (raw_t*)sock;
     nlist_node_t* frist = nlist_remove_first(&raw->recv_list);

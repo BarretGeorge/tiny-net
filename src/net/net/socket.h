@@ -77,12 +77,12 @@ struct x_sockaddr_in
     char sin_zero[8]; // 填充字节
 };
 
-struct x_socketaddr
-{
-    uint8_t sa_len;
-    uint8_t sa_family;
-    char sa_data[14];
-};
+// struct x_socketaddr
+// {
+//     uint8_t sa_len;
+//     uint8_t sa_family;
+//     char sa_data[14];
+// };
 #pragma pack()
 
 #define in_addr x_in_addr
@@ -91,17 +91,24 @@ struct x_socketaddr
 
 int x_socket(int family, int type, int protocol);
 
-ssize_t x_sendto(int fd, const void* buf, size_t len, int flags, struct x_socketaddr* addr, x_socklen_t addrlen);
+ssize_t x_sendto(int fd, const void* buf, size_t len, int flags, struct x_sockaddr* addr, x_socklen_t addrlen);
 
-ssize_t x_recvfrom(int fd, void* buf, size_t len, int flags, struct x_socketaddr* addr, x_socklen_t* addrlen);
+ssize_t x_recvfrom(int fd, void* buf, size_t len, int flags, struct x_sockaddr* addr, x_socklen_t* addrlen);
 
-int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
+int x_bind(int fd, const struct x_sockaddr* addr, unsigned int addrlen);
+
 int x_listen(int fd, int backlog);
-int x_accept(int fd, struct x_socketaddr* addr, unsigned int* addrlen);
-int x_connect(int fd, const struct x_socketaddr* addr, unsigned int addrlen);
+
+int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen);
+
+int x_connect(int fd, const struct x_sockaddr* addr, unsigned int addrlen);
+
 int x_send(int fd, const void* buf, unsigned int len, int flags);
+
 int x_recv(int fd, void* buf, unsigned int len, int flags);
+
 int x_close(int fd);
+
 int x_setsockopt(int fd, int level, int opt_name, const void* opt_val, int opt_len);
 
 #endif //TINY_NET_SOCKET_H

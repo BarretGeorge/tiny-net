@@ -20,7 +20,7 @@ int x_socket(const int family, const int type, const int protocol)
     return req.fd;
 }
 
-ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, struct x_socketaddr* addr,
+ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, struct x_sockaddr* addr,
                  x_socklen_t addrlen)
 {
     if (buf == NULL || addr == NULL || len == 0)
@@ -67,7 +67,7 @@ ssize_t x_sendto(const int fd, const void* buf, size_t len, const int flags, str
     return total_sent;
 }
 
-ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, struct x_socketaddr* addr,
+ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, struct x_sockaddr* addr,
                    x_socklen_t* addrlen)
 {
     if (buf == NULL || addr == NULL || len == 0 || addrlen == NULL)
@@ -109,7 +109,7 @@ ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, s
     }
 }
 
-int x_bind(int fd, const struct x_socketaddr* addr, unsigned int addrlen)
+int x_bind(int fd, const struct x_sockaddr* addr, unsigned int addrlen)
 {
     return 0;
 }
@@ -119,12 +119,12 @@ int x_listen(int fd, int backlog)
     return 0;
 }
 
-int x_accept(int fd, struct x_socketaddr* addr, unsigned int* addrlen)
+int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen)
 {
     return 0;
 }
 
-int x_connect(int fd, const struct x_socketaddr* addr, unsigned int addrlen)
+int x_connect(int fd, const struct x_sockaddr* addr, unsigned int addrlen)
 {
     return 0;
 }
