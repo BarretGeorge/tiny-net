@@ -32,7 +32,7 @@ int main()
         {
             break;
         }
-        ssize_t sent_bytes = sendto(fd, msg, sizeof(msg), 0, (struct socketaddr*)&server_addr, sizeof(server_addr));
+        ssize_t sent_bytes = send(fd, msg, sizeof(msg), 0);
         if (sent_bytes < 0)
         {
             perror("send failed");

@@ -216,6 +216,26 @@ net_err_t socket_connect_req_in(const func_msg_t* msg)
     return err;
 }
 
+net_err_t socket_send_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (req->conn.addr == NULL)
+    {
+        return NET_ERR_ADDR_UNSET;
+    }
+    net_err_t err = NET_ERR_OK;
+    if (s->sock->ops->send)
+    {
+        err = s->sock->ops->send(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+    }
+    return err;
+}
+
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)
 {
     sock->family = family;
@@ -356,4 +376,13 @@ net_err_t sock_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t 
     ipaddr_from_buf(&sock->remote_ip, remote->sin_addr.addr_array);
     sock->remote_port = x_ntohs(remote->sin_port);
     return NET_ERR_OK;
+}
+
+net_err_t sock_send(sock_t* sock, const uint8_t* buf, const size_t len, const int flags, ssize_t* sent_size)
+{
+    struct x_sockaddr_in dest;
+    dest.sin_family = sock->family;
+    ipaddr_to_buf(&sock->remote_ip, dest.sin_addr.addr_array);
+    dest.sin_port = x_htons(sock->remote_port);
+    return sock->ops->sendto(sock, buf, len, flags, (struct x_sockaddr*)&dest, sizeof(struct x_sockaddr_in), sent_size);
 }

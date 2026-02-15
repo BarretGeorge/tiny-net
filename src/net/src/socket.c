@@ -109,7 +109,7 @@ ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, s
     }
 }
 
-int x_bind(int fd, const struct x_sockaddr* addr, unsigned int addrlen)
+int x_bind(int fd, const struct x_sockaddr* addr, size_t addrlen)
 {
     return 0;
 }
@@ -156,12 +156,46 @@ int x_connect(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)
     return 0;
 }
 
-int x_send(int fd, const void* buf, unsigned int len, int flags)
+ssize_t x_send(const int fd, const void* buf, size_t len, const int flags)
 {
-    return 0;
+    if (buf == NULL || len == 0)
+    {
+        return -1;
+    }
+
+    uint8_t* send_buf = (uint8_t*)buf;
+    ssize_t total_sent = 0;
+    while (len > 0)
+    {
+        sock_req_t req;
+        req.fd = fd;
+        req.data.buf = send_buf;
+        req.data.len = len;
+        req.data.flags = flags;
+        req.wait = NULL;
+        req.wait_timeout = 0;
+
+        net_err_t err = exmsg_func_exec(socket_send_req_in, &req);
+        if (err < NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_SOCKET, "socket_send_req_in sendto failed");
+            return -1;
+        }
+
+        if (req.wait && (err = sock_wait_enter(req.wait, req.wait_timeout)) < NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_SOCKET, "socket_send: wait failed, err=%d", err);
+            return -1;
+        }
+
+        len -= req.data.transferred_len;
+        send_buf += req.data.transferred_len;
+        total_sent += req.data.transferred_len;
+    }
+    return total_sent;
 }
 
-int x_recv(int fd, void* buf, unsigned int len, int flags)
+ssize_t x_recv(int fd, void* buf, size_t len, int flags)
 {
     return 0;
 }

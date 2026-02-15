@@ -181,11 +181,6 @@ static net_err_t udp_close(sock_t* sock)
     return NET_ERR_OK;
 }
 
-static net_err_t udp_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
-{
-    return sock_connect(sock, addr, addrlen);
-}
-
 sock_t* udp_create(const int family, const int protocol)
 {
     static const sock_ops_t udp_ops = {
@@ -193,7 +188,8 @@ sock_t* udp_create(const int family, const int protocol)
         .recvfrom = udp_recvfrom,
         .setopt = sock_setopt,
         .close = udp_close,
-        .connect = udp_connect,
+        .connect = sock_connect,
+        .send = sock_send,
     };
     udp_t* udp = mblock_alloc(&udp_mblock, -1);
     if (udp == NULL)

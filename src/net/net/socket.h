@@ -95,17 +95,17 @@ ssize_t x_sendto(int fd, const void* buf, size_t len, int flags, struct x_sockad
 
 ssize_t x_recvfrom(int fd, void* buf, size_t len, int flags, struct x_sockaddr* addr, x_socklen_t* addrlen);
 
-int x_bind(int fd, const struct x_sockaddr* addr, unsigned int addrlen);
+int x_bind(int fd, const struct x_sockaddr* addr, size_t addrlen);
 
 int x_listen(int fd, int backlog);
 
 int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen);
 
-int x_connect(int fd,  struct x_sockaddr* addr, x_socklen_t addrlen);
+int x_connect(int fd, struct x_sockaddr* addr, x_socklen_t addrlen);
 
-int x_send(int fd, const void* buf, unsigned int len, int flags);
+ssize_t x_send(int fd, const void* buf, size_t len, int flags);
 
-int x_recv(int fd, void* buf, unsigned int len, int flags);
+ssize_t x_recv(int fd, void* buf, size_t len, int flags);
 
 int x_close(int fd);
 

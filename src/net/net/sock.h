@@ -46,6 +46,7 @@ typedef struct sock_ops_t
                           const struct x_sockaddr* src, x_socklen_t* src_len, ssize_t* recv_size);
     net_err_t (*setopt)(struct sock_t* sock, int level, int opt_name, const void* opt_val, int opt_len);
     net_err_t (*connect)(struct sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen);
+    net_err_t (*send)(struct sock_t* sock, const uint8_t* buf, size_t len, int flags, ssize_t* sent_size);
     void (*destroy)(struct sock_t* sock);
 } sock_ops_t;
 
@@ -139,11 +140,15 @@ net_err_t socket_close_req_in(const func_msg_t* msg);
 
 net_err_t socket_connect_req_in(const func_msg_t* msg);
 
+net_err_t socket_send_req_in(const func_msg_t* msg);
+
 net_err_t sock_init(sock_t* sock, int family, int protocol, const sock_ops_t* ops);
 
 net_err_t sock_setopt(sock_t* sock, int level, int opt_name, const void* opt_val, int opt_len);
 
 net_err_t sock_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen);
+
+net_err_t sock_send(sock_t* sock, const uint8_t* buf, size_t len, int flags, ssize_t* sent_size);
 
 void sock_free(const sock_t* sock);
 
