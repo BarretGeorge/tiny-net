@@ -181,6 +181,43 @@ static net_err_t udp_close(sock_t* sock)
     return NET_ERR_OK;
 }
 
+static net_err_t udp_bind(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addr_len)
+{
+    if (sock->local_port != 0)
+    {
+        dbug_error(DBG_MOD_UDP, "udp_bind: socket already bound");
+        return NET_ERR_INVALID_STATE;
+    }
+
+    struct x_sockaddr_in* bind_addr = (struct x_sockaddr_in*)addr;
+    ipaddr_t local_ip;
+    ipaddr_from_buf(&local_ip, bind_addr->sin_addr.addr_array);
+    uint16_t local_port = x_ntohs(bind_addr->sin_port);
+
+    nlist_node_t* node;
+    udp_t* udp = NULL;
+    nlist_for_each(node, &udp_list)
+    {
+        udp_t* u = nlist_entry(node, udp_t, base.node);
+        if (sock == &u->base)
+        {
+            continue; // 跳过当前socket
+        }
+        if (u->base.local_port == local_port)
+        {
+            udp = u;
+            break;
+        }
+    }
+    if (udp != NULL)
+    {
+        dbug_error(DBG_MOD_UDP, "udp_bind: address already in use");
+        return NET_ERR_ADDR_IN_USE;
+    }
+
+    return sock_bind(sock, addr, addr_len);
+}
+
 sock_t* udp_create(const int family, const int protocol)
 {
     static const sock_ops_t udp_ops = {
@@ -190,6 +227,8 @@ sock_t* udp_create(const int family, const int protocol)
         .close = udp_close,
         .connect = sock_connect,
         .send = sock_send,
+        .recv = sock_recv,
+        .bind = udp_bind,
     };
     udp_t* udp = mblock_alloc(&udp_mblock, -1);
     if (udp == NULL)

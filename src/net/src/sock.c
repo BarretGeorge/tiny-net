@@ -216,6 +216,24 @@ net_err_t socket_connect_req_in(const func_msg_t* msg)
     return err;
 }
 
+net_err_t socket_bind_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    net_err_t err = NET_ERR_OK;
+
+    sock_bind_t* bind = &req->bind;
+    if (s->sock->ops->bind)
+    {
+        err = s->sock->ops->bind(s->sock, bind->addr, bind->addrlen);
+    }
+    return err;
+}
+
 net_err_t socket_send_req_in(const func_msg_t* msg)
 {
     sock_req_t* req = msg->arg;
@@ -234,6 +252,25 @@ net_err_t socket_send_req_in(const func_msg_t* msg)
         err = s->sock->ops->send(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
     }
     return err;
+}
+
+net_err_t socket_recv_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (req->conn.addr == NULL)
+    {
+        return NET_ERR_ADDR_UNSET;
+    }
+    if (s->sock->ops->recv)
+    {
+        return s->sock->ops->recv(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+    }
+    return NET_ERR_OK;
 }
 
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)
@@ -385,4 +422,33 @@ net_err_t sock_send(sock_t* sock, const uint8_t* buf, const size_t len, const in
     ipaddr_to_buf(&sock->remote_ip, dest.sin_addr.addr_array);
     dest.sin_port = x_htons(sock->remote_port);
     return sock->ops->sendto(sock, buf, len, flags, (struct x_sockaddr*)&dest, sizeof(struct x_sockaddr_in), sent_size);
+}
+
+net_err_t sock_recv(sock_t* sock, uint8_t* buf, const size_t len, const int flags, ssize_t* recv_size)
+{
+    struct x_sockaddr_in src;
+    x_socklen_t src_len = sizeof(struct x_sockaddr_in);
+    ipaddr_to_buf(&sock->remote_ip, src.sin_addr.addr_array);
+    src.sin_port = x_htons(sock->remote_port);
+    return sock->ops->recvfrom(sock, buf, len, flags, (struct x_sockaddr*)&src, &src_len, recv_size);
+}
+
+net_err_t sock_bind(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
+{
+    struct x_sockaddr_in* local = (struct x_sockaddr_in*)addr;
+    ipaddr_t local_ip;
+    ipaddr_from_buf(&local_ip, local->sin_addr.addr_array);
+    if (!ipaddr_is_any(&local_ip))
+    {
+        // IP地址不为0，验证地址是否合法
+        route_entry_t* rt = find_route_entry(&local_ip);
+        if (rt == NULL || !ipaddr_is_equal(&rt->netif->ipaddr, &local_ip))
+        {
+            dbug_error(DBG_MOD_SOCK, "sock_bind: local address is not valid");
+            return NET_ERR_INVALID_PARAM;
+        }
+    }
+    ipaddr_copy(&sock->local_ip, &local_ip);
+    sock->local_port = x_ntohs(local->sin_port);
+    return NET_ERR_OK;
 }

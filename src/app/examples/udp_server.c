@@ -18,7 +18,7 @@ int main()
     struct sockaddr_in server_addr, client_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(9999);
-    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_addr.s_addr = inet_addr("192.168.3.95");
 
     if (bind(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {

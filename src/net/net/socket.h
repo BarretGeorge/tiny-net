@@ -95,7 +95,7 @@ ssize_t x_sendto(int fd, const void* buf, size_t len, int flags, struct x_sockad
 
 ssize_t x_recvfrom(int fd, void* buf, size_t len, int flags, struct x_sockaddr* addr, x_socklen_t* addrlen);
 
-int x_bind(int fd, const struct x_sockaddr* addr, size_t addrlen);
+int x_bind(int fd, struct x_sockaddr* addr, x_socklen_t addrlen);
 
 int x_listen(int fd, int backlog);
 

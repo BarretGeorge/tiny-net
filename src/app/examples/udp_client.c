@@ -40,6 +40,15 @@ int main()
             return -1;
         }
         printf("Sent %zd bytes: %s\n", sent_bytes, msg);
+
+        ssize_t recv_bytes = recv(fd, msg, sizeof(msg), 0);
+        if (recv_bytes < 0)
+        {
+            perror("recv failed");
+            break;
+        }
+        msg[recv_bytes] = '\0';
+        printf("Received %zd bytes: %s\n", recv_bytes, msg);
         sleep(1);
     }
     close(fd);

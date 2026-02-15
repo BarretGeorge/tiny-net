@@ -109,8 +109,34 @@ ssize_t x_recvfrom(const int fd, void* buf, const size_t len, const int flags, s
     }
 }
 
-int x_bind(int fd, const struct x_sockaddr* addr, size_t addrlen)
+int x_bind(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)
 {
+    if (fd < 0 || addr == NULL || addrlen != sizeof(struct x_sockaddr))
+    {
+        dbug_error(DBG_MOD_SOCKET, "bind param err");
+        return -1;
+    }
+    if (addr->sa_family != AF_INET)
+    {
+        dbug_error(DBG_MOD_SOCKET, "family err");
+        return -1;
+    }
+
+    sock_req_t req;
+    req.wait = NULL;
+    req.fd = fd;
+    req.bind.addr = addr;
+    req.bind.addrlen = addrlen;
+
+    net_err_t err = exmsg_func_exec(socket_bind_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        return -1;
+    }
+    if (req.wait)
+    {
+        sock_wait_enter(req.wait, req.wait_timeout);
+    }
     return 0;
 }
 
@@ -195,9 +221,43 @@ ssize_t x_send(const int fd, const void* buf, size_t len, const int flags)
     return total_sent;
 }
 
-ssize_t x_recv(int fd, void* buf, size_t len, int flags)
+ssize_t x_recv(const int fd, void* buf, const size_t len, const int flags)
 {
-    return 0;
+    if (buf == NULL || len == 0)
+    {
+        return -1;
+    }
+
+    while (true)
+    {
+        sock_req_t req;
+        req.wait = NULL;
+        req.wait_timeout = 0;
+        req.fd = fd;
+        req.data.buf = buf;
+        req.data.len = len;
+        req.data.flags = flags;
+        req.data.transferred_len = 0;
+
+        net_err_t err = exmsg_func_exec(socket_recv_req_in, &req);
+        if (err < NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_SOCKET, "socket_recv_req_in recvfrom failed");
+            return -1;
+        }
+        if (req.data.transferred_len > 0)
+        {
+            return req.data.transferred_len;
+        }
+
+        // 等待数据到达
+        err = sock_wait_enter(req.wait, req.wait_timeout);
+        if (err < NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_SOCKET, "socket_recv: wait failed, err=%d", err);
+            return err;
+        }
+    }
 }
 
 int x_close(const int fd)

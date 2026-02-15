@@ -136,6 +136,8 @@ sock_t* raw_create(const int family, const int protocol)
         .close = raw_close,
         .connect = sock_connect,
         .send = sock_send,
+        .recv = sock_recv,
+        .bind = sock_bind,
     };
     raw_t* raw = mblock_alloc(&raw_mblock, -1);
     if (raw == NULL)
