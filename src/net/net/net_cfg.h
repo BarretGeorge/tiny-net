@@ -77,8 +77,11 @@
 // UDP套接字最大数量
 #define UDP_MAX_NR 64
 
+// TCP套接字最大数量
+#define TCP_MAX_NR 64
+
 // 套接字最大文件描述符数量
-#define SOCKET_MAX_FD RAW_MAX_NR
+#define SOCKET_MAX_FD (RAW_MAX_NR + UDP_MAX_NR + TCP_MAX_NR)
 
 // 原始套接字接收队列长度
 #define RAW_RECV_QUEUE_LEN 128

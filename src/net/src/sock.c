@@ -5,6 +5,7 @@
 #include "sys_plat.h"
 #include "socket.h"
 #include "tool.h"
+#include "tcp.h"
 
 static x_socket_t socket_tbl[SOCKET_MAX_FD];
 
@@ -63,7 +64,7 @@ net_err_t socket_create_req_in(const func_msg_t* msg)
     } sock_tbl[] = {
         [SOCK_RAW] = {.create = raw_create, .protocol = IPPROTO_ICMP},
         [SOCK_DGRAM] = {.create = udp_create, .protocol = IPPROTO_UDP},
-        [SOCK_STREAM] = {.create = NULL, .protocol = IPPROTO_TCP},
+        [SOCK_STREAM] = {.create = tcp_create, .protocol = IPPROTO_TCP},
     };
 
     sock_req_t* req = msg->arg;

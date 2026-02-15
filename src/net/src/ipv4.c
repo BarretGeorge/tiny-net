@@ -6,6 +6,7 @@
 #include "mblock.h"
 #include "raw.h"
 #include "udp.h"
+#include "tcp_in.h"
 
 static uint16_t packet_id = 0;
 
@@ -333,6 +334,9 @@ static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* 
         }
         break;
     case PROTOCOL_TYPE_TCP: // TCP
+        pktbuf_remove_header(buf, ipv4_hdr_size(ipv4_pkt));
+
+        err = tcp_input(buf, src_ip, dest_ip);
         break;
     default:
         err = raw_input(buf);

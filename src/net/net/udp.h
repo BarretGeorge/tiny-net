@@ -6,9 +6,13 @@
 #pragma pack(1)
 typedef struct udp_header_t
 {
+    // 源端口号
     uint16_t src_port;
+    // 目标端口号
     uint16_t dest_port;
+    // 数据包长度
     uint16_t length;
+    // 校验和
     uint16_t checksum;
 } udp_header_t;
 

@@ -233,7 +233,7 @@ sock_t* udp_create(const int family, const int protocol)
     udp_t* udp = mblock_alloc(&udp_mblock, -1);
     if (udp == NULL)
     {
-        dbug_error(DBG_MOD_UDP, "udp_create: no memory for raw");
+        dbug_error(DBG_MOD_UDP, "udp_create: no memory for udp");
         return NULL;
     }
 
