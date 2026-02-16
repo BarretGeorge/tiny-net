@@ -89,3 +89,8 @@ size_t tcp_header_size(const tcp_header_t* header)
 {
     return header->data_offset * 4;
 }
+
+void tcp_set_header_size(tcp_header_t* header, const size_t size)
+{
+    header->data_offset = size / 4;
+}

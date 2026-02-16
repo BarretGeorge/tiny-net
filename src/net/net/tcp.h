@@ -58,6 +58,17 @@ typedef struct tcp_pkt_t
 } tcp_pkt_t;
 #pragma pack()
 
+typedef struct tcp_seg_t
+{
+    ipaddr_t local_ip;
+    ipaddr_t remote_ip;
+    tcp_header_t* header;
+    pktbuf_t* buf;
+    uint32_t data_len;
+    uint32_t seq;
+    uint32_t seq_len;
+} tcp_seg_t;
+
 typedef struct tcp_t
 {
     sock_t base;
@@ -68,5 +79,7 @@ net_err_t tcp_init(void);
 sock_t* tcp_create(int family, int protocol);
 
 size_t tcp_header_size(const tcp_header_t* header);
+
+void tcp_set_header_size(tcp_header_t* header, size_t size);
 
 #endif //TINY_NET_TCP_H
