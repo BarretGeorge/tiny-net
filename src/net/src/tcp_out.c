@@ -27,6 +27,8 @@ static net_err_t send_out(tcp_header_t* out, pktbuf_t* buf, const ipaddr_t* remo
 
 net_err_t tcp_send_reset(const tcp_seg_t* seg)
 {
+    tcp_header_t* in = seg->header;
+
     pktbuf_t* buf = pktbuf_alloc(sizeof(tcp_header_t));
     if (buf == NULL)
     {
@@ -35,8 +37,8 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
     }
 
     tcp_header_t* out = (tcp_header_t*)pktbuf_data(buf);
-    out->src_port = x_htons(seg->header->dest_port);
-    out->dest_port = x_htons(seg->header->src_port);
+    out->src_port = x_htons(in->dest_port);
+    out->dest_port = x_htons(in->src_port);
     out->seq_num = 0;
     out->ack_num = x_htonl(seg->seq + seg->seq_len);
     out->data_offset = sizeof(tcp_header_t) / 4;
@@ -46,6 +48,18 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
     out->checksum = 0;
     out->urgent_ptr = 0;
     tcp_set_header_size(out, sizeof(tcp_header_t));
+
+    if (in->ack)
+    {
+        out->seq_num = x_htonl(in->ack_num);
+        out->ack_num = 0;
+        out->ack = 0;
+    }
+    else
+    {
+        out->ack_num = x_htonl(seg->seq + seg->seq_len);
+        out->ack = 1;
+    }
 
 
     return send_out(out, buf, &seg->remote_ip, &seg->local_ip);

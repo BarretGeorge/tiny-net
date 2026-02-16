@@ -20,6 +20,16 @@ net_err_t tcp_init(void)
     return NET_ERR_OK;
 }
 
+static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
+{
+    return NET_ERR_OK;
+}
+
+static net_err_t tcp_close(sock_t* sock)
+{
+    return NET_ERR_OK;
+}
+
 static tcp_t* tcp_get_free(const bool wait)
 {
     tcp_t* tcp = mblock_alloc(&tcp_mblock, wait ? 0 : -1);
@@ -46,8 +56,8 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         // .sendto = udp_sendto,
         // .recvfrom = udp_recvfrom,
         // .setopt = sock_setopt,
-        // .close = udp_close,
-        // .connect = sock_connect,
+        .close = tcp_close,
+        .connect = tcp_connect,
         // .send = sock_send,
         // .recv = sock_recv,
         // .bind = udp_bind,
