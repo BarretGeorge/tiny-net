@@ -41,26 +41,56 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
     out->dest_port = x_htons(in->src_port);
     out->seq_num = 0;
     out->ack_num = x_htonl(seg->seq + seg->seq_len);
-    out->data_offset = sizeof(tcp_header_t) / 4;
     out->flags = 0;
-    out->rst = 1;
+    out->f_rst = 1;
     out->window_size = 0;
     out->checksum = 0;
     out->urgent_ptr = 0;
     tcp_set_header_size(out, sizeof(tcp_header_t));
 
-    if (in->ack)
+    if (in->f_ack)
     {
         out->seq_num = x_htonl(in->ack_num);
         out->ack_num = 0;
-        out->ack = 0;
+        out->f_ack = 0;
     }
     else
     {
         out->ack_num = x_htonl(seg->seq + seg->seq_len);
-        out->ack = 1;
+        out->f_ack = 1;
     }
 
-
     return send_out(out, buf, &seg->remote_ip, &seg->local_ip);
+}
+
+net_err_t tcp_transmit(tcp_t* tcp)
+{
+    pktbuf_t* puf = pktbuf_alloc(sizeof(tcp_header_t));
+    if (puf == NULL)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_transmit: pktbuf_alloc failed");
+        return NET_ERR_MEM;
+    }
+    tcp_header_t* header = (tcp_header_t*)pktbuf_data(puf);
+    plat_memset(header, 0, sizeof(tcp_header_t));
+    header->src_port = tcp->base.local_port;
+    header->dest_port = tcp->base.remote_port;
+    header->seq_num = tcp->send.next_seq;
+    header->ack_num = tcp->recv.next_seq;
+    header->flags = 0;
+    tcp_set_header_size(header, sizeof(tcp_header_t));
+    header->f_syn = tcp->flags.syn_out;
+    header->f_ack = 0;
+    header->window_size = 1024;
+    header->urgent_ptr = 0;
+
+    tcp->send.next_seq += header->f_syn + header->f_fin;
+    return send_out(header, puf, &tcp->base.remote_ip, &tcp->base.local_ip);
+}
+
+net_err_t tcp_send_syn(tcp_t* tcp)
+{
+    tcp->flags.syn_out = 1;
+    tcp_transmit(tcp);
+    return NET_ERR_OK;
 }

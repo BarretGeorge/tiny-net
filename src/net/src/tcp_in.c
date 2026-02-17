@@ -11,7 +11,7 @@ static void tcp_seg_init(tcp_seg_t* seg, const ipaddr_t* remote_ip, const ipaddr
     seg->buf = buf;
     seg->data_len = buf->total_size - tcp_header_size(seg->header);
     seg->seq = seg->header->seq_num;
-    seg->seq_len = seg->data_len + seg->header->syn + seg->header->fin;
+    seg->seq_len = seg->data_len + seg->header->f_syn + seg->header->f_fin;
 }
 
 net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)

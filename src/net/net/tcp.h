@@ -22,23 +22,23 @@ typedef struct tcp_header_t
         struct
         {
 #ifdef NET_ENDIAN_LITTLE
-            uint16_t reserved : 4; // 保留位
-            uint16_t data_offset : 4; // 数据偏移
-            uint16_t fin : 1; // 结束标志
-            uint16_t syn : 1; // 同步标志
-            uint16_t rst : 1; // 重置标志
-            uint16_t psh : 1; // 推送标志
-            uint16_t ack : 1; // 确认标志
-            uint16_t urg : 1; // 紧急标志
+            uint16_t f_reserved : 4; // 保留位
+            uint16_t f_data_offset : 4; // 数据偏移
+            uint16_t f_fin : 1; // 结束标志
+            uint16_t f_syn : 1; // 同步标志
+            uint16_t f_rst : 1; // 重置标志
+            uint16_t f_psh : 1; // 推送标志
+            uint16_t f_ack : 1; // 确认标志
+            uint16_t f_urg : 1; // 紧急标志
 #else
-            uint16_t data_offset : 4; // 数据偏移
-            uint16_t reserved : 4; // 保留位
-            uint16_t urg : 1; // 紧急标志
-            uint16_t ack : 1; // 确认标志
-            uint16_t psh : 1; // 推送标志
-            uint16_t rst : 1; // 重置标志
-            uint16_t syn : 1; // 同步标志
-            uint16_t fin : 1; // 结束标志
+            uint16_t f_data_offset : 4; // 数据偏移
+            uint16_t f_reserved : 4; // 保留位
+            uint16_t f_urg : 1; // 紧急标志
+            uint16_t f_ack : 1; // 确认标志
+            uint16_t f_psh : 1; // 推送标志
+            uint16_t f_rst : 1; // 重置标志
+            uint16_t f_syn : 1; // 同步标志
+            uint16_t f_fin : 1; // 结束标志
 #endif
         };
     };
@@ -72,6 +72,11 @@ typedef struct tcp_seg_t
 typedef struct tcp_t
 {
     sock_t base;
+
+    struct
+    {
+        uint32_t syn_out : 1;
+    } flags;
 
     struct
     {

@@ -4,6 +4,7 @@
 #include "socket.h"
 #include "tool.h"
 #include "random.h"
+#include "tcp_out.h"
 
 static tcp_t tcp_tbl[TCP_MAX_NR];
 
@@ -71,7 +72,7 @@ static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_sock
 
     if (sock->local_port == NET_PORT_EMPTY)
     {
-        sock->local_port = x_ntohs(tcp_alloc_port());
+        sock->local_port = tcp_alloc_port();
         if (sock->local_port == NET_PORT_EMPTY)
         {
             dbug_error(DBG_MOD_TCP, "tcp_connect: no free port");
@@ -95,6 +96,11 @@ static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_sock
     if ((err = tcp_init_connect((tcp_t*)sock)) != NET_ERR_OK)
     {
         dbug_error(DBG_MOD_TCP, "tcp_connect: tcp_init_conn failed");
+        return err;
+    }
+    if ((err = tcp_send_syn((tcp_t*)sock)) != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_connect: tcp_send_syn failed");
         return err;
     }
     return NET_ERR_NEED_WAIT;
@@ -204,10 +210,10 @@ sock_t* tcp_create(const int family, const int protocol)
 
 size_t tcp_header_size(const tcp_header_t* header)
 {
-    return header->data_offset * 4;
+    return header->f_data_offset * 4;
 }
 
 void tcp_set_header_size(tcp_header_t* header, const size_t size)
 {
-    header->data_offset = size / 4;
+    header->f_data_offset = size / 4;
 }

@@ -5,7 +5,6 @@ import socket
 import argparse
 import threading
 
-
 def handle_client(conn, addr):
     print(f"[+] connected: {addr[0]}:{addr[1]}")
     try:
