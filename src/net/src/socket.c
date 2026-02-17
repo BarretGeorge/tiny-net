@@ -171,11 +171,11 @@ int x_connect(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)
     req.conn.addrlen = addrlen;
 
     net_err_t err = exmsg_func_exec(socket_connect_req_in, &req);
-    if (err != NET_ERR_OK)
+    if (err < NET_ERR_OK)
     {
         return -1;
     }
-    if (req.wait)
+    if (req.wait && err == NET_ERR_NEED_WAIT)
     {
         sock_wait_enter(req.wait, req.wait_timeout);
     }
@@ -268,11 +268,11 @@ int x_close(const int fd)
     req.wait_timeout = 0;
 
     net_err_t err = exmsg_func_exec(socket_close_req_in, &req);
-    if (err != NET_ERR_OK)
+    if (err < NET_ERR_OK)
     {
         return -1;
     }
-    if (req.wait)
+    if (req.wait && err == NET_ERR_NEED_WAIT)
     {
         sock_wait_enter(req.wait, req.wait_timeout);
     }

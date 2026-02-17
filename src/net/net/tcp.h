@@ -72,6 +72,26 @@ typedef struct tcp_seg_t
 typedef struct tcp_t
 {
     sock_t base;
+
+    struct
+    {
+        sock_wait_t wait;
+    } conn;
+
+    struct
+    {
+        uint32_t next_seq; // 下一个要发送的序列号
+        uint32_t un_ack_seq; // 最后一个未确认的序列号
+        uint32_t isn; // 初始序列号
+        sock_wait_t wait;
+    } send;
+
+    struct
+    {
+        uint32_t next_seq; // 下一个要接收的序列号
+        uint32_t isn; // 初始序列号
+        sock_wait_t wait;
+    } recv;
 } tcp_t;
 
 net_err_t tcp_init(void);

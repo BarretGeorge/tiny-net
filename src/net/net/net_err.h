@@ -22,6 +22,7 @@ typedef enum net_err_t
     NET_ERR_PORT_UNREACH = -15, // 端口不可达
     NET_ERR_ADDR_UNSET = -16, // 地址未设置
     NET_ERR_ADDR_IN_USE = -17, // 地址已被使用
+    NET_ERR_IP_UNREACH = -18, // IP不可达
 } net_err_t;
 
 #endif //TINY_NET_NET_ERR_H

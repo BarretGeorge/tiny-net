@@ -1,6 +1,9 @@
 #include "tcp.h"
 #include "dbug.h"
 #include "mblock.h"
+#include "socket.h"
+#include "tool.h"
+#include "random.h"
 
 static tcp_t tcp_tbl[TCP_MAX_NR];
 
@@ -20,9 +23,81 @@ net_err_t tcp_init(void)
     return NET_ERR_OK;
 }
 
+static uint16_t tcp_alloc_port()
+{
+    for (uint16_t port = NET_PORT_DYN_START; port <= NET_PORT_DYN_END; ++port)
+    {
+        bool port_in_use = false;
+
+        nlist_node_t* node;
+        nlist_for_each(node, &tcp_list)
+        {
+            tcp_t* udp = nlist_entry(node, tcp_t, base.node);
+            if (udp->base.local_port == port)
+            {
+                port_in_use = true;
+                break;
+            }
+        }
+
+        if (!port_in_use)
+        {
+            return port;
+        }
+    }
+    return NET_PORT_EMPTY; // 没有可用端口
+}
+
+static uint32_t tcp_get_isn()
+{
+    seed_xoshiro(time(NULL));
+    return xoshiro256ss();
+}
+
+static net_err_t tcp_init_connect(tcp_t* tcp)
+{
+    tcp->send.isn = tcp_get_isn();
+    tcp->send.un_ack_seq = tcp->send.next_seq = tcp->send.isn;
+    tcp->recv.next_seq = 0;
+    return NET_ERR_OK;
+}
+
 static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
 {
-    return NET_ERR_OK;
+    const struct x_sockaddr_in* dest_addr = (const struct x_sockaddr_in*)addr;
+
+    ipaddr_from_buf(&sock->remote_ip, dest_addr->sin_addr.addr_array);
+    sock->remote_port = x_ntohs(dest_addr->sin_port);
+
+    if (sock->local_port == NET_PORT_EMPTY)
+    {
+        sock->local_port = x_ntohs(tcp_alloc_port());
+        if (sock->local_port == NET_PORT_EMPTY)
+        {
+            dbug_error(DBG_MOD_TCP, "tcp_connect: no free port");
+            return NET_ERR_FULL;
+        }
+    }
+
+    if (ipaddr_is_any(&sock->local_ip))
+    {
+        // 查路由表
+        route_entry_t* route = find_route_entry(&sock->remote_ip);
+        if (route == NULL)
+        {
+            dbug_error(DBG_MOD_TCP, "tcp_connect: no route to remote ip");
+            return NET_ERR_IP_UNREACH;
+        }
+        ipaddr_copy(&sock->local_ip, &route->netif->ipaddr);
+    }
+
+    net_err_t err;
+    if ((err = tcp_init_connect((tcp_t*)sock)) != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_connect: tcp_init_conn failed");
+        return err;
+    }
+    return NET_ERR_NEED_WAIT;
 }
 
 static net_err_t tcp_close(sock_t* sock)
@@ -49,7 +124,6 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         dbug_error(DBG_MOD_TCP, "tcp_create: no memory for tcp");
         return NULL;
     }
-
     plat_memset(tcp, 0, sizeof(tcp_t));
 
     static const sock_ops_t tcp_ops = {
@@ -70,11 +144,44 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         goto create_fail;
     }
 
+    if (sock_wait_init(&tcp->conn.wait) != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_create: sock_wait_init failed");
+        goto create_fail;
+    }
+    tcp->base.conn_wait = &tcp->conn.wait;
+
+    if (sock_wait_init(&tcp->send.wait) != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_create: sock_wait_init failed");
+        goto create_fail;
+    }
+    tcp->base.send_wait = &tcp->send.wait;
+
+    if (sock_wait_init(&tcp->recv.wait) != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_create: sock_wait_init failed");
+        goto create_fail;
+    }
+    tcp->base.recv_wait = &tcp->recv.wait;
+
     return tcp;
 
 create_fail:
     sock_free(&tcp->base);
     mblock_free(&tcp_mblock, tcp);
+    if (tcp->base.conn_wait)
+    {
+        sock_wait_destroy(tcp->base.conn_wait);
+    }
+    if (tcp->base.send_wait)
+    {
+        sock_wait_destroy(tcp->base.send_wait);
+    }
+    if (tcp->base.recv_wait)
+    {
+        sock_wait_destroy(tcp->base.recv_wait);
+    }
     return NULL;
 }
 

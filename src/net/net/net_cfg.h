@@ -92,6 +92,9 @@
 // 路由表最大条目数量
 #define IPV4_ROUTE_TABLE_MAX_NR 32
 
+// 空端口号
+#define NET_PORT_EMPTY 0
+
 // 动态端口范围开始
 #define NET_PORT_DYN_START 49152
 
