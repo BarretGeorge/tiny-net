@@ -314,7 +314,7 @@ static net_err_t ipv4_pkt_is_valid(const ipv4_pkt_t* pkt, const uint32_t size, n
     return NET_ERR_OK;
 }
 
-static net_err_t ip_normal_input(netif_t* netif, pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
+static net_err_t ip_normal_input(const netif_t* netif, pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
 {
     ipv4_pkt_t* ipv4_pkt = (ipv4_pkt_t*)pktbuf_data(buf);
     display_ipv4_header(ipv4_pkt);

@@ -2,6 +2,7 @@
 #include "dbug.h"
 #include "tcp_out.h"
 #include "tool.h"
+#include "tcp_state.h"
 
 static void tcp_seg_init(tcp_seg_t* seg, const ipaddr_t* remote_ip, const ipaddr_t* local_ip, pktbuf_t* buf)
 {
@@ -16,6 +17,20 @@ static void tcp_seg_init(tcp_seg_t* seg, const ipaddr_t* remote_ip, const ipaddr
 
 net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
 {
+    static const tcp_state_proc_t proc_table[] = {
+        [TCP_STATE_CLOSE] = tcp_close_in,
+        [TCP_STATE_LISTEN] = tcp_listen_in,
+        [TCP_STATE_SYN_SENT] = tcp_syn_sent_in,
+        [TCP_STATE_SYN_RECEIVED] = tcp_syn_received_in,
+        [TCP_STATE_ESTABLISHED] = tcp_established_in,
+        [TCP_STATE_FIN_WAIT_1] = tcp_fin_wait_1_in,
+        [TCP_STATE_FIN_WAIT_2] = tcp_fin_wait_2_in,
+        [TCP_STATE_CLOSE_WAIT] = tcp_close_wait_in,
+        [TCP_STATE_CLOSING] = tcp_closing_in,
+        [TCP_STATE_LAST_ACK] = tcp_last_ack_in,
+        [TCP_STATE_TIME_WAIT] = tcp_time_wait_in,
+    };
+
     tcp_header_t* header = (tcp_header_t*)pktbuf_data(buf);
     if (header->checksum != 0)
     {
@@ -55,7 +70,20 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
     tcp_seg_t seg;
     tcp_seg_init(&seg, src_ip, dest_ip, buf);
 
+    tcp_t* tcp = tcp_find(dest_ip, header->dest_port, src_ip, header->src_port);
+    if (tcp == NULL)
+    {
+        dbug_warn(DBG_MOD_TCP, "tcp_input: no matching socket for dest port %d", header->dest_port);
+        tcp_send_reset(&seg);
+        pktbuf_free(buf);
+        return NET_ERR_OK;
+    }
 
-    tcp_send_reset(&seg);
+    net_err_t err = proc_table[tcp->state](tcp, &seg);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_input: state proc failed, err=%d", err);
+        return err;
+    }
     return NET_ERR_OK;
 }

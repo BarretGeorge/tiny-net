@@ -129,6 +129,24 @@ static tcp_t* tcp_get_free(const bool wait)
     return tcp;
 }
 
+tcp_t* tcp_find(const ipaddr_t* local_ip, const uint16_t local_port, const ipaddr_t* remote_ip,
+                const uint16_t remote_port)
+{
+    nlist_node_t* node;
+    nlist_for_each(node, &tcp_list)
+    {
+        tcp_t* tcp = nlist_entry(node, tcp_t, base.node);
+        if (tcp->base.local_port == local_port &&
+            (ipaddr_is_any(&tcp->base.local_ip) || ipaddr_is_equal(&tcp->base.local_ip, local_ip)) &&
+            (ipaddr_is_any(&tcp->base.remote_ip) || ipaddr_is_equal(&tcp->base.remote_ip, remote_ip)) &&
+            (tcp->base.remote_port == 0 || tcp->base.remote_port == remote_port))
+        {
+            return tcp;
+        }
+    }
+    return NULL;
+}
+
 static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
 {
     tcp_t* tcp = tcp_get_free(wait);
