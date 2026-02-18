@@ -5,6 +5,7 @@
 #include "tool.h"
 #include "random.h"
 #include "tcp_out.h"
+#include "tcp_state.h"
 
 static tcp_t tcp_tbl[TCP_MAX_NR];
 
@@ -55,16 +56,23 @@ static uint32_t tcp_get_isn()
     return xoshiro256ss();
 }
 
-static net_err_t tcp_init_connect(tcp_t* tcp)
+static void tcp_init_connect(tcp_t* tcp)
 {
     tcp->send.isn = tcp_get_isn();
     tcp->send.un_ack_seq = tcp->send.next_seq = tcp->send.isn;
     tcp->recv.next_seq = 0;
-    return NET_ERR_OK;
 }
 
 static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
 {
+    tcp_t* tcp = (tcp_t*)sock;
+
+    if (tcp->state != TCP_STATE_CLOSE)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_connect: invalid state %s", tcp_state_name(tcp->state));
+        return NET_ERR_STATE;
+    }
+
     const struct x_sockaddr_in* dest_addr = (const struct x_sockaddr_in*)addr;
 
     ipaddr_from_buf(&sock->remote_ip, dest_addr->sin_addr.addr_array);
@@ -93,16 +101,15 @@ static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_sock
     }
 
     net_err_t err;
-    if ((err = tcp_init_connect((tcp_t*)sock)) != NET_ERR_OK)
-    {
-        dbug_error(DBG_MOD_TCP, "tcp_connect: tcp_init_conn failed");
-        return err;
-    }
-    if ((err = tcp_send_syn((tcp_t*)sock)) != NET_ERR_OK)
+    tcp_init_connect(tcp);
+
+    if ((err = tcp_send_syn(tcp)) != NET_ERR_OK)
     {
         dbug_error(DBG_MOD_TCP, "tcp_connect: tcp_send_syn failed");
         return err;
     }
+    tcp_set_state(tcp, TCP_STATE_SYN_SENT);
+
     return NET_ERR_NEED_WAIT;
 }
 
@@ -131,6 +138,7 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         return NULL;
     }
     plat_memset(tcp, 0, sizeof(tcp_t));
+    tcp_set_state(tcp, TCP_STATE_CLOSE);
 
     static const sock_ops_t tcp_ops = {
         // .sendto = udp_sendto,
