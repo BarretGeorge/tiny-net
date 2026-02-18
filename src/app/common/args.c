@@ -4,23 +4,6 @@
 #include <limits.h>
 #include <stdio.h>
 
-typedef struct args_option_t
-{
-    args_type_t type;
-    const char* long_opt;
-    char short_opt;
-    void* dest;
-
-    union
-    {
-        int int_val;
-        bool bool_val;
-        const char* str_val;
-    } default_value;
-
-    const char* help;
-} args_option_t;
-
 void args_parser_init(args_parser_t* parser, const int argc, char** argv)
 {
     if (parser == NULL)
