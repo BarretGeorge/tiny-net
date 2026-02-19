@@ -80,7 +80,7 @@ net_err_t tcp_transmit(tcp_t* tcp)
     header->flags = 0;
     tcp_set_header_size(header, sizeof(tcp_header_t));
     header->f_syn = tcp->flags.syn_out;
-    header->f_ack = 0;
+    header->f_ack = tcp->flags.irs_valid;
     header->window_size = 1024;
     header->urgent_ptr = 0;
 

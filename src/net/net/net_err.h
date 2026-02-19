@@ -24,6 +24,7 @@ typedef enum net_err_t
     NET_ERR_ADDR_IN_USE = -17, // 地址已被使用
     NET_ERR_IP_UNREACH = -18, // IP不可达
     NET_ERR_STATE = -19, // 状态错误
+    NET_ERR_REST = -20, // 连接被重置
 } net_err_t;
 
 #endif //TINY_NET_NET_ERR_H

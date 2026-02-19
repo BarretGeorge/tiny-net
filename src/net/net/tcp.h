@@ -94,7 +94,8 @@ typedef struct tcp_t
 
     struct
     {
-        uint32_t syn_out : 1;
+        uint32_t syn_out : 1; // 是否发送过SYN报文
+        uint32_t irs_valid : 1; // 是否收到过SYN回复报文
     } flags;
 
     struct
@@ -127,5 +128,9 @@ sock_t* tcp_create(int family, int protocol);
 size_t tcp_header_size(const tcp_header_t* header);
 
 void tcp_set_header_size(tcp_header_t* header, size_t size);
+
+net_err_t tcp_abort(tcp_t* tcp, net_err_t err);
+
+net_err_t tcp_ack_process(tcp_t* tcp, tcp_seg_t* seg);
 
 #endif //TINY_NET_TCP_H
