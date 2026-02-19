@@ -250,16 +250,3 @@ net_err_t tcp_abort(tcp_t* tcp, const net_err_t err)
     sock_wakeup(&tcp->base, SOCK_WAIT_ALL, err);
     return NET_ERR_OK;
 }
-
-net_err_t tcp_ack_process(tcp_t* tcp, tcp_seg_t* seg)
-{
-    tcp_header_t* header = seg->header;
-    if (tcp->flags.syn_out)
-    {
-        tcp->send.un_ack_seq++;
-        tcp->flags.syn_out = 0;
-    }
-    tcp_set_state(tcp, TCP_STATE_SYN_RECEIVED);
-
-    return NET_ERR_OK;
-}
