@@ -99,10 +99,18 @@ net_err_t tcp_send_syn(tcp_t* tcp)
 net_err_t tcp_ack_process(tcp_t* tcp, tcp_seg_t* seg)
 {
     tcp_header_t* header = seg->header;
+
+    // 如果之前发送了SYN报文，并且收到了对方的ACK报文，说明SYN报文已经被确认了，可以将未确认的序列号加1，并清除SYN标志
     if (tcp->flags.syn_out)
     {
         tcp->send.un_ack_seq++;
         tcp->flags.syn_out = 0;
+    }
+
+
+    if (tcp->flags.fin_out && header->ack_num - tcp->send.un_ack_seq > 0)
+    {
+        tcp->flags.fin_out = 0;
     }
     return NET_ERR_OK;
 }

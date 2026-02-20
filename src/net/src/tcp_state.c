@@ -124,13 +124,86 @@ net_err_t tcp_established_in(tcp_t* tcp, tcp_seg_t* seg)
     return err;
 }
 
+void tcp_time_wait(tcp_t* tcp)
+{
+    tcp_set_state(tcp, TCP_STATE_TIME_WAIT);
+}
+
 net_err_t tcp_fin_wait_1_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    tcp_header_t* header = seg->header;
+
+    if (header->f_rst) // 是否是rest报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received RST in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    if (header->f_syn) // 重复收到syn报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received duplicate SYN in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    net_err_t err = NET_ERR_OK;
+    if ((err = tcp_ack_process(tcp, seg)) != NET_ERR_OK) // 处理ACK报文
+    {
+        dbug_warn(DBG_MOD_TCP, "ACK processing failed in ESTABLISHED state");
+        return err;
+    }
+
+    tcp_data_in(tcp, seg);
+
+    if (tcp->flags.fin_out == 0)
+    {
+        if (header->f_fin) // 是否是关闭连接的请求
+        {
+            tcp_time_wait(tcp);
+        }
+        else
+        {
+            tcp_set_state(tcp, TCP_STATE_FIN_WAIT_2);
+        }
+    }
+    else
+    {
+        tcp_set_state(tcp, TCP_STATE_CLOSING);
+    }
+
     return NET_ERR_OK;
 }
 
 net_err_t tcp_fin_wait_2_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    tcp_header_t* header = seg->header;
+
+    if (header->f_rst) // 是否是rest报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received RST in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    if (header->f_syn) // 重复收到syn报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received duplicate SYN in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    net_err_t err = NET_ERR_OK;
+    if ((err = tcp_ack_process(tcp, seg)) != NET_ERR_OK) // 处理ACK报文
+    {
+        dbug_warn(DBG_MOD_TCP, "ACK processing failed in ESTABLISHED state");
+        return err;
+    }
+
+    tcp_data_in(tcp, seg);
+
+    // 是否是关闭连接的请求
+    if (header->f_fin)
+    {
+        tcp_send_ack(tcp, seg);
+        tcp_time_wait(tcp);
+    }
     return NET_ERR_OK;
 }
 
