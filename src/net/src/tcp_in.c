@@ -74,7 +74,8 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
     if (tcp == NULL)
     {
         dbug_warn(DBG_MOD_TCP, "tcp_input: no matching socket for dest port %d", header->dest_port);
-        tcp_send_reset(&seg);
+        tcp_close_in(NULL, &seg);
+        // tcp_send_reset(&seg);
         pktbuf_free(buf);
         return NET_ERR_OK;
     }

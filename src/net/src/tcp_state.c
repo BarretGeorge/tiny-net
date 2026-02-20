@@ -30,6 +30,11 @@ void tcp_set_state(tcp_t* tcp, const tcp_state_t state)
 
 net_err_t tcp_close_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    tcp_header_t* header = seg->header;
+    if (header->f_rst == 0)
+    {
+        tcp_send_reset(seg);
+    }
     return NET_ERR_OK;
 }
 
@@ -214,6 +219,31 @@ net_err_t tcp_close_wait_in(tcp_t* tcp, tcp_seg_t* seg)
 
 net_err_t tcp_closing_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    tcp_header_t* header = seg->header;
+    if (header->f_rst) // 是否是rest报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received RST in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    if (header->f_syn) // 重复收到syn报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received duplicate SYN in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    net_err_t err = NET_ERR_OK;
+    if ((err = tcp_ack_process(tcp, seg)) != NET_ERR_OK) // 处理ACK报文
+    {
+        dbug_warn(DBG_MOD_TCP, "ACK processing failed in ESTABLISHED state");
+        return err;
+    }
+
+    if (tcp->flags.fin_out == 0)
+    {
+        tcp_time_wait(tcp);
+    }
+
     return NET_ERR_OK;
 }
 
@@ -244,5 +274,25 @@ net_err_t tcp_last_ack_in(tcp_t* tcp, tcp_seg_t* seg)
 
 net_err_t tcp_time_wait_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    tcp_header_t* header = seg->header;
+    if (header->f_rst) // 是否是rest报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received RST in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    if (header->f_syn) // 重复收到syn报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received duplicate SYN in ESTABLISHED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    net_err_t err = NET_ERR_OK;
+    if ((err = tcp_ack_process(tcp, seg)) != NET_ERR_OK) // 处理ACK报文
+    {
+        dbug_warn(DBG_MOD_TCP, "ACK processing failed in ESTABLISHED state");
+        return err;
+    }
+
     return NET_ERR_OK;
 }
