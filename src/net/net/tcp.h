@@ -71,6 +71,7 @@ typedef struct tcp_seg_t
 
 typedef enum tcp_state_t
 {
+    TCP_STATE_FREE = 0,
     TCP_STATE_CLOSE,
     TCP_STATE_LISTEN,
     TCP_STATE_SYN_SENT,
@@ -95,6 +96,7 @@ typedef struct tcp_t
     struct
     {
         uint32_t syn_out : 1; // 是否发送过SYN报文
+        uint32_t fin_out : 1; // 是否发送过FIN报文
         uint32_t irs_valid : 1; // 是否收到过SYN回复报文
     } flags;
 

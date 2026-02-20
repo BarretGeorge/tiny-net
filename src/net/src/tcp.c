@@ -113,8 +113,36 @@ static net_err_t tcp_connect(sock_t* sock, const struct x_sockaddr* addr, x_sock
     return NET_ERR_NEED_WAIT;
 }
 
+void tcp_free(tcp_t* tcp)
+{
+    sock_wait_destroy(&tcp->conn.wait);
+    sock_wait_destroy(&tcp->send.wait);
+    sock_wait_destroy(&tcp->recv.wait);
+
+    tcp->state = TCP_STATE_FREE;
+    nlist_remove(&tcp_list, &tcp->base.node);
+    mblock_free(&tcp_mblock, tcp);
+}
+
 static net_err_t tcp_close(sock_t* sock)
 {
+    tcp_t* tcp = (tcp_t*)sock;
+    switch (tcp->state)
+    {
+    case TCP_STATE_CLOSE:
+        tcp_free(tcp);
+        return NET_ERR_OK;
+    case TCP_STATE_SYN_SENT:
+        break;
+    case TCP_STATE_SYN_RECEIVED:
+        break;
+    case TCP_STATE_CLOSE_WAIT:
+        tcp_send_fin(tcp);
+        tcp_set_state(tcp, TCP_STATE_LAST_ACK);
+        return NET_ERR_NEED_WAIT;
+    default:
+        break;
+    }
     return NET_ERR_OK;
 }
 

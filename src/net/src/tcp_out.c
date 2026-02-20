@@ -81,6 +81,7 @@ net_err_t tcp_transmit(tcp_t* tcp)
     tcp_set_header_size(header, sizeof(tcp_header_t));
     header->f_syn = tcp->flags.syn_out;
     header->f_ack = tcp->flags.irs_valid;
+    header->f_fin = tcp->flags.fin_out;
     header->window_size = 1024;
     header->urgent_ptr = 0;
 
@@ -129,4 +130,11 @@ net_err_t tcp_send_ack(tcp_t* tcp, tcp_seg_t* seg)
     header->urgent_ptr = 0;
 
     return send_out(header, buf, &tcp->base.remote_ip, &tcp->base.local_ip);
+}
+
+net_err_t tcp_send_fin(tcp_t* tcp)
+{
+    tcp->flags.fin_out = 1;
+    tcp_transmit(tcp);
+    return NET_ERR_OK;
 }
