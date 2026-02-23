@@ -141,10 +141,19 @@ net_err_t tcp_ack_process(tcp_t* tcp, tcp_seg_t* seg)
         tcp->flags.syn_out = 0;
     }
 
-
-    if (tcp->flags.fin_out && header->ack_num - tcp->send.un_ack_seq > 0)
+    int ack_count = (int)header->ack_num - (int)tcp->send.un_ack_seq;
+    int un_ack_count = (int)tcp->send.next_seq - (int)tcp->send.un_ack_seq;
+    int clamped_ack_count = ack_count < un_ack_count ? ack_count : un_ack_count;
+    if (clamped_ack_count > 0)
     {
-        tcp->flags.fin_out = 0;
+        sock_wakeup(&tcp->base, SOCK_WAIT_WRITE, NET_ERR_OK);
+        tcp->send.un_ack_seq += clamped_ack_count;
+
+        clamped_ack_count -= tcp_buf_remove(&tcp->send.buf, clamped_ack_count);
+        if (tcp->flags.fin_out && clamped_ack_count > 0)
+        {
+            tcp->flags.fin_out = 0;
+        }
     }
     return NET_ERR_OK;
 }

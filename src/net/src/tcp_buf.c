@@ -29,7 +29,7 @@ void tcp_buf_read(tcp_buf_t* buf, uint8_t* data, int len)
 {
 }
 
-void tcp_buf_read_send(const tcp_buf_t* buf, pktbuf_t* dest, int offset, int size)
+void tcp_buf_read_send(const tcp_buf_t* buf, pktbuf_t* dest, const int offset, int size)
 {
     // 超过要求的数据量，进行调整
     int free_for_us = buf->count - offset; // 跳过offset之前的数据
@@ -71,4 +71,19 @@ void tcp_buf_read_send(const tcp_buf_t* buf, pktbuf_t* dest, int offset, int siz
         }
         size -= copy_size;
     }
+}
+
+int tcp_buf_remove(tcp_buf_t* buf, int len)
+{
+    if (len > buf->count)
+    {
+        len = buf->count;
+    }
+    buf->out += len;
+    if (buf->out >= buf->size)
+    {
+        buf->out -= buf->size;
+    }
+    buf->count -= len;
+    return len;
 }
