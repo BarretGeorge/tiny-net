@@ -118,7 +118,11 @@ void tcp_free(tcp_t* tcp)
     sock_wait_destroy(&tcp->conn.wait);
     sock_wait_destroy(&tcp->send.wait);
     sock_wait_destroy(&tcp->recv.wait);
-
+    if (tcp->send.data)
+    {
+        free(tcp->send.data);
+        tcp->send.data = NULL;
+    }
     tcp->state = TCP_STATE_FREE;
     nlist_remove(&tcp_list, &tcp->base.node);
     mblock_free(&tcp_mblock, tcp);
@@ -133,7 +137,6 @@ static net_err_t tcp_close(sock_t* sock)
         tcp_free(tcp);
         return NET_ERR_OK;
     case TCP_STATE_SYN_SENT:
-        break;
     case TCP_STATE_SYN_RECEIVED:
         break;
     case TCP_STATE_CLOSE_WAIT:
@@ -148,6 +151,23 @@ static net_err_t tcp_close(sock_t* sock)
 
     default:
         break;
+    }
+    return NET_ERR_OK;
+}
+
+static net_err_t tcp_send(sock_t* sock, const uint8_t* buf, const size_t len, const int flags, ssize_t* sent_size)
+{
+    tcp_t* tcp = (tcp_t*)sock;
+    switch (tcp->state)
+    {
+    case TCP_STATE_CLOSE:
+        return NET_ERR_CLOSE;
+    case TCP_STATE_ESTABLISHED:
+
+        break;
+    default:
+        dbug_error(DBG_MOD_TCP, "tcp_send: invalid state %s", tcp_state_name(tcp->state));
+        return NET_ERR_STATE;
     }
     return NET_ERR_OK;
 }
@@ -190,23 +210,16 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         return NULL;
     }
 
-    // 释放上一次分配的发送数据缓冲区
-    if (tcp->send.data)
-    {
-        free(tcp->send.data);
-        tcp->send.data = NULL;
-    }
-
     plat_memset(tcp, 0, sizeof(tcp_t));
     tcp_set_state(tcp, TCP_STATE_CLOSE);
 
     static const sock_ops_t tcp_ops = {
-        // .sendto = udp_sendto,
+        .send = tcp_send,
+        //.sendto = udp_sendto,
         // .recvfrom = udp_recvfrom,
         // .setopt = sock_setopt,
         .close = tcp_close,
         .connect = tcp_connect,
-        // .send = sock_send,
         // .recv = sock_recv,
         // .bind = udp_bind,
     };

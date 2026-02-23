@@ -6,7 +6,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description="TCP Client")
-    parser.add_argument("-s", "--server", default="192.168.3.95", help="服务器地址 (默认: 192.168.3.95)")
+    parser.add_argument("-s", "--server", default="192.168.1.8", help="服务器地址 (默认: 192.168.1.8)")
     parser.add_argument("-p", "--port", type=int, default=9999, help="服务器端口 (默认: 9999)")
     args = parser.parse_args()
 
