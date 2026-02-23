@@ -31,6 +31,12 @@
 #undef SO_SNDTIMEO
 #define SO_SNDTIMEO        2
 
+#undef SO_SNDBUF
+#define SO_SNDBUF          3
+
+#undef SO_RCVBUF
+#define SO_RCVBUF          4
+
 #undef IPPROTO_UDP
 #define IPPROTO_UDP        17
 

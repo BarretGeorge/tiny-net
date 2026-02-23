@@ -2,6 +2,7 @@
 #define TINY_NET_TCP_H
 
 #include "sock.h"
+#include "tcp_buf.h"
 
 #pragma pack(1)
 typedef struct tcp_header_t
@@ -107,6 +108,8 @@ typedef struct tcp_t
 
     struct
     {
+        tcp_buf_t buf; // 发送缓冲区
+        uint8_t* data; // 发送数据缓冲区
         uint32_t next_seq; // 下一个要发送的序列号
         uint32_t un_ack_seq; // 最后一个未确认的序列号
         uint32_t isn; // 初始序列号

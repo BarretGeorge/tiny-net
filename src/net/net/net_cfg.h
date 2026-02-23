@@ -101,4 +101,7 @@
 // 动态端口范围结束
 #define NET_PORT_DYN_END 65535
 
+// TCP发送缓冲区大小
+#define TCP_SEND_BUF_SIZE 1024
+
 #endif //TINY_NET_NET_CFG_H

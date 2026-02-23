@@ -402,6 +402,30 @@ net_err_t sock_setopt(sock_t* sock, int level, int opt_name, const void* opt_val
         x_timeval stv = *(const x_timeval*)opt_val;
         sock->send_timeout = (stv.tv_sec * 1000) + (stv.tv_usec / 1000);
         break;
+    case SO_SNDBUF:
+        if (opt_len != sizeof(int))
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        int sndbuf = *(const int*)opt_val;
+        if (sndbuf < 0 || sndbuf > 1024 * 1024 * 1024) // 限制最大缓冲区大小为1GB
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        sock->send_buf_size = sndbuf;
+        break;
+    case SO_RCVBUF:
+        if (opt_len != sizeof(int))
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        int rcvbuf = *(const int*)opt_val;
+        if (rcvbuf < 0 || rcvbuf > 1024 * 1024 * 1024) // 限制最大缓冲区大小为1GB
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        sock->recv_buf_size = rcvbuf;
+        break;
     default:
         return NET_ERR_OPTION;
     }

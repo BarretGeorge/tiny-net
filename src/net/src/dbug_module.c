@@ -27,7 +27,7 @@ static const char* module_names[DBG_MOD_COUNT] = {
     "COMMON"     /* DBG_MOD_COMMON = 16 */
 };
 
-const char* dbug_module_name(dbug_module_t module)
+const char* dbug_module_name(const dbug_module_t module)
 {
     if (module >= 0 && module < DBG_MOD_COUNT)
     {
@@ -36,7 +36,7 @@ const char* dbug_module_name(dbug_module_t module)
     return "UNKNOWN";
 }
 
-void dbug_module_enable(dbug_module_t module)
+void dbug_module_enable(const dbug_module_t module)
 {
     if (module >= 0 && module < DBG_MOD_COUNT)
     {
@@ -44,7 +44,7 @@ void dbug_module_enable(dbug_module_t module)
     }
 }
 
-void dbug_module_disable(dbug_module_t module)
+void dbug_module_disable(const dbug_module_t module)
 {
     if (module >= 0 && module < DBG_MOD_COUNT)
     {
@@ -52,7 +52,7 @@ void dbug_module_disable(dbug_module_t module)
     }
 }
 
-int dbug_module_is_enabled(dbug_module_t module)
+int dbug_module_is_enabled(const dbug_module_t module)
 {
     if (module >= 0 && module < DBG_MOD_COUNT)
     {

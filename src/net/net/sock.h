@@ -64,6 +64,8 @@ typedef struct sock_t
     net_err_t err;
     int recv_timeout;
     int send_timeout;
+    int send_buf_size;
+    int recv_buf_size;
 
     sock_wait_t* recv_wait;
     sock_wait_t* send_wait;

@@ -189,6 +189,14 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         dbug_error(DBG_MOD_TCP, "tcp_create: no memory for tcp");
         return NULL;
     }
+
+    // 释放上一次分配的发送数据缓冲区
+    if (tcp->send.data)
+    {
+        free(tcp->send.data);
+        tcp->send.data = NULL;
+    }
+
     plat_memset(tcp, 0, sizeof(tcp_t));
     tcp_set_state(tcp, TCP_STATE_CLOSE);
 
@@ -230,6 +238,15 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         goto create_fail;
     }
     tcp->base.recv_wait = &tcp->recv.wait;
+
+    // 初始化发送缓冲区
+    if (tcp->base.send_buf_size == 0)
+    {
+        tcp->base.send_buf_size = TCP_SEND_BUF_SIZE;
+    }
+
+    tcp->send.data = (uint8_t*)malloc(tcp->base.send_buf_size);
+    tcp_buf_init(&tcp->send.buf, tcp->send.data, tcp->base.send_buf_size);
 
     return tcp;
 
