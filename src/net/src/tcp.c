@@ -272,7 +272,6 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
 
 create_fail:
     sock_free(&tcp->base);
-    mblock_free(&tcp_mblock, tcp);
     if (tcp->base.conn_wait)
     {
         sock_wait_destroy(tcp->base.conn_wait);
@@ -285,6 +284,7 @@ create_fail:
     {
         sock_wait_destroy(tcp->base.recv_wait);
     }
+    mblock_free(&tcp_mblock, tcp);
     return NULL;
 }
 

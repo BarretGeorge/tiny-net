@@ -86,6 +86,7 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
         dbug_error(DBG_MOD_TCP, "tcp_input: state proc failed, err=%d", err);
         return err;
     }
+    pktbuf_free(buf);
     return NET_ERR_OK;
 }
 
