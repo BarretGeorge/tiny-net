@@ -63,10 +63,10 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
     }
 
     tcp_header_t* out = (tcp_header_t*)pktbuf_data(buf);
-    out->src_port = x_htons(in->dest_port);
-    out->dest_port = x_htons(in->src_port);
+    out->src_port = in->dest_port;
+    out->dest_port = in->src_port;
     out->seq_num = 0;
-    out->ack_num = x_htonl(seg->seq + seg->seq_len);
+    out->ack_num = seg->seq + seg->seq_len;
     out->flags = 0;
     out->f_rst = 1;
     out->window_size = 0;

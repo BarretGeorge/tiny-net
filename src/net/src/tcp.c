@@ -34,8 +34,8 @@ static uint16_t tcp_alloc_port()
         nlist_node_t* node;
         nlist_for_each(node, &tcp_list)
         {
-            tcp_t* udp = nlist_entry(node, tcp_t, base.node);
-            if (udp->base.local_port == port)
+            tcp_t* tcp = nlist_entry(node, tcp_t, base.node);
+            if (tcp->base.local_port == port)
             {
                 port_in_use = true;
                 break;
