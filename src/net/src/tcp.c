@@ -163,13 +163,18 @@ static net_err_t tcp_send(sock_t* sock, const uint8_t* buf, const size_t len, co
     case TCP_STATE_CLOSE:
         return NET_ERR_CLOSE;
     case TCP_STATE_ESTABLISHED:
-
-        break;
+        int n = tcp_write_send_buf(tcp, buf, len);
+        if (n <= 0)
+        {
+            *sent_size = 0;
+            return NET_ERR_NEED_WAIT;
+        }
+        *sent_size = (ssize_t)n;
+        return NET_ERR_OK;
     default:
         dbug_error(DBG_MOD_TCP, "tcp_send: invalid state %s", tcp_state_name(tcp->state));
         return NET_ERR_STATE;
     }
-    return NET_ERR_OK;
 }
 
 static tcp_t* tcp_get_free(const bool wait)

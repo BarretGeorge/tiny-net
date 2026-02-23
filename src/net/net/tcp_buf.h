@@ -28,4 +28,8 @@ inline int tcp_buf_available(const tcp_buf_t* buf)
     return buf->size - buf->count;
 }
 
+void tcp_buf_write(tcp_buf_t* buf, const uint8_t* data, int len);
+
+void tcp_buf_read(tcp_buf_t* buf, uint8_t* data, int len);
+
 #endif //TINY_NET_TCP_BUF_H

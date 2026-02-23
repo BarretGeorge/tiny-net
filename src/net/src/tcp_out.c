@@ -146,3 +146,15 @@ net_err_t tcp_send_fin(tcp_t* tcp)
     tcp_transmit(tcp);
     return NET_ERR_OK;
 }
+
+int tcp_write_send_buf(tcp_t* tcp, const uint8_t* buf, const size_t len)
+{
+    int available = tcp_buf_available(&tcp->send.buf);
+    if (available <= 0)
+    {
+        return 0;
+    }
+    int write_len = len < available ? (int)len : available;
+    tcp_buf_write(&tcp->send.buf, buf, write_len);
+    return write_len;
+}
