@@ -1,6 +1,8 @@
 #ifndef TINY_NET_TCP_BUF_H
 #define TINY_NET_TCP_BUF_H
+
 #include <stdint.h>
+#include "pktbuf.h"
 
 typedef struct tcp_buf_t
 {
@@ -31,5 +33,7 @@ inline int tcp_buf_available(const tcp_buf_t* buf)
 void tcp_buf_write(tcp_buf_t* buf, const uint8_t* data, int len);
 
 void tcp_buf_read(tcp_buf_t* buf, uint8_t* data, int len);
+
+void tcp_buf_read_send(const tcp_buf_t* buf, pktbuf_t* dest, int offset, int size);
 
 #endif //TINY_NET_TCP_BUF_H

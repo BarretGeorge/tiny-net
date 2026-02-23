@@ -25,6 +25,32 @@ static net_err_t send_out(tcp_header_t* out, pktbuf_t* buf, const ipaddr_t* remo
     return NET_ERR_OK;
 }
 
+static int copy_send_data(const tcp_t* tcp, pktbuf_t* buf, int data_offset, int data_len)
+{
+    if (data_len == 0)
+    {
+        return 0;
+    }
+    net_err_t err = pktbuf_resize(buf, (int)sizeof(tcp_header_t) + data_len);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "copy_send_data: pktbuf_resize failed, err=%d", err);
+        return -1;
+    }
+    tcp_header_t* header = (tcp_header_t*)pktbuf_data(buf);
+    pktbuf_reset_access(buf);
+    pktbuf_seek(buf, (int)tcp_header_size(header));
+
+    tcp_buf_read_send(&tcp->send.buf, buf, data_offset, data_len);
+    return data_len;
+}
+
+static void get_send_info(const tcp_t* tcp, int* data_offset, int* data_len)
+{
+    *data_offset = (int)tcp->send.next_seq - (int)tcp->send.un_ack_seq;
+    *data_len = tcp_buf_count(&tcp->send.buf) - *data_offset;
+}
+
 net_err_t tcp_send_reset(const tcp_seg_t* seg)
 {
     tcp_header_t* in = seg->header;
@@ -85,7 +111,15 @@ net_err_t tcp_transmit(tcp_t* tcp)
     header->window_size = 1024;
     header->urgent_ptr = 0;
 
-    tcp->send.next_seq += header->f_syn + header->f_fin;
+    int data_len, data_offset;
+    get_send_info(tcp, &data_offset, &data_len);
+    if (data_len < 0)
+    {
+        return NET_ERR_OK;
+    }
+    copy_send_data(tcp, buf, data_offset, data_len);
+
+    tcp->send.next_seq += header->f_syn + header->f_fin + data_len;
     return send_out(header, buf, &tcp->base.remote_ip, &tcp->base.local_ip);
 }
 
