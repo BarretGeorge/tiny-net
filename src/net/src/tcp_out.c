@@ -96,6 +96,19 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
 
 net_err_t tcp_transmit(tcp_t* tcp)
 {
+    int data_len, data_offset;
+    get_send_info(tcp, &data_offset, &data_len);
+    if (data_len < 0)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_transmit: invalid send buffer state");
+        return NET_ERR_OK;
+    }
+
+    if (data_len == 0 && tcp->flags.syn_out == 0 && tcp->flags.fin_out == 0)
+    {
+        return NET_ERR_OK; // 没有数据需要发送
+    }
+
     pktbuf_t* buf = pktbuf_alloc(sizeof(tcp_header_t));
     if (buf == NULL)
     {
@@ -112,18 +125,17 @@ net_err_t tcp_transmit(tcp_t* tcp)
     tcp_set_header_size(header, sizeof(tcp_header_t));
     header->f_syn = tcp->flags.syn_out;
     header->f_ack = tcp->flags.irs_valid;
-    header->f_fin = tcp->flags.fin_out;
+    if (tcp_buf_count(&tcp->send.buf) == 0)
+    {
+        header->f_fin = tcp->flags.fin_out;
+    }
+    else
+    {
+        header->f_fin = 0;
+    }
     header->window_size = 1024;
     header->urgent_ptr = 0;
 
-    int data_len, data_offset;
-    get_send_info(tcp, &data_offset, &data_len);
-    if (data_len < 0)
-    {
-        pktbuf_free(buf);
-        dbug_error(DBG_MOD_TCP, "tcp_transmit: invalid send buffer state");
-        return NET_ERR_OK;
-    }
     copy_send_data(tcp, buf, data_offset, data_len);
 
     tcp->send.next_seq += header->f_syn + header->f_fin + data_len;

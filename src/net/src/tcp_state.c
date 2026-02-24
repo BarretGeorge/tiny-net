@@ -122,7 +122,11 @@ net_err_t tcp_established_in(tcp_t* tcp, tcp_seg_t* seg)
         return err;
     }
 
+    // 处理数据
     tcp_data_in(tcp, seg);
+
+    // 有没有数据需要发送
+    tcp_transmit(tcp);
 
     // 是否是关闭连接的请求
     if (header->f_fin)
@@ -162,6 +166,8 @@ net_err_t tcp_fin_wait_1_in(tcp_t* tcp, tcp_seg_t* seg)
 
     tcp_data_in(tcp, seg);
 
+    tcp_transmit(tcp);
+
     if (tcp->flags.fin_out == 0)
     {
         if (header->f_fin) // 是否是关闭连接的请求
@@ -173,7 +179,7 @@ net_err_t tcp_fin_wait_1_in(tcp_t* tcp, tcp_seg_t* seg)
             tcp_set_state(tcp, TCP_STATE_FIN_WAIT_2);
         }
     }
-    else
+    else if (header->f_fin == 1)
     {
         tcp_set_state(tcp, TCP_STATE_CLOSING);
     }
@@ -242,6 +248,8 @@ net_err_t tcp_closing_in(tcp_t* tcp, tcp_seg_t* seg)
         return err;
     }
 
+    tcp_transmit(tcp);
+
     if (tcp->flags.fin_out == 0)
     {
         tcp_time_wait(tcp);
@@ -272,7 +280,14 @@ net_err_t tcp_last_ack_in(tcp_t* tcp, tcp_seg_t* seg)
         return err;
     }
 
-    return tcp_abort(tcp, NET_ERR_CLOSE);
+    tcp_transmit(tcp);
+
+    if (tcp->flags.fin_out == 0)
+    {
+        return tcp_abort(tcp, NET_ERR_CLOSE);
+    }
+
+    return NET_ERR_OK;
 }
 
 net_err_t tcp_time_wait_in(tcp_t* tcp, tcp_seg_t* seg)
@@ -296,6 +311,8 @@ net_err_t tcp_time_wait_in(tcp_t* tcp, tcp_seg_t* seg)
         dbug_warn(DBG_MOD_TCP, "ACK processing failed in ESTABLISHED state");
         return err;
     }
+
+    tcp_transmit(tcp);
 
     return NET_ERR_OK;
 }
