@@ -4,6 +4,24 @@
 #include "sock.h"
 #include "tcp_buf.h"
 
+typedef enum tcp_option_kind_t
+{
+    TCP_OPTION_END = 0, // 选项结束
+    TCP_OPTION_NOP = 1, // 无操作
+    TCP_OPTION_MSS = 2, // 最大报文段长度
+    TCP_OPTION_WINDOW_SCALE = 3, // 窗口扩大因子
+    TCP_OPTION_SACK_PERMITTED = 4, // SACK允许
+    TCP_OPTION_SACK = 5, // SACK
+    TCP_OPTION_TIMESTAMP = 8, // 时间戳
+} tcp_option_kind_t;
+
+typedef struct tcp_option_mss_t
+{
+    uint8_t kind; // 选项类型
+    uint8_t length; // 选项长度
+    uint16_t mss; // 最大报文段长度
+} tcp_option_mss_t;
+
 #pragma pack(1)
 typedef struct tcp_header_t
 {
@@ -92,7 +110,9 @@ typedef struct tcp_t
 {
     sock_t base;
 
-    tcp_state_t state;
+    tcp_state_t state; // TCP连接状态
+
+    int mss; // 最大报文段长度
 
     struct
     {
@@ -135,5 +155,7 @@ size_t tcp_header_size(const tcp_header_t* header);
 void tcp_set_header_size(tcp_header_t* header, size_t size);
 
 net_err_t tcp_abort(tcp_t* tcp, net_err_t err);
+
+void tcp_read_options(tcp_t* tcp, tcp_header_t* header);
 
 #endif //TINY_NET_TCP_H

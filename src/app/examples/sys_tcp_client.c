@@ -1,12 +1,11 @@
-#include "common.h"
-#include "net_api.h"
-#include "dbug_module.h"
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 int main()
 {
-    dbug_module_enable_only(DBG_MOD_TCP);
-    tiny_net_init();
-
     int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0)
     {
@@ -17,7 +16,7 @@ int main()
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(9999);
-    server_addr.sin_addr.s_addr = inet_addr("192.168.56.3");
+    server_addr.sin_addr.s_addr = inet_addr("192.168.100.120");
 
     if (connect(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {

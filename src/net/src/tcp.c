@@ -321,3 +321,35 @@ net_err_t tcp_abort(tcp_t* tcp, const net_err_t err)
     sock_wakeup(&tcp->base, SOCK_WAIT_ALL, err);
     return NET_ERR_OK;
 }
+
+void tcp_read_options(tcp_t* tcp, tcp_header_t* header)
+{
+    uint8_t* options = (uint8_t*)(header) + sizeof(tcp_header_t);
+    uint8_t* options_end = (uint8_t*)(header) + tcp_header_size(header);
+
+    if (options >= options_end)
+    {
+        return; // 没有选项
+    }
+    tcp_option_mss_t* mss_option = NULL;
+
+    while (options < options_end)
+    {
+        uint8_t kind = *options;
+
+        switch (kind)
+        {
+        case TCP_OPTION_END: // 选项结束
+            return;
+        case TCP_OPTION_NOP: // NOP，无操作
+            break;
+        case TCP_OPTION_MSS: // MSS，最大报文段长度
+            mss_option = (tcp_option_mss_t*)options;
+            tcp->mss = x_ntohs(mss_option->mss);
+            break;
+        default:
+            break;
+        }
+        options += kind == TCP_OPTION_NOP ? 1 : options[1]; // NOP选项长度为1，其他选项长度由第二个字节指定
+    }
+}

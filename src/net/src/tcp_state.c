@@ -71,6 +71,8 @@ net_err_t tcp_syn_sent_in(tcp_t* tcp, tcp_seg_t* seg)
         tcp->recv.next_seq = header->seq_num + 1;
         tcp->flags.irs_valid = 1;
 
+        tcp_read_options(tcp, header);
+
         if (header->ack_num)
         {
             tcp_ack_process(tcp, seg);
