@@ -189,7 +189,11 @@ net_err_t socket_close_req_in(const func_msg_t* msg)
     {
         err = s->sock->ops->close(s->sock);
     }
-    // sock_free(s->sock);
+
+    if (err == NET_ERR_NEED_WAIT && s->sock->conn_wait)
+    {
+        sock_wait_add(s->sock->conn_wait, s->sock->recv_timeout, req);
+    }
     socket_free(s);
     return err;
 }

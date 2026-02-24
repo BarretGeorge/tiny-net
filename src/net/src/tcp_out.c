@@ -100,7 +100,6 @@ net_err_t tcp_transmit(tcp_t* tcp)
     get_send_info(tcp, &data_offset, &data_len);
     if (data_len < 0)
     {
-        dbug_error(DBG_MOD_TCP, "tcp_transmit: invalid send buffer state");
         return NET_ERR_OK;
     }
 
