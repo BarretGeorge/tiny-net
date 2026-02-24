@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "ping/ping.h"
 #include "args.h"
 #include "common.h"
@@ -13,9 +12,8 @@ int main(const int argc, char** argv)
 
     bool show_help;
     int count, interval, timeout, size;
-    const char* host = "192.168.100.123";
-    // const char* host = "192.168.56.3";
-    // const char* host = "8.8.8.8";
+    const char* host = "192.168.100.120";
+    //const char* host = "8.8.8.8";
 
     args_register_bool(&parser, "help", 'h', &show_help, false, "Show this help message");
     args_register_int(&parser, "count", 'c', &count, 4, "Number of pings to send");

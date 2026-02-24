@@ -17,7 +17,7 @@ int main()
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(9999);
-    server_addr.sin_addr.s_addr = inet_addr("192.168.56.3");
+    server_addr.sin_addr.s_addr = inet_addr("192.168.56.4");
 
     if (connect(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
@@ -43,6 +43,10 @@ int main()
         }
         printf("发送消息到服务器: %s\n", buffer);
     }
+
+    close(fd);
+    return 0;
+
 
     ssize_t recv_size = recv(fd, buffer, sizeof(buffer) - 1, 0);
     if (recv_size < 0)

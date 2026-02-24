@@ -259,6 +259,17 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
     }
     tcp->base.recv_wait = &tcp->recv.wait;
 
+    // 是否是间接交付
+    route_entry_t* route = find_route_entry(&tcp->base.remote_ip);
+    if (route == NULL || route->netif->mtu == 0 || !ipaddr_is_any(&route->next_hop))
+    {
+        tcp->mss = TCP_DEFAULT_MSS; // RFC1122, 加上IP和TCP头，总共576字节
+    }
+    else
+    {
+        tcp->mss = route->netif->mtu - (int)sizeof(ipv4_header_t) - (int)sizeof(tcp_header_t);
+    }
+
     // 初始化发送缓冲区
     if (tcp->base.send_buf_size == 0)
     {
@@ -345,7 +356,11 @@ void tcp_read_options(tcp_t* tcp, tcp_header_t* header)
             break;
         case TCP_OPTION_MSS: // MSS，最大报文段长度
             mss_option = (tcp_option_mss_t*)options;
-            tcp->mss = x_ntohs(mss_option->mss);
+            uint16_t mss = x_ntohs(mss_option->mss);
+            if (mss < tcp->mss || tcp->mss == 0)
+            {
+                tcp->mss = mss;
+            }
             break;
         default:
             break;

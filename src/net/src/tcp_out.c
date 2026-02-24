@@ -49,6 +49,11 @@ static void get_send_info(const tcp_t* tcp, int* data_offset, int* data_len)
 {
     *data_offset = (int)tcp->send.next_seq - (int)tcp->send.un_ack_seq;
     *data_len = tcp_buf_count(&tcp->send.buf) - *data_offset;
+
+    if (*data_len > tcp->mss)
+    {
+        *data_len = tcp->mss;
+    }
 }
 
 net_err_t tcp_send_reset(const tcp_seg_t* seg)

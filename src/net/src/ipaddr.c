@@ -125,6 +125,7 @@ void ipaddr_to_str(const ipaddr_t* ip, char* buf, const int buf_len)
 
 void ipaddr_from_buf(ipaddr_t* dest, const uint8_t* buf)
 {
+    dest->type = IPADDR_TYPE_V4;
     dest->a_addr[0] = buf[0];
     dest->a_addr[1] = buf[1];
     dest->a_addr[2] = buf[2];
