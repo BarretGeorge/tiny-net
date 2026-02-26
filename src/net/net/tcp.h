@@ -138,6 +138,8 @@ typedef struct tcp_t
 
     struct
     {
+        tcp_buf_t buf; // 接收缓冲区
+        uint8_t* data; // 接收数据缓冲区
         uint32_t next_seq; // 下一个要接收的序列号
         uint32_t isn; // 初始序列号
         sock_wait_t wait;

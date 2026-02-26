@@ -2,7 +2,7 @@
 
 #include "dbug.h"
 
-void tcp_buf_init(tcp_buf_t* buf, uint8_t* data, int size)
+void tcp_buf_init(tcp_buf_t* buf, uint8_t* data, const int size)
 {
     buf->data = data;
     buf->size = size;
@@ -11,10 +11,11 @@ void tcp_buf_init(tcp_buf_t* buf, uint8_t* data, int size)
     buf->out = 0;
 }
 
-void tcp_buf_write(tcp_buf_t* buf, const uint8_t* data, int len)
+void tcp_buf_write_send(tcp_buf_t* buf, const uint8_t* data, int len)
 {
     while (len > 0)
     {
+        // todo 优化为块拷贝，减少循环次数
         buf->data[buf->in++] = *data++;
         if (buf->in >= buf->size)
         {
@@ -23,10 +24,6 @@ void tcp_buf_write(tcp_buf_t* buf, const uint8_t* data, int len)
         buf->count++;
         len--;
     }
-}
-
-void tcp_buf_read(tcp_buf_t* buf, uint8_t* data, int len)
-{
 }
 
 void tcp_buf_read_send(const tcp_buf_t* buf, pktbuf_t* dest, const int offset, int size)
@@ -86,4 +83,69 @@ int tcp_buf_remove(tcp_buf_t* buf, int len)
     }
     buf->count -= len;
     return len;
+}
+
+int tcp_buf_write_recv(tcp_buf_t* dest, const int offset, pktbuf_t* pkt, int len)
+{
+    // 计算缓冲区中的起始索引，注意回绕
+    int start = dest->in + offset;
+    if (start >= dest->size)
+    {
+        start = start - dest->size;
+    }
+
+    // 计算实际可写的数据量
+    int free_size = tcp_buf_available(dest) - offset; // 跳过的一部分相当于是已经被写入了
+    len = len > free_size ? free_size : len;
+
+    int size = len;
+    while (size > 0)
+    {
+        // 从start到缓存末端的单元数量，可能其中有数据也可能没有
+        int free_to_end = dest->size - start;
+
+        // 大小超过到尾部的空闲数据量，只拷贝一部分
+        int curr_copy = size > free_to_end ? free_to_end : size;
+        pktbuf_read(pkt, dest->data + start, (int)curr_copy);
+
+        // 增加写索引，注意回绕
+        start += curr_copy;
+        if (start >= dest->size)
+        {
+            start = start - dest->size;
+        }
+
+        // 增加已写入的数据量
+        dest->count += curr_copy;
+        size -= curr_copy;
+    }
+
+    dest->in = start;
+    return len;
+}
+
+int tcp_buf_read_recv(tcp_buf_t* src, uint8_t* buf, const int len)
+{
+    // 选实际能读取的量
+    int total = len > src->count ? src->count : len;
+
+    // 逐字节拷贝，慢一点但好理解
+    // todo 优化为块拷贝，减少循环次数
+    int curr_size = 0;
+    while (curr_size < total)
+    {
+        // 拷贝数据，位置前移
+        *buf++ = src->data[src->out++];
+
+        // 注意回绕
+        if (src->out >= src->size)
+        {
+            src->out = 0;
+        }
+
+        // 调整字字量
+        src->count--;
+        curr_size++;
+    }
+    return total;
 }

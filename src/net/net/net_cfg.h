@@ -104,6 +104,9 @@
 // TCP发送缓冲区大小
 #define TCP_SEND_BUF_SIZE 4096
 
+// TCP接收缓冲区大小
+#define TCP_RECV_BUF_SIZE 4096
+
 // TCP默认最大报文段长度
 #define TCP_DEFAULT_MSS 536
 

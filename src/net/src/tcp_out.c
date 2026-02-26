@@ -216,6 +216,6 @@ int tcp_write_send_buf(tcp_t* tcp, const uint8_t* buf, const size_t len)
         return 0;
     }
     int write_len = len < available ? (int)len : available;
-    tcp_buf_write(&tcp->send.buf, buf, write_len);
+    tcp_buf_write_send(&tcp->send.buf, buf, write_len);
     return write_len;
 }

@@ -123,6 +123,11 @@ void tcp_free(tcp_t* tcp)
         free(tcp->send.data);
         tcp->send.data = NULL;
     }
+    if (tcp->recv.data)
+    {
+        free(tcp->recv.data);
+        tcp->recv.data = NULL;
+    }
     tcp->state = TCP_STATE_FREE;
     nlist_remove(&tcp_list, &tcp->base.node);
     mblock_free(&tcp_mblock, tcp);
@@ -179,6 +184,27 @@ static net_err_t tcp_send(sock_t* sock, const uint8_t* buf, const size_t len, co
     }
 }
 
+static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const int flags, ssize_t* recv_size)
+{
+    tcp_t* tcp = (tcp_t*)sock;
+    switch (tcp->state)
+    {
+    case TCP_STATE_LAST_ACK:
+    case TCP_STATE_CLOSE:
+        return NET_ERR_CLOSE;
+    case TCP_STATE_FIN_WAIT_1:
+    case TCP_STATE_FIN_WAIT_2:
+    case TCP_STATE_CLOSING:
+    case TCP_STATE_CLOSE_WAIT:
+    case TCP_STATE_ESTABLISHED:
+        // 从接收缓冲区读取数据
+        return NET_ERR_NEED_WAIT;
+    default:
+        dbug_error(DBG_MOD_TCP, "tcp_recv: invalid state %s", tcp_state_name(tcp->state));
+        return NET_ERR_STATE;
+    }
+}
+
 static tcp_t* tcp_get_free(const bool wait)
 {
     tcp_t* tcp = mblock_alloc(&tcp_mblock, wait ? 0 : -1);
@@ -222,12 +248,12 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
 
     static const sock_ops_t tcp_ops = {
         .send = tcp_send,
+        .recv = tcp_recv,
         //.sendto = udp_sendto,
         // .recvfrom = udp_recvfrom,
         // .setopt = sock_setopt,
         .close = tcp_close,
         .connect = tcp_connect,
-        // .recv = sock_recv,
         // .bind = udp_bind,
     };
 
@@ -270,14 +296,20 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         tcp->mss = route->netif->mtu - (int)sizeof(ipv4_header_t) - (int)sizeof(tcp_header_t);
     }
 
-    // 初始化发送缓冲区
+    // 初始化发送/接收缓冲区
     if (tcp->base.send_buf_size == 0)
     {
         tcp->base.send_buf_size = TCP_SEND_BUF_SIZE;
     }
+    if (tcp->base.recv_buf_size == 0)
+    {
+        tcp->base.recv_buf_size = TCP_RECV_BUF_SIZE;
+    }
 
     tcp->send.data = (uint8_t*)malloc(tcp->base.send_buf_size);
+    tcp->recv.data = (uint8_t*)malloc(tcp->base.recv_buf_size);
     tcp_buf_init(&tcp->send.buf, tcp->send.data, tcp->base.send_buf_size);
+    tcp_buf_init(&tcp->recv.buf, tcp->recv.data, tcp->base.recv_buf_size);
 
     return tcp;
 

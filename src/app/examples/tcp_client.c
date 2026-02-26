@@ -44,10 +44,6 @@ int main()
         printf("发送消息到服务器: %s\n", buffer);
     }
 
-    close(fd);
-    return 0;
-
-
     ssize_t recv_size = recv(fd, buffer, sizeof(buffer) - 1, 0);
     if (recv_size < 0)
     {

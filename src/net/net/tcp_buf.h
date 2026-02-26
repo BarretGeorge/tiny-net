@@ -30,12 +30,14 @@ static inline int tcp_buf_available(const tcp_buf_t* buf)
     return buf->size - buf->count;
 }
 
-void tcp_buf_write(tcp_buf_t* buf, const uint8_t* data, int len);
-
-void tcp_buf_read(tcp_buf_t* buf, uint8_t* data, int len);
+void tcp_buf_write_send(tcp_buf_t* buf, const uint8_t* data, int len);
 
 void tcp_buf_read_send(const tcp_buf_t* buf, pktbuf_t* dest, int offset, int size);
 
 int tcp_buf_remove(tcp_buf_t* buf, int len);
+
+int tcp_buf_write_recv(tcp_buf_t* dest, int offset, pktbuf_t* pkt, int len);
+
+int tcp_buf_read_recv(tcp_buf_t* src, uint8_t* buf, int len);
 
 #endif //TINY_NET_TCP_BUF_H
