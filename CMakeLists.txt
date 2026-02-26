@@ -40,7 +40,7 @@ file(GLOB_RECURSE COMMON_SOURCES "src/app/common/*.c" "src/app/common/*.h")
 
 add_executable(${PROJECT_NAME} src/app/cmd/main.c ${SOURCE_LIST} ${COMMON_SOURCES})
 
-file(GLOB EXAMPLE_SOURCES "src/app/examples/*.c")
+file(GLOB EXAMPLE_SOURCES "src/app/examples/*.c" "src/app/tests/*.c")
 foreach (EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
     get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
     add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE} ${SOURCE_LIST} ${COMMON_SOURCES})

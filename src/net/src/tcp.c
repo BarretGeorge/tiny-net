@@ -187,6 +187,7 @@ static net_err_t tcp_send(sock_t* sock, const uint8_t* buf, const size_t len, co
 static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const int flags, ssize_t* recv_size)
 {
     tcp_t* tcp = (tcp_t*)sock;
+    int cnt;
     switch (tcp->state)
     {
     case TCP_STATE_LAST_ACK:
@@ -198,6 +199,12 @@ static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const in
     case TCP_STATE_CLOSE_WAIT:
     case TCP_STATE_ESTABLISHED:
         // 从接收缓冲区读取数据
+        cnt = tcp_buf_read_recv(&tcp->recv.buf, buf, (int)len);
+        if (cnt > 0)
+        {
+            *recv_size = (ssize_t)len;
+            return NET_ERR_OK;
+        }
         return NET_ERR_NEED_WAIT;
     default:
         dbug_error(DBG_MOD_TCP, "tcp_recv: invalid state %s", tcp_state_name(tcp->state));
