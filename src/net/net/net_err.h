@@ -26,6 +26,7 @@ typedef enum net_err_t
     NET_ERR_STATE = -19, // 状态错误
     NET_ERR_REST = -20, // 连接被重置
     NET_ERR_CLOSE = -21, // 连接已关闭
+    NET_ERR_SIZE = -22, // 大小错误
 } net_err_t;
 
 #endif //TINY_NET_NET_ERR_H

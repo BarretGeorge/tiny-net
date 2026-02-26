@@ -80,7 +80,15 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
         return NET_ERR_OK;
     }
 
-    net_err_t err = proc_table[tcp->state](tcp, &seg);
+    // 移动数据指针到数据部分
+    net_err_t err = pktbuf_seek(buf, (int)tcp_header_size(header));
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "seek failed.");
+        return NET_ERR_SIZE;
+    }
+
+    err = proc_table[tcp->state](tcp, &seg);
     if (err != NET_ERR_OK)
     {
         dbug_error(DBG_MOD_TCP, "tcp_input: state proc failed, err=%d", err);
@@ -90,8 +98,31 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
     return NET_ERR_OK;
 }
 
+static int copy_data_to_recv_buf(tcp_t* tcp, const tcp_seg_t* seg)
+{
+    // tcp_header_t* tcp_hdr = seg->header;
+    pktbuf_t* buf = seg->buf;
+
+    // data_offset 相对于缓存开始的偏移量。目前只处理==0的情况，以便过滤掉调试中收到的对方重传的数据包
+    int data_offset = (int)(seg->seq - tcp->recv.next_seq); // 非0时，表示出现了空洞
+    if (seg->data_len && data_offset == 0)
+    {
+        // 拷贝数据，目前暂不支持空洞的写入
+        return tcp_buf_write_recv(&tcp->recv.buf, data_offset, buf, (int)seg->data_len);
+    }
+    return 0;
+}
+
 net_err_t tcp_data_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    // 拷贝数据到接收缓冲区
+    int size = copy_data_to_recv_buf(tcp, seg);
+    if (size < 0)
+    {
+        dbug_error(DBG_MOD_TCP, "copy data to tcp recv_buf failed.");
+        return NET_ERR_SIZE;
+    }
+
     int wakeup = 0;
     tcp_header_t* header = seg->header;
     if (header->f_fin)
