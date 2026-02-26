@@ -1,6 +1,7 @@
 #include "tcp_buf.h"
 
 #include "dbug.h"
+#include "sys_plat.h"
 
 void tcp_buf_init(tcp_buf_t* buf, uint8_t* data, const int size)
 {
@@ -15,14 +16,19 @@ void tcp_buf_write_send(tcp_buf_t* buf, const uint8_t* data, int len)
 {
     while (len > 0)
     {
-        // todo 优化为块拷贝，减少循环次数
-        buf->data[buf->in++] = *data++;
+        // 计算从in到缓冲区末尾的可写长度
+        int free_to_end = buf->size - buf->in;
+        int curr_copy = len > free_to_end ? free_to_end : len;
+
+        plat_memcpy(buf->data + buf->in, data, curr_copy);
+        buf->in += curr_copy;
         if (buf->in >= buf->size)
         {
             buf->in = 0;
         }
-        buf->count++;
-        len--;
+        buf->count += curr_copy;
+        data += curr_copy;
+        len -= curr_copy;
     }
 }
 
@@ -129,23 +135,23 @@ int tcp_buf_read_recv(tcp_buf_t* src, uint8_t* buf, const int len)
     // 选实际能读取的量
     int total = len > src->count ? src->count : len;
 
-    // 逐字节拷贝，慢一点但好理解
-    // todo 优化为块拷贝，减少循环次数
     int curr_size = 0;
     while (curr_size < total)
     {
-        // 拷贝数据，位置前移
-        *buf++ = src->data[src->out++];
+        // 计算从out到缓冲区末尾的可读长度
+        int free_to_end = src->size - src->out;
+        int remain = total - curr_size;
+        int curr_copy = remain > free_to_end ? free_to_end : remain;
 
-        // 注意回绕
+        plat_memcpy(buf, src->data + src->out, curr_copy);
+        src->out += curr_copy;
         if (src->out >= src->size)
         {
             src->out = 0;
         }
-
-        // 调整字字量
-        src->count--;
-        curr_size++;
+        src->count -= curr_copy;
+        buf += curr_copy;
+        curr_size += curr_copy;
     }
     return total;
 }
