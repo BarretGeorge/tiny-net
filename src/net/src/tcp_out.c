@@ -156,7 +156,7 @@ net_err_t tcp_transmit(tcp_t* tcp)
     {
         header->f_fin = 0;
     }
-    header->window_size = 1024;
+    header->window_size = tcp_recv_window_size(tcp);
     header->urgent_ptr = 0;
 
     if (header->f_syn == 1)
@@ -227,7 +227,7 @@ net_err_t tcp_send_ack(tcp_t* tcp, tcp_seg_t* seg)
     tcp_set_header_size(header, sizeof(tcp_header_t));
     header->f_syn = 0;
     header->f_ack = 1;
-    header->window_size = 1024;
+    header->window_size = tcp_recv_window_size(tcp);
     header->urgent_ptr = 0;
 
     return send_out(header, buf, &tcp->base.remote_ip, &tcp->base.local_ip);

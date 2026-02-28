@@ -15,7 +15,7 @@ typedef struct tcp_buf_t
 
 void tcp_buf_init(tcp_buf_t* buf, uint8_t* data, int size);
 
-inline int tcp_buf_size(const tcp_buf_t* buf)
+static inline int tcp_buf_size(const tcp_buf_t* buf)
 {
     return buf->size;
 }

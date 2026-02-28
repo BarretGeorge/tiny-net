@@ -410,3 +410,8 @@ void tcp_read_options(tcp_t* tcp, tcp_header_t* header)
         options += kind == TCP_OPTION_NOP ? 1 : options[1]; // NOP选项长度为1，其他选项长度由第二个字节指定
     }
 }
+
+int tcp_recv_window_size(const tcp_t* tcp)
+{
+    return tcp_buf_available(&tcp->recv.buf);
+}

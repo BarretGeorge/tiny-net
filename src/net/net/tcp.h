@@ -160,4 +160,6 @@ net_err_t tcp_abort(tcp_t* tcp, net_err_t err);
 
 void tcp_read_options(tcp_t* tcp, tcp_header_t* header);
 
+int tcp_recv_window_size(const tcp_t* tcp);
+
 #endif //TINY_NET_TCP_H
