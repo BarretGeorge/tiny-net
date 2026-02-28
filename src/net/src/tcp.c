@@ -187,6 +187,7 @@ static net_err_t tcp_send(sock_t* sock, const uint8_t* buf, const size_t len, co
 static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const int flags, ssize_t* recv_size)
 {
     tcp_t* tcp = (tcp_t*)sock;
+    net_err_t need_wait = NET_ERR_NEED_WAIT;
     int cnt;
     switch (tcp->state)
     {
@@ -196,6 +197,7 @@ static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const in
     case TCP_STATE_FIN_WAIT_1:
     case TCP_STATE_FIN_WAIT_2:
     case TCP_STATE_CLOSING:
+        need_wait = NET_ERR_OK;
     case TCP_STATE_CLOSE_WAIT:
     case TCP_STATE_ESTABLISHED:
         // 从接收缓冲区读取数据
@@ -205,7 +207,8 @@ static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const in
             *recv_size = (ssize_t)len;
             return NET_ERR_OK;
         }
-        return NET_ERR_NEED_WAIT;
+        *recv_size = 0;
+        return need_wait;
     default:
         dbug_error(DBG_MOD_TCP, "tcp_recv: invalid state %s", tcp_state_name(tcp->state));
         return NET_ERR_STATE;

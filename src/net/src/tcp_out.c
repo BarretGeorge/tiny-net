@@ -94,6 +94,31 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
     return send_out(out, buf, &seg->remote_ip, &seg->local_ip);
 }
 
+static void write_tcp_option(const tcp_t* tcp, pktbuf_t* buf)
+{
+    // 目前只支持MSS选项
+    tcp_option_mss_t mss_option;
+    mss_option.kind = TCP_OPTION_MSS;
+    mss_option.length = sizeof(tcp_option_mss_t);
+    mss_option.mss = x_htons(tcp->mss);
+
+    int options_size = sizeof(mss_option);
+
+    net_err_t err = pktbuf_resize(buf, (int)sizeof(tcp_header_t) + options_size);
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "write_tcp_option: pktbuf_resize failed, err=%d", err);
+        return;
+    }
+    pktbuf_seek(buf, sizeof(tcp_header_t));
+    err = pktbuf_write(buf, (const uint8_t*)&mss_option, sizeof(mss_option));
+    if (err != NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_TCP, "write_tcp_option: pktbuf_write failed, err=%d", err);
+        return;
+    }
+}
+
 net_err_t tcp_transmit(tcp_t* tcp)
 {
     int data_len, data_offset;
@@ -121,7 +146,6 @@ net_err_t tcp_transmit(tcp_t* tcp)
     header->seq_num = tcp->send.next_seq;
     header->ack_num = tcp->recv.next_seq;
     header->flags = 0;
-    tcp_set_header_size(header, sizeof(tcp_header_t));
     header->f_syn = tcp->flags.syn_out;
     header->f_ack = tcp->flags.irs_valid;
     if (tcp_buf_count(&tcp->send.buf) == 0)
@@ -134,6 +158,14 @@ net_err_t tcp_transmit(tcp_t* tcp)
     }
     header->window_size = 1024;
     header->urgent_ptr = 0;
+
+    if (header->f_syn == 1)
+    {
+        // 设置options
+        write_tcp_option(tcp, buf);
+    }
+
+    tcp_set_header_size(header, buf->total_size);
 
     copy_send_data(tcp, buf, data_offset, data_len);
 

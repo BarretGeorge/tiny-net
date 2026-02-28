@@ -252,6 +252,10 @@ ssize_t x_recv(const int fd, void* buf, const size_t len, const int flags)
 
         // 等待数据到达
         err = sock_wait_enter(req.wait, req.wait_timeout);
+        if (err == NET_ERR_CLOSE)
+        {
+            return 0; // 连接已关闭，返回0表示EOF
+        }
         if (err < NET_ERR_OK)
         {
             dbug_error(DBG_MOD_SOCKET, "socket_recv: wait failed, err=%d", err);
