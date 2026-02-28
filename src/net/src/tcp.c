@@ -204,7 +204,7 @@ static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const in
         cnt = tcp_buf_read_recv(&tcp->recv.buf, buf, (int)len);
         if (cnt > 0)
         {
-            *recv_size = (ssize_t)len;
+            *recv_size = (ssize_t)cnt;
             return NET_ERR_OK;
         }
         *recv_size = 0;

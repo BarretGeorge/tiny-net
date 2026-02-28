@@ -81,13 +81,13 @@ net_err_t tcp_send_reset(const tcp_seg_t* seg)
 
     if (in->f_ack)
     {
-        out->seq_num = x_htonl(in->ack_num);
+        out->seq_num = in->ack_num;
         out->ack_num = 0;
         out->f_ack = 0;
     }
     else
     {
-        out->ack_num = x_htonl(seg->seq + seg->seq_len);
+        out->ack_num = seg->seq + seg->seq_len;
         out->f_ack = 1;
     }
 
