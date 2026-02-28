@@ -31,6 +31,12 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
         [TCP_STATE_TIME_WAIT] = tcp_time_wait_in,
     };
 
+    // tcp_header_t* header = (tcp_header_t*)pktbuf_data(buf);
+    if (pktbuf_set_cont(buf, sizeof(tcp_header_t)) < 0)
+    {
+        dbug_error(DBG_MOD_TCP, "set cont failed.");
+        return -1;
+    }
     tcp_header_t* header = (tcp_header_t*)pktbuf_data(buf);
     if (header->checksum != 0)
     {
