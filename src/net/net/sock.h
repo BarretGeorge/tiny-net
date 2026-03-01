@@ -66,6 +66,7 @@ typedef struct sock_t
     int send_timeout;
     int send_buf_size;
     int recv_buf_size;
+    int nonblock;          // 非阻塞模式
 
     sock_wait_t* recv_wait;
     sock_wait_t* send_wait;

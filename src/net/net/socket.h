@@ -43,6 +43,9 @@
 #undef SO_KEEPALIVE
 #define SO_KEEPALIVE       8
 
+#undef SO_NONBLOCK
+#define SO_NONBLOCK        9
+
 #undef IPPROTO_UDP
 #define IPPROTO_UDP        17
 

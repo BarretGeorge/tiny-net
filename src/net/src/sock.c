@@ -282,6 +282,7 @@ net_err_t sock_init(sock_t* sock, const int family, const int protocol, const so
     sock->remote_port = 0;
     sock->recv_timeout = 0;
     sock->send_timeout = 0;
+    sock->nonblock = 0;
     sock->send_wait = NULL;
     sock->recv_wait = NULL;
     sock->conn_wait = NULL;
@@ -420,6 +421,13 @@ net_err_t sock_setopt(sock_t* sock, int level, int opt_name, const void* opt_val
             return NET_ERR_INVALID_PARAM;
         }
         sock->recv_buf_size = rcvbuf;
+        break;
+    case SO_NONBLOCK:
+        if (opt_len != sizeof(int))
+        {
+            return NET_ERR_INVALID_PARAM;
+        }
+        sock->nonblock = *(const int*)opt_val != 0;
         break;
     default:
         return NET_ERR_OPTION;
