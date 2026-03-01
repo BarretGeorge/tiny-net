@@ -422,30 +422,26 @@ int sys_sem_wait(sys_sem_t sem, uint32_t tmo_ms)
 {
     pthread_mutex_lock(&sem->locker);
 
-    if (sem->count <= 0)
+    if (tmo_ms > 0)
     {
-        int ret;
-
-        if (tmo_ms > 0)
+        struct timespec ts;
+        ts.tv_nsec = (tmo_ms % 1000) * 1000000L;
+        ts.tv_sec = time(NULL) + tmo_ms / 1000;
+        while (sem->count <= 0)
         {
-            struct timespec ts;
-            ts.tv_nsec = (tmo_ms % 1000) * 1000000L;
-            ts.tv_sec = time(NULL) + tmo_ms / 1000;
-            ret = pthread_cond_timedwait(&sem->cond, &sem->locker, &ts);
+            int ret = pthread_cond_timedwait(&sem->cond, &sem->locker, &ts);
             if (ret == ETIMEDOUT)
             {
                 pthread_mutex_unlock(&sem->locker);
                 return -1;
             }
         }
-        else
+    }
+    else
+    {
+        while (sem->count <= 0)
         {
-            ret = pthread_cond_wait(&sem->cond, &sem->locker);
-            if (ret < 0)
-            {
-                pthread_mutex_unlock(&sem->locker);
-                return -1;
-            }
+            pthread_cond_wait(&sem->cond, &sem->locker);
         }
     }
 

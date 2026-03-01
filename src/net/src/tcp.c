@@ -114,7 +114,9 @@ static net_err_t tcp_bind(sock_t* sock, const struct x_sockaddr* addr, x_socklen
         }
         if (temp->base.local_port == addr_in->sin_port)
         {
-            if (ipaddr_is_any(&bind_ip) || ipaddr_is_equal(&tcp->base.local_ip, &bind_ip))
+            if (ipaddr_is_any(&bind_ip)
+                || ipaddr_is_any(&temp->base.local_ip)
+                || ipaddr_is_equal(&temp->base.local_ip, &bind_ip))
             {
                 dbug_error(DBG_MOD_TCP, "tcp_bind: local port %d already in use", addr_in->sin_port);
                 return NET_ERR_ADDR_IN_USE;
@@ -157,7 +159,7 @@ static net_err_t tcp_accept(sock_t* sock, struct x_sockaddr* addr, x_socklen_t* 
         // 找到一个符合条件的连接，返回给应用层
         if (temp->state == TCP_STATE_ESTABLISHED && temp->parent == tcp && temp->flags.inactive)
         {
-            plat_memset(addr, 0, sizeof(*addrlen));
+            plat_memset(addr, 0, sizeof(struct x_sockaddr));
             struct x_sockaddr_in* addr_in = (struct x_sockaddr_in*)addr;
             addr_in->sin_family = AF_INET;
             ipaddr_to_buf(&temp->base.remote_ip, addr_in->sin_addr.addr_array);
@@ -637,7 +639,7 @@ bool tcp_backlog_full(const tcp_t* tcp)
     nlist_for_each(node, &tcp_list)
     {
         tcp_t* temp = nlist_entry(node, tcp_t, base.node);
-        if (temp->parent == tcp && temp->flags.inactive && temp->state == TCP_STATE_SYN_RECEIVED)
+        if (temp->parent == tcp && temp->flags.inactive)
         {
             ++count;
         }
@@ -652,8 +654,6 @@ tcp_t* tcp_create_child(tcp_t* parent, const tcp_seg_t* seg)
     {
         return NULL;
     }
-
-    plat_memset(child, 0, sizeof(tcp_t));
 
     tcp_init_connect(child);
 
