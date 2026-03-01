@@ -121,7 +121,7 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
     if (tcp->state != TCP_STATE_CLOSE && tcp->state != TCP_STATE_SYN_SENT &&
         tcp->state != TCP_STATE_LISTEN)
     {
-        if (tcp_seq_acceptable(tcp, &seg))
+        if (!tcp_seq_acceptable(tcp, &seg))
         {
             dbug_error(DBG_MOD_TCP, "tcp_input: unacceptable seq, recv_next=%u, seg_seq=%u, seg_len=%u",
                        tcp->recv.next_seq, seg.seq, seg.seq_len);
