@@ -155,6 +155,7 @@ uint32_t net_timer_check_mo(uint32_t diff_ms)
         if (timer->flags & TIMER_FLAG_PERIODIC)
         {
             timer->expire = timer->interval;
+            // 重新插入链表，保持有序
             insert_timer_sorted(timer);
         }
     }

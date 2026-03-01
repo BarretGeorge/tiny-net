@@ -32,7 +32,7 @@ static net_err_t tcp_setopt(sock_t* sock, const int level, const int opt_name, c
         if (opt_name == SO_KEEPALIVE)
         {
             tcp_t* tcp = (tcp_t*)sock;
-            tcp->flags.keep_alive = *(const int*)opt_val != 0;
+            tcp_keep_alive_start(tcp, *(const int*)opt_val != 0);
             return NET_ERR_OK;
         }
         return sock_setopt(sock, level, opt_name, opt_val, opt_len);
@@ -46,12 +46,15 @@ static net_err_t tcp_setopt(sock_t* sock, const int level, const int opt_name, c
     {
     case TCP_KEEPIDLE:
         tcp->conn.keep_idle = *(const int*)opt_val;
+        tcp_keep_alive_reset(tcp);
         break;
     case TCP_KEEPINTVL:
         tcp->conn.keep_interval = *(const int*)opt_val;
+        tcp_keep_alive_reset(tcp);
         break;
     case TCP_KEEPCNT:
         tcp->conn.keep_count = *(const int*)opt_val;
+        tcp_keep_alive_reset(tcp);
         break;
     default:
         return NET_ERR_INVALID_PARAM;
@@ -409,6 +412,7 @@ net_err_t tcp_abort(tcp_t* tcp, const net_err_t err)
 {
     tcp_set_state(tcp, TCP_STATE_CLOSE);
     sock_wakeup(&tcp->base, SOCK_WAIT_ALL, err);
+    tcp_kill_all_timer(tcp);
     return NET_ERR_OK;
 }
 
@@ -451,4 +455,68 @@ void tcp_read_options(tcp_t* tcp, tcp_header_t* header)
 int tcp_recv_window_size(const tcp_t* tcp)
 {
     return tcp_buf_available(&tcp->recv.buf);
+}
+
+static net_err_t tcp_send_keep_alive(tcp_t* tcp)
+{
+    return NET_ERR_OK;
+}
+
+static void tcp_keep_alive_timeout(net_timer_t* timer, void* arg)
+{
+    tcp_t* tcp = arg;
+
+    if (++tcp->conn.keep_retry < tcp->conn.keep_count)
+    {
+        // 启动新的keep-alive定时器
+        net_timer_add(&tcp->conn.keep_timer, "tcp_keep_alive", tcp_keep_alive_timeout, tcp,
+                      tcp->conn.keep_interval * 1000, 0);
+
+        // 发送keep-alive探测报文
+        if (tcp_send_keep_alive(tcp) != NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_TCP, "tcp_keep_alive_timeout: tcp_send_keep_alive failed");
+            return;
+        }
+    }
+    else
+    {
+        // 超过最大重试次数，认为连接已断开
+        dbug_warn(DBG_MOD_TCP, "tcp_keep_alive_timeout: keep-alive retry count exceeded, closing connection");
+        tcp_abort(tcp, NET_ERR_TIMEOUT);
+    }
+}
+
+static void tcp_keep_alive_start_timer(tcp_t* tcp)
+{
+    net_timer_add(&tcp->conn.keep_timer, "tcp_keep_alive", tcp_keep_alive_timeout, tcp,
+                  tcp->conn.keep_idle * 1000, 0);
+}
+
+void tcp_keep_alive_start(tcp_t* tcp, const bool enable)
+{
+    if (tcp->flags.keep_alive && !enable)
+    {
+        net_timer_remove(&tcp->conn.keep_timer);
+    }
+    else if (!tcp->flags.keep_alive && enable)
+    {
+        tcp_keep_alive_start_timer(tcp);
+    }
+    tcp->flags.keep_alive = enable;
+}
+
+void tcp_keep_alive_reset(tcp_t* tcp)
+{
+    if (tcp->flags.keep_alive)
+    {
+        net_timer_remove(&tcp->conn.keep_timer);
+        tcp_keep_alive_start_timer(tcp);
+        tcp->conn.keep_retry = 0;
+    }
+}
+
+void tcp_kill_all_timer(const tcp_t* tcp)
+{
+    net_timer_remove(&tcp->conn.keep_timer);
 }

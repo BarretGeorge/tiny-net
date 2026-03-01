@@ -110,6 +110,8 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
         return NET_ERR_OK;
     }
 
+    tcp_keep_alive_reset(tcp);
+
     // 移动数据指针到数据部分
     net_err_t err = pktbuf_seek(buf, (int)tcp_header_size(header));
     if (err != NET_ERR_OK)

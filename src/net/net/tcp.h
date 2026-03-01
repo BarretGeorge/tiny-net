@@ -170,6 +170,12 @@ void tcp_read_options(tcp_t* tcp, tcp_header_t* header);
 
 int tcp_recv_window_size(const tcp_t* tcp);
 
+void tcp_keep_alive_start(tcp_t* tcp, bool enable);
+
+void tcp_keep_alive_reset(tcp_t* tcp);
+
+void tcp_kill_all_timer(const tcp_t* tcp);
+
 #define TCP_SEQ_LE(a, b)        ((int32_t)(a) - (int32_t)(b) <= 0)
 #define TCP_SEQ_LT(a, b)        ((int32_t)(a) - (int32_t)(b) < 0)
 
