@@ -71,7 +71,6 @@ net_err_t tcp_listen_in(tcp_t* tcp, tcp_seg_t* seg)
             return NET_ERR_MEM;
         }
         tcp_send_syn(new_tcp);
-        tcp_set_state(new_tcp, TCP_STATE_SYN_RECEIVED);
         return NET_ERR_OK;
     }
     return NET_ERR_STATE;
@@ -82,7 +81,8 @@ net_err_t tcp_syn_sent_in(tcp_t* tcp, tcp_seg_t* seg)
     tcp_header_t* header = seg->header;
     if (header->f_ack) // 如果是ACK报文，检查ack_num是否合法
     {
-        if (header->ack_num - tcp->send.isn <= 0 || header->ack_num - tcp->send.next_seq > 0)
+        if (TCP_SEQ_LE(header->ack_num, tcp->send.isn) || TCP_SEQ_LT(tcp->send.next_seq, header->ack_num))
+        // if (header->ack_num - tcp->send.isn <= 0 || header->ack_num - tcp->send.next_seq > 0)
         {
             dbug_warn(DBG_MOD_TCP, "Received ACK with invalid ack_num: %u", header->ack_num);
             return tcp_send_reset(seg);
@@ -106,7 +106,7 @@ net_err_t tcp_syn_sent_in(tcp_t* tcp, tcp_seg_t* seg)
 
         tcp_read_options(tcp, header);
 
-        if (header->ack_num)
+        if (header->f_ack)
         {
             tcp_ack_process(tcp, seg);
         }

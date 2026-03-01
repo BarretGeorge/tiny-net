@@ -295,6 +295,7 @@ static net_err_t tcp_close(sock_t* sock)
         return NET_ERR_OK;
     case TCP_STATE_SYN_SENT:
     case TCP_STATE_SYN_RECEIVED:
+        tcp_free(tcp);
         break;
     case TCP_STATE_CLOSE_WAIT:
         tcp_send_fin(tcp);
