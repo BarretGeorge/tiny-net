@@ -479,7 +479,7 @@ static void tcp_keep_alive_timeout(net_timer_t* timer, void* arg)
         // 超过最大重试次数，认为连接已断开
         dbug_warn(DBG_MOD_TCP, "tcp_keep_alive_timeout: keep-alive retry count exceeded, closing connection");
         tcp_send_reset_with_tcp(tcp);
-        tcp_abort(tcp, NET_ERR_TIMEOUT);
+        tcp_abort(tcp, NET_ERR_CLOSE);
     }
 }
 

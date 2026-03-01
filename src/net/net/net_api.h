@@ -61,6 +61,10 @@ const char* x_inet_ntop(int family, const void* src, char* dst, size_t size);
 
 #define recv(fd, buf, len, flags) x_recv(fd, buf, len, flags)
 
+#define read(fd, buf, len) x_read(fd, buf, len)
+
+#define write(fd, buf, len) x_write(fd, buf, len)
+
 #define close(fd) x_close(fd)
 
 #define setsockopt(fd, level, opt_name, opt_val, opt_len) x_setsockopt(fd, level, opt_name, opt_val, opt_len)

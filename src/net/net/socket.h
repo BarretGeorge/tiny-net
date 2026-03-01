@@ -120,13 +120,17 @@ int x_bind(int fd, struct x_sockaddr* addr, x_socklen_t addrlen);
 
 int x_listen(int fd, int backlog);
 
-int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen);
+int x_accept(int fd, struct x_sockaddr* addr, x_socklen_t* addrlen);
 
 int x_connect(int fd, struct x_sockaddr* addr, x_socklen_t addrlen);
 
 ssize_t x_send(int fd, const void* buf, size_t len, int flags);
 
 ssize_t x_recv(int fd, void* buf, size_t len, int flags);
+
+ssize_t x_read(int fd, void* buf, size_t len);
+
+ssize_t x_write(int fd, const void* buf, size_t len);
 
 int x_close(int fd);
 

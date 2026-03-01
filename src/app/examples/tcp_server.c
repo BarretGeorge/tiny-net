@@ -15,7 +15,7 @@ int main()
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(9999);
-    server_addr.sin_addr.s_addr = inet_addr("192.168.3.95");
+    server_addr.sin_addr.s_addr = inet_addr("192.168.100.95");
 
     if (bind(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
@@ -31,6 +31,33 @@ int main()
         return -1;
     }
 
-    sleep(10000);
+    for (;;)
+    {
+        struct sockaddr_in client_addr;
+        int addr_len = 0;
+        int client_fd = accept(fd, (struct sockaddr*)&client_addr, &addr_len);
+        if (client_fd < 0)
+        {
+            printf("accept failed\n");
+            break;
+        }
+
+        char buffer[1024];
+        plat_memset(buffer, 0, sizeof(buffer));
+        ssize_t recv_len = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+        if (recv_len < 0)
+        {
+            perror("recv failed");
+            close(client_fd);
+            continue;
+        }
+        // 回显数据
+        buffer[recv_len] = '\0';
+        printf("Received from client: %s\n", buffer);
+        if (send(client_fd, buffer, recv_len, 0) < 0)
+        {
+            perror("send failed");
+        }
+    }
     return 0;
 }

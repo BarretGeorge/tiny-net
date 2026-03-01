@@ -14,6 +14,7 @@
 #include "tcp_buf.h"
 #include "tool.h"
 #include "dbug_module.h"
+#include "timer.h"
 
 // tcp_free 定义在 tcp.c 中但未在头文件中导出
 extern void tcp_free(tcp_t* tcp);
@@ -422,6 +423,203 @@ static void test_tcp_buf(void)
     printf("  [INFO] 块拷贝优化验证通过\n");
 }
 
+/**
+ * 测试8: keepalive 启用/禁用和状态初始化
+ */
+static void test_keepalive_enable(void)
+{
+    TEST_START("test_keepalive_enable: keepalive 启用/禁用");
+
+    tcp_t* tcp = create_test_tcp();
+    if (!tcp) return;
+    setup_established(tcp, 1000, 2000);
+
+    // 初始状态: keepalive 未启用
+    TEST_ASSERT(tcp->flags.keep_alive == 0, "初始 keepalive 未启用");
+    TEST_ASSERT(tcp->conn.keep_idle == TCP_KEEP_IDLE, "keep_idle 默认值正确");
+    TEST_ASSERT(tcp->conn.keep_interval == TCP_KEEP_INTERVAL, "keep_interval 默认值正确");
+    TEST_ASSERT(tcp->conn.keep_count == TCP_KEEP_COUNT, "keep_count 默认值正确");
+
+    // 启用 keepalive
+    tcp_keep_alive_start(tcp, true);
+    TEST_ASSERT(tcp->flags.keep_alive == 1, "启用后 keep_alive == 1");
+
+    // 重复启用不应崩溃
+    tcp_keep_alive_start(tcp, true);
+    TEST_ASSERT(tcp->flags.keep_alive == 1, "重复启用保持 keep_alive == 1");
+
+    // 禁用 keepalive
+    tcp_keep_alive_start(tcp, false);
+    TEST_ASSERT(tcp->flags.keep_alive == 0, "禁用后 keep_alive == 0");
+
+    // 重复禁用不应崩溃
+    tcp_keep_alive_start(tcp, false);
+    TEST_ASSERT(tcp->flags.keep_alive == 0, "重复禁用保持 keep_alive == 0");
+
+    tcp_free(tcp);
+}
+
+/**
+ * 测试9: keepalive reset 逻辑
+ * 收到数据后应重置 keep_retry 并重启 idle 定时器
+ */
+static void test_keepalive_reset(void)
+{
+    TEST_START("test_keepalive_reset: keepalive 重置");
+
+    tcp_t* tcp = create_test_tcp();
+    if (!tcp) return;
+    setup_established(tcp, 1000, 2000);
+
+    // 启用 keepalive
+    tcp_keep_alive_start(tcp, true);
+
+    // 模拟已经重试了几次
+    tcp->conn.keep_retry = 3;
+
+    // 收到数据包时调用 reset
+    tcp_keep_alive_reset(tcp);
+
+    TEST_ASSERT(tcp->conn.keep_retry == 0, "reset 后 keep_retry == 0");
+    TEST_ASSERT(tcp->flags.keep_alive == 1, "reset 后仍然启用");
+
+    // 未启用时 reset 不应崩溃
+    tcp_keep_alive_start(tcp, false);
+    tcp->conn.keep_retry = 5;
+    tcp_keep_alive_reset(tcp);
+    TEST_ASSERT(tcp->conn.keep_retry == 5, "未启用时 reset 不修改 keep_retry");
+
+    tcp_free(tcp);
+}
+
+/**
+ * 测试10: keepalive 超时 - 探测阶段
+ * 模拟 idle 定时器到期，验证 keep_retry 递增
+ */
+static void test_keepalive_timeout_probe(void)
+{
+    TEST_START("test_keepalive_timeout_probe: keepalive 超时探测");
+
+    tcp_t* tcp = create_test_tcp();
+    if (!tcp) return;
+    setup_established(tcp, 1000, 2000);
+
+    tcp_keep_alive_start(tcp, true);
+
+    // 手动触发 idle 定时器到期
+    // 定时器系统使用差分链表，直接调用 net_timer_check_mo 推进时间
+    // keep_idle 默认 7200 秒 = 7200000 毫秒
+    uint32_t idle_ms = (uint32_t)tcp->conn.keep_idle * 1000;
+    net_timer_check_mo(idle_ms);
+
+    // 第一次超时后: keep_retry 应该递增，连接不应断开
+    TEST_ASSERT(tcp->conn.keep_retry == 1, "第一次超时后 keep_retry == 1");
+    TEST_ASSERT(tcp->state == TCP_STATE_ESTABLISHED, "第一次超时后仍 ESTABLISHED");
+
+    // 继续触发 interval 定时器到期
+    uint32_t interval_ms = (uint32_t)tcp->conn.keep_interval * 1000;
+    net_timer_check_mo(interval_ms);
+    TEST_ASSERT(tcp->conn.keep_retry == 2, "第二次超时后 keep_retry == 2");
+    TEST_ASSERT(tcp->state == TCP_STATE_ESTABLISHED, "第二次超时后仍 ESTABLISHED");
+
+    tcp_kill_all_timer(tcp);
+    tcp_free(tcp);
+}
+
+/**
+ * 测试11: keepalive 超时 - 超过最大重试次数导致连接中止
+ */
+static void test_keepalive_timeout_abort(void)
+{
+    TEST_START("test_keepalive_timeout_abort: keepalive 超限中止");
+
+    tcp_t* tcp = create_test_tcp();
+    if (!tcp) return;
+    setup_established(tcp, 1000, 2000);
+
+    tcp_keep_alive_start(tcp, true);
+
+    // 快进到 idle 超时
+    uint32_t idle_ms = (uint32_t)tcp->conn.keep_idle * 1000;
+    net_timer_check_mo(idle_ms);
+
+    // 快进 keep_count - 1 次 interval 超时（第1次已在idle超时中触发）
+    uint32_t interval_ms = (uint32_t)tcp->conn.keep_interval * 1000;
+    for (int i = 1; i < tcp->conn.keep_count; i++)
+    {
+        net_timer_check_mo(interval_ms);
+    }
+
+    // keep_count 次超时后应该中止连接
+    // keep_retry 从 0 开始 pre-increment, 所以 keep_count 次后 keep_retry == keep_count
+    TEST_ASSERT(tcp->state == TCP_STATE_CLOSE, "超过重试次数后 state -> CLOSE");
+
+    tcp_free(tcp);
+}
+
+/**
+ * 测试12: keepalive reset 中断超时序列
+ * 在探测过程中收到数据，应重置计数器回到 idle 等待
+ */
+static void test_keepalive_reset_interrupts_probe(void)
+{
+    TEST_START("test_keepalive_reset_interrupts: 数据中断探测");
+
+    tcp_t* tcp = create_test_tcp();
+    if (!tcp) return;
+    setup_established(tcp, 1000, 2000);
+
+    tcp_keep_alive_start(tcp, true);
+
+    // 快进到 idle 超时，触发第一次探测
+    uint32_t idle_ms = (uint32_t)tcp->conn.keep_idle * 1000;
+    net_timer_check_mo(idle_ms);
+    TEST_ASSERT(tcp->conn.keep_retry == 1, "第一次探测后 keep_retry == 1");
+
+    // 再触发一次 interval 超时
+    uint32_t interval_ms = (uint32_t)tcp->conn.keep_interval * 1000;
+    net_timer_check_mo(interval_ms);
+    TEST_ASSERT(tcp->conn.keep_retry == 2, "第二次探测后 keep_retry == 2");
+
+    // 模拟收到数据，重置 keepalive
+    tcp_keep_alive_reset(tcp);
+    TEST_ASSERT(tcp->conn.keep_retry == 0, "reset 后 keep_retry == 0");
+    TEST_ASSERT(tcp->state == TCP_STATE_ESTABLISHED, "reset 后仍 ESTABLISHED");
+
+    // 再次快进 idle 超时，应该重新开始探测序列
+    net_timer_check_mo(idle_ms);
+    TEST_ASSERT(tcp->conn.keep_retry == 1, "重新开始探测 keep_retry == 1");
+    TEST_ASSERT(tcp->state == TCP_STATE_ESTABLISHED, "仍然 ESTABLISHED");
+
+    tcp_kill_all_timer(tcp);
+    tcp_free(tcp);
+}
+
+/**
+ * 测试13: tcp_kill_all_timer 清理
+ */
+static void test_kill_all_timer(void)
+{
+    TEST_START("test_kill_all_timer: 定时器清理");
+
+    tcp_t* tcp = create_test_tcp();
+    if (!tcp) return;
+    setup_established(tcp, 1000, 2000);
+
+    // 启用 keepalive 添加定时器
+    tcp_keep_alive_start(tcp, true);
+
+    // 清理所有定时器
+    tcp_kill_all_timer(tcp);
+
+    // 快进大量时间，不应触发任何超时回调（不崩溃即通过）
+    net_timer_check_mo(100000000);
+    TEST_ASSERT(tcp->state == TCP_STATE_ESTABLISHED, "清理后快进时间不影响状态");
+    TEST_ASSERT(tcp->conn.keep_retry == 0, "清理后不触发超时");
+
+    tcp_free(tcp);
+}
+
 /* ============================== 主函数 ============================== */
 
 int main(void)
@@ -431,6 +629,7 @@ int main(void)
 
     // 最小初始化
     pktbuf_init();
+    net_timer_init();
     tcp_init();
 
     printf("TCP Mock Test\n");
@@ -444,6 +643,12 @@ int main(void)
     test_passive_close();
     test_rst();
     test_tcp_buf();
+    test_keepalive_enable();
+    test_keepalive_reset();
+    test_keepalive_timeout_probe();
+    test_keepalive_timeout_abort();
+    test_keepalive_reset_interrupts_probe();
+    test_kill_all_timer();
 
     // 汇总
     printf("\n==============================================\n");

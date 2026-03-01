@@ -145,9 +145,9 @@ int x_listen(int fd, int backlog)
     return 0;
 }
 
-int x_accept(int fd, struct x_sockaddr* addr, unsigned int* addrlen)
+int x_accept(int fd, struct x_sockaddr* addr, x_socklen_t* addrlen)
 {
-    return 0;
+    return -1;
 }
 
 int x_connect(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)
@@ -262,6 +262,16 @@ ssize_t x_recv(const int fd, void* buf, const size_t len, const int flags)
             return err;
         }
     }
+}
+
+ssize_t x_read(const int fd, void* buf, const size_t len)
+{
+    return x_recv(fd, buf, len, 0);
+}
+
+ssize_t x_write(const int fd, const void* buf, const size_t len)
+{
+    return x_send(fd, buf, len, 0);
 }
 
 int x_close(const int fd)
