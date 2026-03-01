@@ -129,7 +129,7 @@ net_err_t tcp_established_in(tcp_t* tcp, tcp_seg_t* seg)
     tcp_transmit(tcp);
 
     // 是否是关闭连接的请求
-    if (header->f_fin)
+    if (tcp->flags.fin_in)
     {
         tcp_set_state(tcp, TCP_STATE_CLOSE_WAIT);
     }
@@ -170,7 +170,7 @@ net_err_t tcp_fin_wait_1_in(tcp_t* tcp, tcp_seg_t* seg)
 
     if (tcp->flags.fin_out == 0)
     {
-        if (header->f_fin) // 是否是关闭连接的请求
+        if (tcp->flags.fin_in) // 是否是关闭连接的请求
         {
             tcp_time_wait(tcp);
         }
@@ -179,7 +179,7 @@ net_err_t tcp_fin_wait_1_in(tcp_t* tcp, tcp_seg_t* seg)
             tcp_set_state(tcp, TCP_STATE_FIN_WAIT_2);
         }
     }
-    else if (header->f_fin == 1)
+    else if (tcp->flags.fin_in)
     {
         tcp_set_state(tcp, TCP_STATE_CLOSING);
     }
@@ -213,7 +213,7 @@ net_err_t tcp_fin_wait_2_in(tcp_t* tcp, tcp_seg_t* seg)
     tcp_data_in(tcp, seg);
 
     // 是否是关闭连接的请求
-    if (header->f_fin)
+    if (tcp->flags.fin_in)
     {
         tcp_send_ack(tcp, seg);
         tcp_time_wait(tcp);

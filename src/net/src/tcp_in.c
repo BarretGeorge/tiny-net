@@ -167,15 +167,16 @@ net_err_t tcp_data_in(tcp_t* tcp, tcp_seg_t* seg)
 
     int wakeup = 0;
     tcp_header_t* header = seg->header;
-    if (header->f_fin)
+    if (header->f_fin && tcp->recv.next_seq == seg->seq)
     {
         tcp->recv.next_seq++;
+        tcp->flags.fin_in = 1;
         wakeup++;
     }
 
     if (wakeup > 0)
     {
-        if (header->f_fin)
+        if (tcp->flags.fin_in)
         {
             sock_wakeup(&tcp->base, SOCK_WAIT_ALL, NET_ERR_CLOSE);
         }

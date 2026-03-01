@@ -119,6 +119,7 @@ typedef struct tcp_t
         uint32_t syn_out : 1; // 是否发送过SYN报文
         uint32_t fin_out : 1; // 是否发送过FIN报文
         uint32_t irs_valid : 1; // 是否收到过SYN回复报文
+        uint32_t fin_in : 1; // 是否收到过FIN报文
     } flags;
 
     struct
