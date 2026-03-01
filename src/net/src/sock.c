@@ -175,11 +175,11 @@ net_err_t socket_close_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_PARAM;
     }
-    net_err_t err = NET_ERR_OK;
-    if (s->sock->ops->close)
+    if (s->sock->ops->close == NULL)
     {
-        err = s->sock->ops->close(s->sock);
+        return NET_ERR_UNIMPLEMENTED;
     }
+    net_err_t err = s->sock->ops->close(s->sock);
 
     if (err == NET_ERR_NEED_WAIT && s->sock->conn_wait)
     {
@@ -197,13 +197,13 @@ net_err_t socket_connect_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_PARAM;
     }
-    net_err_t err = NET_ERR_OK;
 
     sock_conn_t* conn = &req->conn;
-    if (s->sock->ops->connect)
+    if (s->sock->ops->connect == NULL)
     {
-        err = s->sock->ops->connect(s->sock, conn->addr, conn->addrlen);
+        return NET_ERR_UNIMPLEMENTED;
     }
+    net_err_t err = s->sock->ops->connect(s->sock, conn->addr, conn->addrlen);
 
     if (err == NET_ERR_NEED_WAIT && s->sock->conn_wait)
     {
@@ -220,14 +220,13 @@ net_err_t socket_bind_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_PARAM;
     }
-    net_err_t err = NET_ERR_OK;
 
     sock_bind_t* bind = &req->bind;
-    if (s->sock->ops->bind)
+    if (s->sock->ops->bind == NULL)
     {
-        err = s->sock->ops->bind(s->sock, bind->addr, bind->addrlen);
+        return NET_ERR_UNIMPLEMENTED;
     }
-    return err;
+    return s->sock->ops->bind(s->sock, bind->addr, bind->addrlen);
 }
 
 net_err_t socket_send_req_in(const func_msg_t* msg)
@@ -242,12 +241,11 @@ net_err_t socket_send_req_in(const func_msg_t* msg)
     {
         return NET_ERR_ADDR_UNSET;
     }
-    net_err_t err = NET_ERR_OK;
-    if (s->sock->ops->send)
+    if (s->sock->ops->send == NULL)
     {
-        err = s->sock->ops->send(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+        return NET_ERR_UNIMPLEMENTED;
     }
-    return err;
+    return s->sock->ops->send(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
 }
 
 net_err_t socket_recv_req_in(const func_msg_t* msg)
@@ -262,11 +260,65 @@ net_err_t socket_recv_req_in(const func_msg_t* msg)
     {
         return NET_ERR_ADDR_UNSET;
     }
-    if (s->sock->ops->recv)
+    if (s->sock->ops->recv == NULL)
     {
-        return s->sock->ops->recv(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+        return NET_ERR_UNIMPLEMENTED;
     }
-    return NET_ERR_OK;
+    return s->sock->ops->recv(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+}
+
+net_err_t socket_listen_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    sock_listen_t* listen = &req->listen;
+    if (listen->backlog <= 0)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (s->sock->ops->listen == NULL)
+    {
+        return NET_ERR_UNIMPLEMENTED;
+    }
+    return s->sock->ops->listen(s->sock, listen->backlog);
+}
+
+net_err_t socket_accept_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    sock_accept_t* accept = &req->accept;
+    sock_t* new_sock = NULL;
+    if (s->sock->ops->accept == NULL)
+    {
+        return NET_ERR_UNIMPLEMENTED;
+    }
+    net_err_t err = s->sock->ops->accept(s->sock, accept->addr, accept->addrlen, &new_sock);
+
+    if (err == NET_ERR_OK && new_sock)
+    {
+        x_socket_t* new_s = socket_alloc();
+        if (new_s == NULL)
+        {
+            if (s->sock->ops->close)
+            {
+                s->sock->ops->close(new_sock);
+            }
+            return NET_ERR_MEM;
+        }
+        new_s->sock = new_sock;
+        accept->client_fd = socket_get_fd(new_s);
+    }
+    return err;
 }
 
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)

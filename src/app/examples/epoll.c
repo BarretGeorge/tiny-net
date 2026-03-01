@@ -9,8 +9,8 @@
 // 设置非阻塞
 int set_nonblocking(const int fd)
 {
-    int flags = fcntl(fd, F_GETFL, 0);
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    int opt_val = 1;
+    return setsockopt(fd, SOL_SOCKET, SO_NONBLOCK, &opt_val, sizeof(opt_val));
 }
 
 int main()
@@ -49,8 +49,8 @@ int main()
     set_nonblocking(listen_fd);
 
     // 创建 epoll
-    int epfd = epoll_create1(0);
-    if (epfd < 0)
+    int epoll_fd = epoll_create1(0);
+    if (epoll_fd < 0)
     {
         perror("epoll_create1");
         exit(1);
@@ -61,20 +61,20 @@ int main()
     // 注册监听 socket
     ev.events = EPOLLIN;
     ev.data.fd = listen_fd;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &ev);
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_fd, &ev);
 
     printf("epoll server listening on port %d...\n", PORT);
 
     while (1)
     {
-        int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
-        if (nfds < 0)
+        int n_fds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+        if (n_fds < 0)
         {
             perror("epoll_wait");
             break;
         }
 
-        for (int i = 0; i < nfds; i++)
+        for (int i = 0; i < n_fds; i++)
         {
             int fd = events[i].data.fd;
 
@@ -103,7 +103,7 @@ int main()
 
                     ev.events = EPOLLIN;
                     ev.data.fd = conn_fd;
-                    epoll_ctl(epfd, EPOLL_CTL_ADD, conn_fd, &ev);
+                    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, conn_fd, &ev);
                 }
             }
             // 客户端数据
@@ -123,7 +123,7 @@ int main()
                     {
                         printf("Client disconnected\n");
                         close(fd);
-                        epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
                         break;
                     }
                     else
@@ -132,7 +132,7 @@ int main()
                             break;
                         perror("read");
                         close(fd);
-                        epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
                         break;
                     }
                 }
@@ -141,6 +141,6 @@ int main()
     }
 
     close(listen_fd);
-    close(epfd);
+    close(epoll_fd);
     return 0;
 }

@@ -132,6 +132,7 @@ typedef struct tcp_t
         int keep_count; // keep-alive探测次数
         int keep_retry; // keep-alive重试次数
         net_timer_t keep_timer; // keep-alive计时器
+        int backlog; // 监听套接字的连接请求队列长度
     } conn;
 
     struct

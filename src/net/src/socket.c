@@ -140,14 +140,51 @@ int x_bind(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)
     return 0;
 }
 
-int x_listen(int fd, int backlog)
+int x_listen(const int fd, const int backlog)
 {
-    return 0;
+    sock_req_t req;
+    req.fd = fd;
+    req.wait = NULL;
+    req.wait_timeout = 0;
+    req.listen.backlog = backlog;
+    net_err_t err = exmsg_func_exec(socket_listen_req_in, &req);
+    if (err != NET_ERR_OK)
+    {
+        return -1;
+    }
+    return NET_ERR_OK;
 }
 
-int x_accept(int fd, struct x_sockaddr* addr, x_socklen_t* addrlen)
+int x_accept(const int fd, struct x_sockaddr* addr, x_socklen_t* addrlen)
 {
-    return -1;
+    if (fd < 0 || addr == NULL || addrlen == NULL || *addrlen != sizeof(struct x_sockaddr))
+    {
+        return -1;
+    }
+    while (true)
+    {
+        sock_req_t req;
+        req.fd = fd;
+        req.wait = NULL;
+        req.wait_timeout = 0;
+        req.accept.addr = addr;
+        req.accept.addrlen = addrlen;
+        req.accept.client_fd = -1;
+        net_err_t err = exmsg_func_exec(socket_accept_req_in, &req);
+        if (err < NET_ERR_OK)
+        {
+            dbug_error(DBG_MOD_SOCKET, "socket_accept_req_in accept failed");
+            return -1;
+        }
+        if (req.accept.client_fd >= 0)
+        {
+            return req.accept.client_fd;
+        }
+        if (req.wait && err == NET_ERR_NEED_WAIT)
+        {
+            sock_wait_enter(req.wait, req.wait_timeout);
+        }
+    }
 }
 
 int x_connect(const int fd, struct x_sockaddr* addr, const x_socklen_t addrlen)

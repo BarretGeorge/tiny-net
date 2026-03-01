@@ -119,4 +119,7 @@
 // keep-alive探测次数
 #define TCP_KEEP_COUNT 9
 
+// TCP监听套接字的最大等待连接数量
+#define TCP_BACKLOG_MAX 128
+
 #endif //TINY_NET_NET_CFG_H

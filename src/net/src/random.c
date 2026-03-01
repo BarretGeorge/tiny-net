@@ -2,9 +2,9 @@
 
 static uint64_t s[4];
 
-static uint64_t rotl(uint64_t x, int k)
+static uint64_t rotl(const uint64_t x, const int k)
 {
-    return (x << k) | (x >> (64 - k));
+    return x << k | x >> (64 - k);
 }
 
 void seed_xoshiro(uint64_t seed)
@@ -14,9 +14,9 @@ void seed_xoshiro(uint64_t seed)
     {
         seed += 0x9e3779b97f4a7c15;
         uint64_t z = seed;
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
-        s[i] = z ^ (z >> 31);
+        z = (z ^ z >> 30) * 0xbf58476d1ce4e5b9;
+        z = (z ^ z >> 27) * 0x94d049bb133111eb;
+        s[i] = z ^ z >> 31;
     }
 }
 

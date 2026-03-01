@@ -19,14 +19,14 @@ int main()
 
     if (bind(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
-        perror("bind failed");
+        printf("bind failed\n");
         close(fd);
         return -1;
     }
 
     if (listen(fd, 5) < 0)
     {
-        perror("listen failed");
+        printf("listen failed\n");
         close(fd);
         return -1;
     }
@@ -34,7 +34,7 @@ int main()
     for (;;)
     {
         struct sockaddr_in client_addr;
-        int addr_len = 0;
+        int addr_len = sizeof(client_addr);
         int client_fd = accept(fd, (struct sockaddr*)&client_addr, &addr_len);
         if (client_fd < 0)
         {
@@ -47,7 +47,7 @@ int main()
         ssize_t recv_len = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
         if (recv_len < 0)
         {
-            perror("recv failed");
+            printf("recv failed\n");
             close(client_fd);
             continue;
         }
@@ -56,7 +56,7 @@ int main()
         printf("Received from client: %s\n", buffer);
         if (send(client_fd, buffer, recv_len, 0) < 0)
         {
-            perror("send failed");
+            printf("send failed\n");
         }
     }
     return 0;

@@ -25,6 +25,12 @@ net_err_t tcp_init(void)
     return NET_ERR_OK;
 }
 
+static bool ipaddr_is_local(const ipaddr_t* ip)
+{
+    route_entry_t* route = find_route_entry(ip);
+    return route != NULL && route->netif != NULL && ipaddr_is_equal(&route->netif->ipaddr, ip);
+}
+
 static net_err_t tcp_setopt(sock_t* sock, const int level, const int opt_name, const void* opt_val, const int opt_len)
 {
     if (level == SOL_SOCKET)
@@ -59,6 +65,84 @@ static net_err_t tcp_setopt(sock_t* sock, const int level, const int opt_name, c
     default:
         return NET_ERR_INVALID_PARAM;
     }
+    return NET_ERR_OK;
+}
+
+static net_err_t tcp_bind(sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen)
+{
+    tcp_t* tcp = (tcp_t*)sock;
+    if (tcp->state != TCP_STATE_CLOSE)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_bind: invalid state %s", tcp_state_name(tcp->state));
+        return NET_ERR_STATE;
+    }
+    if (sock->local_port != NET_PORT_EMPTY)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_bind: already has local port %d", sock->local_port);
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    const struct x_sockaddr_in* addr_in = (const struct x_sockaddr_in*)addr;
+    if (addr_in->sin_port == NET_PORT_EMPTY)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_bind: invalid local port");
+        return NET_ERR_INVALID_PARAM;
+    }
+
+    // 如果绑定了特定IP，检查IP是否合法
+    ipaddr_t bind_ip;
+    ipaddr_from_buf(&bind_ip, addr_in->sin_addr.addr_array);
+    if (!ipaddr_is_any(&bind_ip) && !ipaddr_is_local(&bind_ip))
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_bind: invalid local ip");
+        return NET_ERR_ADDR;
+    }
+
+    // 地址和端口是否已被占用
+    nlist_node_t* node;
+    nlist_for_each(node, &tcp_list)
+    {
+        tcp_t* temp = nlist_entry(node, tcp_t, base.node);
+        if (&temp->base == sock)
+        {
+            continue;
+        }
+        if (temp->base.remote_port != NET_PORT_EMPTY)
+        {
+            // 已经连接的 TCP 连接不受 bind 的限制
+            continue;
+        }
+        if (temp->base.local_port == addr_in->sin_port)
+        {
+            if (ipaddr_is_any(&bind_ip) || ipaddr_is_equal(&tcp->base.local_ip, &bind_ip))
+            {
+                dbug_error(DBG_MOD_TCP, "tcp_bind: local port %d already in use", addr_in->sin_port);
+                return NET_ERR_ADDR_IN_USE;
+            }
+        }
+    }
+
+    // 绑定地址
+    sock->local_port = x_ntohs(addr_in->sin_port);
+    ipaddr_from_buf(&sock->local_ip, addr_in->sin_addr.addr_array);
+    return NET_ERR_OK;
+}
+
+static net_err_t tcp_listen(sock_t* sock, const int backlog)
+{
+    tcp_t* tcp = (tcp_t*)sock;
+    if (tcp->state != TCP_STATE_CLOSE)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_listen: invalid state %s", tcp_state_name(tcp->state));
+        return NET_ERR_STATE;
+    }
+    tcp->conn.backlog = backlog > TCP_BACKLOG_MAX ? TCP_BACKLOG_MAX : backlog;
+    tcp_set_state(tcp, TCP_STATE_LISTEN);
+    return NET_ERR_OK;
+}
+
+static net_err_t tcp_accept(sock_t* sock, struct x_sockaddr* addr, x_socklen_t* addrlen, sock_t** new_sock)
+{
     return NET_ERR_OK;
 }
 
@@ -300,11 +384,11 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         .send = tcp_send,
         .recv = tcp_recv,
         .setopt = tcp_setopt,
-        //.sendto = udp_sendto,
-        // .recvfrom = udp_recvfrom,
         .close = tcp_close,
         .connect = tcp_connect,
-        // .bind = udp_bind,
+        .bind = tcp_bind,
+        .listen = tcp_listen,
+        .accept = tcp_accept,
     };
 
     net_err_t err = sock_init(&tcp->base, family, protocol, &tcp_ops);

@@ -50,6 +50,8 @@ typedef struct sock_ops_t
     net_err_t (*recv)(struct sock_t* sock, uint8_t* buf, size_t len, int flags, ssize_t* recv_size);
     net_err_t (*bind)(struct sock_t* sock, const struct x_sockaddr* addr, x_socklen_t addrlen);
     void (*destroy)(struct sock_t* sock);
+    net_err_t (*listen)(struct sock_t* sock, int backlog);
+    net_err_t (*accept)(struct sock_t* sock, struct x_sockaddr* addr, x_socklen_t* addrlen, struct sock_t** new_sock);
 } sock_ops_t;
 
 typedef struct sock_t
@@ -66,7 +68,7 @@ typedef struct sock_t
     int send_timeout;
     int send_buf_size;
     int recv_buf_size;
-    int nonblock;          // 非阻塞模式
+    int nonblock; // 非阻塞模式
 
     sock_wait_t* recv_wait;
     sock_wait_t* send_wait;
@@ -122,6 +124,18 @@ typedef struct sock_bind_t
     x_socklen_t addrlen;
 } sock_bind_t;
 
+typedef struct sock_listen_t
+{
+    int backlog;
+} sock_listen_t;
+
+typedef struct sock_accept_t
+{
+    struct x_sockaddr* addr;
+    x_socklen_t* addrlen;
+    int client_fd;
+} sock_accept_t;
+
 typedef struct sock_req_t
 {
     int fd;
@@ -135,6 +149,8 @@ typedef struct sock_req_t
         sock_opt_t opt;
         sock_conn_t conn;
         sock_bind_t bind;
+        sock_listen_t listen;
+        sock_accept_t accept;
     };
 } sock_req_t;
 
@@ -157,6 +173,10 @@ net_err_t socket_bind_req_in(const func_msg_t* msg);
 net_err_t socket_send_req_in(const func_msg_t* msg);
 
 net_err_t socket_recv_req_in(const func_msg_t* msg);
+
+net_err_t socket_listen_req_in(const func_msg_t* msg);
+
+net_err_t socket_accept_req_in(const func_msg_t* msg);
 
 net_err_t sock_init(sock_t* sock, int family, int protocol, const sock_ops_t* ops);
 
