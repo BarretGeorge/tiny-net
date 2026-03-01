@@ -26,6 +26,16 @@ int main()
         return -1;
     }
 
+    // 设置keepalive选项
+    int opt_val = 1;
+    setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &opt_val, sizeof(opt_val));
+    opt_val = 5; // 5秒空闲超时
+    setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &opt_val, sizeof(opt_val));
+    opt_val = 5; // 5秒探测间隔
+    setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &opt_val, sizeof(opt_val));
+    opt_val = 3; // 3次探测失败后断开
+    setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &opt_val, sizeof(opt_val));
+
     char buffer[4096];
     for (int i = 0; i < sizeof(buffer); i++)
     {

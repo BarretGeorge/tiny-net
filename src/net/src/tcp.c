@@ -25,6 +25,40 @@ net_err_t tcp_init(void)
     return NET_ERR_OK;
 }
 
+static net_err_t tcp_setopt(sock_t* sock, const int level, const int opt_name, const void* opt_val, const int opt_len)
+{
+    if (level == SOL_SOCKET)
+    {
+        if (opt_name == SO_KEEPALIVE)
+        {
+            tcp_t* tcp = (tcp_t*)sock;
+            tcp->flags.keep_alive = *(const int*)opt_val != 0;
+            return NET_ERR_OK;
+        }
+        return sock_setopt(sock, level, opt_name, opt_val, opt_len);
+    }
+    if (opt_len != sizeof(int))
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    tcp_t* tcp = (tcp_t*)sock;
+    switch (opt_name)
+    {
+    case TCP_KEEPIDLE:
+        tcp->conn.keep_idle = *(const int*)opt_val;
+        break;
+    case TCP_KEEPINTVL:
+        tcp->conn.keep_interval = *(const int*)opt_val;
+        break;
+    case TCP_KEEPCNT:
+        tcp->conn.keep_count = *(const int*)opt_val;
+        break;
+    default:
+        return NET_ERR_INVALID_PARAM;
+    }
+    return NET_ERR_OK;
+}
+
 static uint16_t tcp_alloc_port()
 {
     for (uint16_t port = NET_PORT_DYN_START; port <= NET_PORT_DYN_END; ++port)
@@ -255,13 +289,16 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
 
     plat_memset(tcp, 0, sizeof(tcp_t));
     tcp_set_state(tcp, TCP_STATE_CLOSE);
+    tcp->conn.keep_idle = TCP_KEEP_IDLE;
+    tcp->conn.keep_interval = TCP_KEEP_INTERVAL;
+    tcp->conn.keep_count = TCP_KEEP_COUNT;
 
     static const sock_ops_t tcp_ops = {
         .send = tcp_send,
         .recv = tcp_recv,
+        .setopt = tcp_setopt,
         //.sendto = udp_sendto,
         // .recvfrom = udp_recvfrom,
-        // .setopt = sock_setopt,
         .close = tcp_close,
         .connect = tcp_connect,
         // .bind = udp_bind,

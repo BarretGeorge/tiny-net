@@ -110,4 +110,13 @@
 // TCP默认最大报文段长度
 #define TCP_DEFAULT_MSS 536
 
+// keep-alive空闲时间，单位秒
+#define TCP_KEEP_IDLE 7200
+
+// keep-alive探测间隔，单位秒
+#define TCP_KEEP_INTERVAL 75
+
+// keep-alive探测次数
+#define TCP_KEEP_COUNT 9
+
 #endif //TINY_NET_NET_CFG_H

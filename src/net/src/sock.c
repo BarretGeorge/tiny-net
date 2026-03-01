@@ -164,15 +164,6 @@ net_err_t socket_setsockopt_req_in(const func_msg_t* msg)
     {
         return NET_ERR_INVALID_PARAM;
     }
-    // switch (req->opt.opt_name)
-    // {
-    // case SO_RCVTIMEO:
-    //     break;
-    // case SO_SNDTIMEO:
-    //     break;
-    // default:
-    //     return NET_ERR_OPTION;
-    // }
     return s->sock->ops->setopt(s->sock, req->opt.level, req->opt.opt_name, req->opt.opt_val, req->opt.opt_len);
 }
 

@@ -3,6 +3,7 @@
 
 #include "sock.h"
 #include "tcp_buf.h"
+#include "timer.h"
 
 typedef enum tcp_option_kind_t
 {
@@ -120,11 +121,17 @@ typedef struct tcp_t
         uint32_t fin_out : 1; // 是否发送过FIN报文
         uint32_t irs_valid : 1; // 是否收到过SYN回复报文
         uint32_t fin_in : 1; // 是否收到过FIN报文
+        uint32_t keep_alive : 1; // 是否启用keep-alive
     } flags;
 
     struct
     {
         sock_wait_t wait;
+        int keep_idle; // keep-alive空闲时间，单位秒
+        int keep_interval; // keep-alive探测间隔，单位秒
+        int keep_count; // keep-alive探测次数
+        int keep_retry; // keep-alive重试次数
+        net_timer_t keep_timer; // keep-alive计时器
     } conn;
 
     struct
