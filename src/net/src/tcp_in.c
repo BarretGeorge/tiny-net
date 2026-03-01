@@ -15,6 +15,30 @@ static void tcp_seg_init(tcp_seg_t* seg, const ipaddr_t* remote_ip, const ipaddr
     seg->seq_len = seg->data_len + seg->header->f_syn + seg->header->f_fin;
 }
 
+static bool tcp_seq_acceptable(const tcp_t* tcp, const tcp_seg_t* seg)
+{
+    int rcv_wnd = tcp_recv_window_size(tcp);
+    if (seg->data_len == 0)
+    {
+        if (rcv_wnd == 0)
+        {
+            return seg->seq == tcp->recv.next_seq;
+        }
+        return TCP_SEQ_LE(tcp->recv.next_seq, seg->seq) &&
+            TCP_SEQ_LT(seg->seq, tcp->recv.next_seq + rcv_wnd);
+    }
+    if (rcv_wnd == 0)
+    {
+        return false;
+    }
+    int v = TCP_SEQ_LE(tcp->recv.next_seq, seg->seq) &&
+        TCP_SEQ_LT(seg->seq, tcp->recv.next_seq + rcv_wnd);
+    uint32_t size_last = seg->seq + seg->seq_len - 1;
+    v |= TCP_SEQ_LE(tcp->recv.next_seq, size_last) &&
+        TCP_SEQ_LT(size_last, tcp->recv.next_seq + rcv_wnd);
+    return v;
+}
+
 net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_ip)
 {
     static const tcp_state_proc_t proc_table[] = {
@@ -94,12 +118,24 @@ net_err_t tcp_input(pktbuf_t* buf, const ipaddr_t* src_ip, const ipaddr_t* dest_
         return NET_ERR_SIZE;
     }
 
+    if (tcp->state != TCP_STATE_CLOSE && tcp->state != TCP_STATE_SYN_SENT &&
+        tcp->state != TCP_STATE_LISTEN)
+    {
+        if (tcp_seq_acceptable(tcp, &seg))
+        {
+            dbug_error(DBG_MOD_TCP, "tcp_input: unacceptable seq, recv_next=%u, seg_seq=%u, seg_len=%u",
+                       tcp->recv.next_seq, seg.seq, seg.seq_len);
+            goto seg_drop;
+        }
+    }
+
     err = proc_table[tcp->state](tcp, &seg);
     if (err != NET_ERR_OK)
     {
         dbug_error(DBG_MOD_TCP, "tcp_input: state proc failed, err=%d", err);
         return err;
     }
+seg_drop:
     pktbuf_free(buf);
     return NET_ERR_OK;
 }

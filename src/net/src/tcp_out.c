@@ -180,9 +180,20 @@ net_err_t tcp_send_syn(tcp_t* tcp)
     return NET_ERR_OK;
 }
 
-net_err_t tcp_ack_process(tcp_t* tcp, tcp_seg_t* seg)
+net_err_t tcp_ack_process(tcp_t* tcp, const tcp_seg_t* seg)
 {
     tcp_header_t* header = seg->header;
+
+    if (TCP_SEQ_LE(header->ack_num, tcp->send.un_ack_seq))
+    {
+        return NET_ERR_OK; // ACK号没有超过最后一个未确认的序列号，说明没有新的ACK确认，不需要处理
+    }
+    if (TCP_SEQ_LT(tcp->send.next_seq, header->ack_num))
+    {
+        dbug_warn(DBG_MOD_TCP, "tcp_ack_process: invalid ACK number %u, un_ack_seq=%u, next_seq=%u",
+                  header->ack_num, tcp->send.un_ack_seq, tcp->send.next_seq);
+        return NET_ERR_FRAME; // ACK号超过了下一个要发送的序列号，说明ACK号无效
+    }
 
     // 如果之前发送了SYN报文，并且收到了对方的ACK报文，说明SYN报文已经被确认了，可以将未确认的序列号加1，并清除SYN标志
     if (tcp->flags.syn_out)
