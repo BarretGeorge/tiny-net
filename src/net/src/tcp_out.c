@@ -262,3 +262,49 @@ int tcp_write_send_buf(tcp_t* tcp, const uint8_t* buf, const size_t len)
     tcp_buf_write_send(&tcp->send.buf, buf, write_len);
     return write_len;
 }
+
+net_err_t tcp_send_keep_alive(const tcp_t* tcp)
+{
+    pktbuf_t* buf = pktbuf_alloc(sizeof(tcp_header_t));
+    if (buf == NULL)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_send_reset: pktbuf_alloc failed");
+        return NET_ERR_MEM;
+    }
+    tcp_header_t* out = (tcp_header_t*)pktbuf_data(buf);
+    out->src_port = tcp->base.local_port;
+    out->dest_port = tcp->base.remote_port;
+    out->seq_num = tcp->send.next_seq - 1;
+    out->ack_num = tcp->recv.next_seq;
+    out->flags = 0;
+    out->f_ack = 1;
+    out->window_size = tcp_recv_window_size(tcp);
+    out->checksum = 0;
+    out->urgent_ptr = 0;
+    tcp_set_header_size(out, sizeof(tcp_header_t));
+    return send_out(out, buf, &tcp->base.remote_ip, &tcp->base.local_ip);
+}
+
+
+net_err_t tcp_send_reset_with_tcp(const tcp_t* tcp)
+{
+    pktbuf_t* buf = pktbuf_alloc(sizeof(tcp_header_t));
+    if (buf == NULL)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_send_reset: pktbuf_alloc failed");
+        return NET_ERR_MEM;
+    }
+    tcp_header_t* out = (tcp_header_t*)pktbuf_data(buf);
+    out->src_port = tcp->base.local_port;
+    out->dest_port = tcp->base.remote_port;
+    out->seq_num = tcp->send.next_seq;
+    out->ack_num = tcp->recv.next_seq;
+    out->flags = 0;
+    out->f_rst = 1;
+    out->f_ack = 1;
+    out->window_size = tcp_recv_window_size(tcp);
+    out->checksum = 0;
+    out->urgent_ptr = 0;
+    tcp_set_header_size(out, sizeof(tcp_header_t));
+    return send_out(out, buf, &tcp->base.remote_ip, &tcp->base.local_ip);
+}

@@ -457,11 +457,6 @@ int tcp_recv_window_size(const tcp_t* tcp)
     return tcp_buf_available(&tcp->recv.buf);
 }
 
-static net_err_t tcp_send_keep_alive(tcp_t* tcp)
-{
-    return NET_ERR_OK;
-}
-
 static void tcp_keep_alive_timeout(net_timer_t* timer, void* arg)
 {
     tcp_t* tcp = arg;
@@ -483,6 +478,7 @@ static void tcp_keep_alive_timeout(net_timer_t* timer, void* arg)
     {
         // 超过最大重试次数，认为连接已断开
         dbug_warn(DBG_MOD_TCP, "tcp_keep_alive_timeout: keep-alive retry count exceeded, closing connection");
+        tcp_send_reset_with_tcp(tcp);
         tcp_abort(tcp, NET_ERR_TIMEOUT);
     }
 }
