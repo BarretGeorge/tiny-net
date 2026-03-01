@@ -143,6 +143,35 @@ static net_err_t tcp_listen(sock_t* sock, const int backlog)
 
 static net_err_t tcp_accept(sock_t* sock, struct x_sockaddr* addr, x_socklen_t* addrlen, sock_t** new_sock)
 {
+    tcp_t* tcp = (tcp_t*)sock;
+    if (tcp->state != TCP_STATE_LISTEN)
+    {
+        dbug_error(DBG_MOD_TCP, "tcp_accept: invalid state %s", tcp_state_name(tcp->state));
+        return NET_ERR_STATE;
+    }
+
+    nlist_node_t* node;
+    nlist_for_each(node, &tcp_list)
+    {
+        tcp_t* temp = nlist_entry(node, tcp_t, base.node);
+        // 找到一个符合条件的连接，返回给应用层
+        if (temp->state == TCP_STATE_ESTABLISHED && temp->parent == tcp && temp->flags.inactive)
+        {
+            plat_memset(addr, 0, sizeof(*addrlen));
+            struct x_sockaddr_in* addr_in = (struct x_sockaddr_in*)addr;
+            addr_in->sin_family = AF_INET;
+            ipaddr_to_buf(&temp->base.remote_ip, addr_in->sin_addr.addr_array);
+            addr_in->sin_port = x_htons(temp->base.remote_port);
+            *addrlen = sizeof(struct x_sockaddr_in);
+            if (new_sock)
+            {
+                *new_sock = &temp->base;
+            }
+            temp->flags.inactive = 0; // 标记为活跃连接
+            return NET_ERR_OK;
+        }
+    }
+
     return NET_ERR_NEED_WAIT;
 }
 
@@ -599,4 +628,54 @@ void tcp_keep_alive_reset(tcp_t* tcp)
 void tcp_kill_all_timer(const tcp_t* tcp)
 {
     net_timer_remove(&tcp->conn.keep_timer);
+}
+
+bool tcp_backlog_full(const tcp_t* tcp)
+{
+    int count = 0;
+    nlist_node_t* node;
+    nlist_for_each(node, &tcp_list)
+    {
+        tcp_t* temp = nlist_entry(node, tcp_t, base.node);
+        if (temp->parent == tcp && temp->flags.inactive && temp->state == TCP_STATE_SYN_RECEIVED)
+        {
+            ++count;
+        }
+    }
+    return count >= tcp->conn.backlog;
+}
+
+tcp_t* tcp_create_child(tcp_t* parent, const tcp_seg_t* seg)
+{
+    tcp_t* child = tcp_alloc(false, parent->base.family, parent->base.protocol);
+    if (child == NULL)
+    {
+        return NULL;
+    }
+
+    plat_memset(child, 0, sizeof(tcp_t));
+
+    tcp_init_connect(child);
+
+    tcp_set_state(child, TCP_STATE_SYN_RECEIVED);
+    child->parent = parent;
+
+    // 继承父连接的本地IP和端口
+    ipaddr_copy(&child->base.local_ip, &seg->local_ip);
+    child->base.local_port = seg->header->dest_port;
+
+    // 设置远程IP和端口
+    ipaddr_copy(&child->base.remote_ip, &seg->remote_ip);
+    child->base.remote_port = seg->header->src_port;
+
+    child->flags.irs_valid = 1;
+    child->flags.inactive = 1;
+
+    child->recv.isn = seg->seq;
+    child->recv.next_seq = seg->seq + 1;
+
+    tcp_read_options(child, seg->header);
+
+    tcp_insert(child);
+    return child;
 }

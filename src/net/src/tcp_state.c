@@ -41,7 +41,40 @@ net_err_t tcp_close_in(tcp_t* tcp, tcp_seg_t* seg)
 
 net_err_t tcp_listen_in(tcp_t* tcp, tcp_seg_t* seg)
 {
-    return NET_ERR_OK;
+    tcp_header_t* header = seg->header;
+    if (header->f_rst) // 如果是RST报文，直接忽略
+    {
+        return NET_ERR_OK;
+    }
+
+    // 如果是ACK报文，说明对方在发送数据，但我们处于监听状态，回复RST报文
+    if (header->f_ack)
+    {
+        return tcp_send_reset(seg);
+    }
+
+    // 是否是SYN报文，进入SYN_RECEIVED状态并回复ACK+SYN
+    if (header->f_syn)
+    {
+        // 是否超过了连接请求队列长度
+        if (tcp_backlog_full(tcp))
+        {
+            dbug_warn(DBG_MOD_TCP, "TCP listen backlog full");
+            return NET_ERR_FULL;
+        }
+
+        // 创建一个新的TCP连接来处理这个SYN报文
+        tcp_t* new_tcp = tcp_create_child(tcp, seg);
+        if (new_tcp == NULL)
+        {
+            dbug_error(DBG_MOD_TCP, "Failed to tcp_create_child new TCP connection for SYN");
+            return NET_ERR_MEM;
+        }
+        tcp_send_syn(new_tcp);
+        tcp_set_state(new_tcp, TCP_STATE_SYN_RECEIVED);
+        return NET_ERR_OK;
+    }
+    return NET_ERR_STATE;
 }
 
 net_err_t tcp_syn_sent_in(tcp_t* tcp, tcp_seg_t* seg)

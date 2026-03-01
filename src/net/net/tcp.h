@@ -111,6 +111,8 @@ typedef struct tcp_t
 {
     sock_t base;
 
+    struct tcp_t *parent; // 父连接，监听套接字的tcp_t指针
+
     tcp_state_t state; // TCP连接状态
 
     int mss; // 最大报文段长度
@@ -122,6 +124,7 @@ typedef struct tcp_t
         uint32_t irs_valid : 1; // 是否收到过SYN回复报文
         uint32_t fin_in : 1; // 是否收到过FIN报文
         uint32_t keep_alive : 1; // 是否启用keep-alive
+        uint32_t inactive : 1; // 是否处于非活动状态
     } flags;
 
     struct
@@ -176,6 +179,10 @@ void tcp_keep_alive_start(tcp_t* tcp, bool enable);
 void tcp_keep_alive_reset(tcp_t* tcp);
 
 void tcp_kill_all_timer(const tcp_t* tcp);
+
+bool tcp_backlog_full(const tcp_t* tcp);
+
+tcp_t* tcp_create_child(tcp_t* parent, const tcp_seg_t* seg);
 
 #define TCP_SEQ_LE(a, b)        ((int32_t)(a) - (int32_t)(b) <= 0)
 #define TCP_SEQ_LT(a, b)        ((int32_t)(a) - (int32_t)(b) < 0)
