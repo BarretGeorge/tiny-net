@@ -143,7 +143,7 @@ static net_err_t tcp_listen(sock_t* sock, const int backlog)
 
 static net_err_t tcp_accept(sock_t* sock, struct x_sockaddr* addr, x_socklen_t* addrlen, sock_t** new_sock)
 {
-    return NET_ERR_OK;
+    return NET_ERR_NEED_WAIT;
 }
 
 static uint16_t tcp_alloc_port()

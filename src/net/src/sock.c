@@ -297,26 +297,33 @@ net_err_t socket_accept_req_in(const func_msg_t* msg)
     }
 
     sock_accept_t* accept = &req->accept;
-    sock_t* new_sock = NULL;
+    sock_t* client = NULL;
     if (s->sock->ops->accept == NULL)
     {
         return NET_ERR_UNIMPLEMENTED;
     }
-    net_err_t err = s->sock->ops->accept(s->sock, accept->addr, accept->addrlen, &new_sock);
-
-    if (err == NET_ERR_OK && new_sock)
+    net_err_t err = s->sock->ops->accept(s->sock, accept->addr, accept->addrlen, &client);
+    if (err < NET_ERR_OK)
     {
-        x_socket_t* new_s = socket_alloc();
-        if (new_s == NULL)
+        dbug_error(DBG_MOD_SOCK, "socket accept failed, err=%d", err);
+    }
+    else if (err == NET_ERR_NEED_WAIT && s->sock->conn_wait)
+    {
+        sock_wait_add(s->sock->conn_wait, s->sock->recv_timeout, req);
+    }
+    else if (err == NET_ERR_OK && client)
+    {
+        x_socket_t* sock = socket_alloc();
+        if (sock == NULL)
         {
             if (s->sock->ops->close)
             {
-                s->sock->ops->close(new_sock);
+                s->sock->ops->close(client);
             }
             return NET_ERR_MEM;
         }
-        new_s->sock = new_sock;
-        accept->client_fd = socket_get_fd(new_s);
+        sock->sock = client;
+        accept->client_fd = socket_get_fd(sock);
     }
     return err;
 }
