@@ -382,6 +382,7 @@ static tcp_t* tcp_get_free(const bool wait)
 tcp_t* tcp_find(const ipaddr_t* local_ip, const uint16_t local_port, const ipaddr_t* remote_ip,
                 const uint16_t remote_port)
 {
+    tcp_t* match_tcp = NULL;
     nlist_node_t* node;
     nlist_for_each(node, &tcp_list)
     {
@@ -393,8 +394,21 @@ tcp_t* tcp_find(const ipaddr_t* local_ip, const uint16_t local_port, const ipadd
         {
             return tcp;
         }
+
+        if (tcp->state == TCP_STATE_LISTEN && tcp->base.local_port == local_port)
+        {
+            // 监听状态只匹配本地端口和IP
+            if (ipaddr_is_equal(&tcp->base.local_ip, local_ip))
+            {
+                return tcp;
+            }
+            if (ipaddr_is_any(&tcp->base.local_ip))
+            {
+                match_tcp = tcp; // 记录一个通配的监听连接，优先返回完全匹配的连接
+            }
+        }
     }
-    return NULL;
+    return match_tcp;
 }
 
 static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)

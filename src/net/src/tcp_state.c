@@ -111,7 +111,8 @@ net_err_t tcp_syn_sent_in(tcp_t* tcp, tcp_seg_t* seg)
             tcp_ack_process(tcp, seg);
         }
 
-        if (header->ack_num)
+        // if (tcp->send.un_ack_seq - tcp->send.isn > 0)
+        if (TCP_SEQ_LT(tcp->send.isn, tcp->send.un_ack_seq))
         {
             tcp_send_ack(tcp, seg);
             tcp_set_state(tcp, TCP_STATE_ESTABLISHED);
@@ -129,6 +130,37 @@ net_err_t tcp_syn_sent_in(tcp_t* tcp, tcp_seg_t* seg)
 
 net_err_t tcp_syn_received_in(tcp_t* tcp, tcp_seg_t* seg)
 {
+    tcp_header_t* header = seg->header;
+    if (header->f_rst) // 是否是rest报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received RST in SYN_RECEIVED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    if (header->f_syn) // 重复收到syn报文
+    {
+        dbug_error(DBG_MOD_TCP, "Received duplicate SYN in SYN_RECEIVED state");
+        return tcp_abort(tcp, NET_ERR_REST);
+    }
+
+    if (tcp_ack_process(tcp, seg) != NET_ERR_OK) // 处理ACK报文
+    {
+        dbug_warn(DBG_MOD_TCP, "ACK processing failed in SYN_RECEIVED state");
+        return tcp_abort(tcp, NET_ERR_FRAME);
+    }
+
+    if (header->f_fin) // 收到FIN报文
+    {
+        // 按RFC 793，应该转入 CLOSE_WAIT
+        dbug_error(DBG_MOD_TCP, "Received FIN in SYN_RECEIVED state");
+        return tcp_abort(tcp, NET_ERR_FRAME);
+    }
+
+    tcp_set_state(tcp, TCP_STATE_ESTABLISHED);
+    if (tcp->parent)
+    {
+        sock_wakeup(&tcp->parent->base, SOCK_WAIT_CONN, NET_ERR_OK);
+    }
     return NET_ERR_OK;
 }
 
