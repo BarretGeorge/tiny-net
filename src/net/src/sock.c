@@ -183,7 +183,7 @@ net_err_t socket_close_req_in(const func_msg_t* msg)
 
     if (err == NET_ERR_NEED_WAIT && s->sock->conn_wait)
     {
-        sock_wait_add(s->sock->conn_wait, s->sock->recv_timeout, req);
+        sock_wait_add(s->sock->conn_wait, NET_CLOSE_WAIT_TIMEOUT, req);
     }
     socket_free(s);
     return err;
@@ -326,6 +326,21 @@ net_err_t socket_accept_req_in(const func_msg_t* msg)
         accept->client_fd = socket_get_fd(sock);
     }
     return err;
+}
+
+net_err_t socket_destroy_req_in(const func_msg_t* msg)
+{
+    sock_req_t* req = msg->arg;
+    x_socket_t* s = socket_get(req->fd);
+    if (s == NULL)
+    {
+        return NET_ERR_INVALID_PARAM;
+    }
+    if (s->sock->ops->destroy)
+    {
+        s->sock->ops->destroy(s->sock);
+    }
+    return NET_ERR_OK;
 }
 
 net_err_t sock_init(sock_t* sock, const int family, const int protocol, const sock_ops_t* ops)

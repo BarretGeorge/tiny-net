@@ -178,6 +178,8 @@ net_err_t socket_listen_req_in(const func_msg_t* msg);
 
 net_err_t socket_accept_req_in(const func_msg_t* msg);
 
+net_err_t socket_destroy_req_in(const func_msg_t* msg);
+
 net_err_t sock_init(sock_t* sock, int family, int protocol, const sock_ops_t* ops);
 
 net_err_t sock_setopt(sock_t* sock, int level, int opt_name, const void* opt_val, int opt_len);

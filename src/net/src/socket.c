@@ -321,11 +321,14 @@ int x_close(const int fd)
     net_err_t err = exmsg_func_exec(socket_close_req_in, &req);
     if (err < NET_ERR_OK)
     {
+        exmsg_func_exec(socket_destroy_req_in, &req);
         return -1;
     }
     if (req.wait && err == NET_ERR_NEED_WAIT)
     {
         sock_wait_enter(req.wait, req.wait_timeout);
+        // 销毁socket资源
+        exmsg_func_exec(socket_destroy_req_in, &req);
     }
     return 0;
 }

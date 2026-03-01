@@ -177,6 +177,16 @@ static net_err_t tcp_accept(sock_t* sock, struct x_sockaddr* addr, x_socklen_t* 
     return NET_ERR_NEED_WAIT;
 }
 
+static void tcp_destroy(sock_t* sock)
+{
+    tcp_t* tcp = (tcp_t*)sock;
+    if (tcp->state == TCP_STATE_TIME_WAIT)
+    {
+        return;
+    }
+    tcp_free(tcp);
+}
+
 static uint16_t tcp_alloc_port()
 {
     for (uint16_t port = NET_PORT_DYN_START; port <= NET_PORT_DYN_END; ++port)
@@ -382,33 +392,45 @@ static tcp_t* tcp_get_free(const bool wait)
 tcp_t* tcp_find(const ipaddr_t* local_ip, const uint16_t local_port, const ipaddr_t* remote_ip,
                 const uint16_t remote_port)
 {
-    tcp_t* match_tcp = NULL;
+    tcp_t* wild_match = NULL;
     nlist_node_t* node;
     nlist_for_each(node, &tcp_list)
     {
         tcp_t* tcp = nlist_entry(node, tcp_t, base.node);
-        if (tcp->base.local_port == local_port &&
-            (ipaddr_is_any(&tcp->base.local_ip) || ipaddr_is_equal(&tcp->base.local_ip, local_ip)) &&
-            (ipaddr_is_any(&tcp->base.remote_ip) || ipaddr_is_equal(&tcp->base.remote_ip, remote_ip)) &&
-            (tcp->base.remote_port == 0 || tcp->base.remote_port == remote_port))
+        if (tcp->base.local_port != local_port)
+        {
+            continue;
+        }
+
+        // local_ip 匹配
+        if (!ipaddr_is_any(&tcp->base.local_ip) && !ipaddr_is_equal(&tcp->base.local_ip, local_ip))
+        {
+            continue;
+        }
+
+        // remote_ip + remote_port 匹配
+        bool remote_ip_match = ipaddr_is_any(&tcp->base.remote_ip) || ipaddr_is_equal(&tcp->base.remote_ip, remote_ip);
+        bool remote_port_match = tcp->base.remote_port == 0 || tcp->base.remote_port == remote_port;
+        if (!remote_ip_match || !remote_port_match)
+        {
+            continue;
+        }
+
+        // 精确匹配
+        if (tcp->base.remote_port == remote_port &&
+            ipaddr_is_equal(&tcp->base.remote_ip, remote_ip) &&
+            ipaddr_is_equal(&tcp->base.local_ip, local_ip))
         {
             return tcp;
         }
 
-        if (tcp->state == TCP_STATE_LISTEN && tcp->base.local_port == local_port)
+        // 记录候选，继续查找更精确的
+        if (wild_match == NULL)
         {
-            // 监听状态只匹配本地端口和IP
-            if (ipaddr_is_equal(&tcp->base.local_ip, local_ip))
-            {
-                return tcp;
-            }
-            if (ipaddr_is_any(&tcp->base.local_ip))
-            {
-                match_tcp = tcp; // 记录一个通配的监听连接，优先返回完全匹配的连接
-            }
+            wild_match = tcp;
         }
     }
-    return match_tcp;
+    return wild_match;
 }
 
 static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
@@ -435,6 +457,7 @@ static tcp_t* tcp_alloc(const bool wait, const int family, const int protocol)
         .bind = tcp_bind,
         .listen = tcp_listen,
         .accept = tcp_accept,
+        .destroy = tcp_destroy,
     };
 
     net_err_t err = sock_init(&tcp->base, family, protocol, &tcp_ops);

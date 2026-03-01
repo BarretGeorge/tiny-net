@@ -160,6 +160,8 @@ typedef struct tcp_t
 
 net_err_t tcp_init(void);
 
+void tcp_free(tcp_t* tcp);
+
 tcp_t* tcp_find(const ipaddr_t* local_ip, uint16_t local_port, const ipaddr_t* remote_ip, uint16_t remote_port);
 
 sock_t* tcp_create(int family, int protocol);

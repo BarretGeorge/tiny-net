@@ -122,4 +122,7 @@
 // TCP监听套接字的最大等待连接数量
 #define TCP_BACKLOG_MAX 128
 
+// 关闭等待状态超时时间，单位秒
+#define NET_CLOSE_WAIT_TIMEOUT 10
+
 #endif //TINY_NET_NET_CFG_H

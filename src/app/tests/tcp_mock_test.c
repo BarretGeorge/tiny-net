@@ -16,9 +16,6 @@
 #include "dbug_module.h"
 #include "timer.h"
 
-// tcp_free 定义在 tcp.c 中但未在头文件中导出
-extern void tcp_free(tcp_t* tcp);
-
 /* ============================== 测试框架 ============================== */
 
 static int pass_count = 0;
