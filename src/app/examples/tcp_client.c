@@ -47,7 +47,7 @@ int main()
         ssize_t send_size = send(fd, buffer, sizeof(buffer) - 1, 0);
         if (send_size < 0)
         {
-            perror("send failed");
+            printf("send failed\n");
             close(fd);
             return -1;
         }

@@ -125,4 +125,7 @@
 // 关闭等待状态超时时间，单位秒
 #define NET_CLOSE_WAIT_TIMEOUT 10
 
+// TCP TIME-WAIT状态持续时间，单位秒（2MSL）
+#define TCP_TIMEOUT_MSL 30
+
 #endif //TINY_NET_NET_CFG_H
