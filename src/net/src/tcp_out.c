@@ -215,6 +215,11 @@ net_err_t tcp_ack_process(tcp_t* tcp, const tcp_seg_t* seg)
         {
             tcp->flags.fin_out = 0;
         }
+
+        // ACK确认后主动发送缓冲区中剩余未发送的数据，实现滑动窗口效果。
+        // 避免因唤醒信号时序问题（ACK到达时waiting=0导致信号丢弃）
+        // 而造成发送端永久阻塞。
+        tcp_transmit(tcp);
     }
     return NET_ERR_OK;
 }

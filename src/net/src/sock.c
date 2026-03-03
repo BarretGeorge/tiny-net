@@ -245,7 +245,17 @@ net_err_t socket_send_req_in(const func_msg_t* msg)
     {
         return NET_ERR_UNIMPLEMENTED;
     }
-    return s->sock->ops->send(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+    net_err_t err = s->sock->ops->send(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+    if (err == NET_ERR_NEED_WAIT && s->sock->send_wait)
+    {
+        sock_wait_add(s->sock->send_wait, s->sock->send_timeout, req);
+    }
+    if (err < NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_SOCK, "socket send failed, err=%d", err);
+        return err;
+    }
+    return NET_ERR_OK;
 }
 
 net_err_t socket_recv_req_in(const func_msg_t* msg)
@@ -264,7 +274,17 @@ net_err_t socket_recv_req_in(const func_msg_t* msg)
     {
         return NET_ERR_UNIMPLEMENTED;
     }
-    return s->sock->ops->recv(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+    net_err_t err = s->sock->ops->recv(s->sock, req->data.buf, req->data.len, req->data.flags, &req->data.transferred_len);
+    if (err == NET_ERR_NEED_WAIT && s->sock->recv_wait)
+    {
+        sock_wait_add(s->sock->recv_wait, s->sock->recv_timeout, req);
+    }
+    if (err < NET_ERR_OK)
+    {
+        dbug_error(DBG_MOD_SOCK, "socket recv failed, err=%d", err);
+        return err;
+    }
+    return NET_ERR_OK;
 }
 
 net_err_t socket_listen_req_in(const func_msg_t* msg)

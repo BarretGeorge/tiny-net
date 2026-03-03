@@ -339,6 +339,7 @@ static net_err_t tcp_send(sock_t* sock, const uint8_t* buf, const size_t len, co
             return NET_ERR_NEED_WAIT;
         }
         *sent_size = (ssize_t)send_n;
+        tcp_keep_alive_reset(tcp);
         tcp_transmit(tcp);
         return NET_ERR_OK;
     default:
@@ -614,7 +615,25 @@ static void tcp_keep_alive_timeout(net_timer_t* timer, void* arg)
 {
     tcp_t* tcp = arg;
 
-    if (++tcp->conn.keep_retry < tcp->conn.keep_count)
+    // 如果发送缓冲区有数据（未发送或已发送但未确认），先重传
+    // 这解决了因ACK唤醒时序问题导致发送端永久阻塞的问题：
+    // 当ACK到达时waiting=0（用户线程尚未进入等待），唤醒信号被丢弃，
+    // 之后用户线程进入等待但再无ACK可以触发唤醒，keepalive探测
+    // 的响应ack_num也无法推进un_ack_seq（因为服务端已确认过了），
+    // 导致发送端永久挂起。重传可强制服务端重新发送ACK，正确唤醒等待。
+    if (tcp_buf_count(&tcp->send.buf) > 0)
+    {
+        // 从最旧的未确认位置重传，确保服务端重新发送ACK
+        tcp->send.next_seq = tcp->send.un_ack_seq;
+        tcp_transmit(tcp);
+        net_timer_add(&tcp->conn.keep_timer, "tcp_keep_alive", tcp_keep_alive_timeout, tcp,
+                      tcp->conn.keep_interval * 1000, 0);
+        return;
+    }
+
+    // 修正探测次数off-by-one：用keep_retry++（后置）而不是++keep_retry（前置），
+    // 保证实际发送keep_count次探测后才关闭连接
+    if (tcp->conn.keep_retry++ < tcp->conn.keep_count)
     {
         // 启动新的keep-alive定时器
         net_timer_add(&tcp->conn.keep_timer, "tcp_keep_alive", tcp_keep_alive_timeout, tcp,
