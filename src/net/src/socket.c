@@ -277,6 +277,10 @@ ssize_t x_recv(const int fd, void* buf, const size_t len, const int flags)
         req.data.transferred_len = 0;
 
         net_err_t err = exmsg_func_exec(socket_recv_req_in, &req);
+        if (err == NET_ERR_CLOSE)
+        {
+            return 0; // 连接已关闭，返回0表示EOF
+        }
         if (err < NET_ERR_OK)
         {
             dbug_error(DBG_MOD_SOCKET, "socket_recv_req_in recvfrom failed");

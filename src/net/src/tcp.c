@@ -295,6 +295,21 @@ void tcp_free(tcp_t* tcp)
     mblock_free(&tcp_mblock, tcp);
 }
 
+static void tcp_clear_with_parent(const tcp_t* tcp)
+{
+    nlist_node_t* node;
+    nlist_for_each(node, &tcp_list)
+    {
+        tcp_t* temp = nlist_entry(node, tcp_t, base.node);
+        if (temp->parent == tcp)
+        {
+            temp->parent = NULL;
+            // tcp_abort(temp, NET_ERR_CLOSE);
+            // tcp_free(temp);
+        }
+    }
+}
+
 static net_err_t tcp_close(sock_t* sock)
 {
     tcp_t* tcp = (tcp_t*)sock;
@@ -305,6 +320,7 @@ static net_err_t tcp_close(sock_t* sock)
         return NET_ERR_OK;
     case TCP_STATE_SYN_SENT:
     case TCP_STATE_SYN_RECEIVED:
+        tcp_abort(tcp, NET_ERR_CLOSE);
         tcp_free(tcp);
         break;
     case TCP_STATE_CLOSE_WAIT:
@@ -316,7 +332,15 @@ static net_err_t tcp_close(sock_t* sock)
         tcp_set_state(tcp, TCP_STATE_FIN_WAIT_1);
         return NET_ERR_NEED_WAIT;
     case TCP_STATE_FIN_WAIT_1:
-
+    case TCP_STATE_FIN_WAIT_2:
+    case TCP_STATE_CLOSING:
+    case TCP_STATE_LAST_ACK:
+        dbug_error(DBG_MOD_TCP, "tcp_close: close in state %s", tcp_state_name(tcp->state));
+        break;
+    case TCP_STATE_LISTEN:
+        tcp_clear_with_parent(tcp);
+        tcp_abort(tcp, NET_ERR_CLOSE);
+        tcp_free(tcp);
     default:
         break;
     }
@@ -361,6 +385,10 @@ static net_err_t tcp_recv(sock_t* sock, uint8_t* buf, const size_t len, const in
     case TCP_STATE_FIN_WAIT_1:
     case TCP_STATE_FIN_WAIT_2:
     case TCP_STATE_CLOSING:
+        if (tcp_buf_available(&tcp->recv.buf) == 0)
+        {
+            return NET_ERR_CLOSE;
+        }
         need_wait = NET_ERR_OK;
     case TCP_STATE_CLOSE_WAIT:
     case TCP_STATE_ESTABLISHED:
@@ -384,6 +412,21 @@ static tcp_t* tcp_get_free(const bool wait)
     tcp_t* tcp = mblock_alloc(&tcp_mblock, wait ? 0 : -1);
     if (tcp == NULL)
     {
+        // 从time wait状态的连接中回收
+        nlist_node_t* node;
+        nlist_for_each(node, &tcp_list)
+        {
+            tcp_t* temp = nlist_entry(node, tcp_t, base.node);
+            if (temp->state == TCP_STATE_TIME_WAIT)
+            {
+                tcp_free(temp);
+                tcp = mblock_alloc(&tcp_mblock, wait ? 0 : -1);
+                if (tcp != NULL)
+                {
+                    return tcp;
+                }
+            }
+        }
         dbug_error(DBG_MOD_TCP, "tcp_get_free: no free tcp");
         return NULL;
     }

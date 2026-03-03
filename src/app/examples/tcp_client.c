@@ -10,18 +10,18 @@ int main()
     int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0)
     {
-        perror("socket creation failed");
+        printf("socket creation failed\n");
         return -1;
     }
 
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(80);
-    server_addr.sin_addr.s_addr = inet_addr("124.237.177.164");
+    server_addr.sin_addr.s_addr = inet_addr("110.242.74.102");
 
     if (connect(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
-        perror("connect failed");
+        printf("connect failed\n");
         close(fd);
         return -1;
     }
@@ -51,7 +51,7 @@ int main()
             close(fd);
             return -1;
         }
-        printf("发送消息到服务器完成，发送消息长度: %zd\n", send_size);
+        printf("发送消息到服务器完成，发送内容长度%ld \n", send_size);
     }
 
     ssize_t recv_size = recv(fd, buffer, sizeof(buffer) - 1, 0);

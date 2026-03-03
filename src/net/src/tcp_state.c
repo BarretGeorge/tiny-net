@@ -201,9 +201,20 @@ net_err_t tcp_established_in(tcp_t* tcp, tcp_seg_t* seg)
     return err;
 }
 
+static void tcp_time_wait_timeout(net_timer_t* timer, void* arg)
+{
+    tcp_t* tcp = arg;
+    dbug_info(DBG_MOD_TCP, "TCP TIME_WAIT timeout expired, closing connection");
+    tcp_free(tcp);
+}
+
 void tcp_time_wait(tcp_t* tcp)
 {
     tcp_set_state(tcp, TCP_STATE_TIME_WAIT);
+
+    tcp_kill_all_timer(tcp);
+    net_timer_add(&tcp->conn.keep_timer, "2msl timer", tcp_time_wait_timeout, tcp, 2 * TCP_TIMEOUT_MSL, 0);
+    sock_wakeup(&tcp->base, SOCK_WAIT_ALL, NET_ERR_CLOSE);
 }
 
 net_err_t tcp_fin_wait_1_in(tcp_t* tcp, tcp_seg_t* seg)

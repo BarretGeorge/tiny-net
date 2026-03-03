@@ -28,8 +28,6 @@ typedef struct sock_poll_t
 
 int x_poll(x_pollfd_t* fds, unsigned int nfds, int timeout);
 
-net_err_t socket_poll_req_in(const func_msg_t* msg);
-
 #define pollfd x_pollfd
 
 #define poll x_poll
